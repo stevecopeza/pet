@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Project, Task } from '../types';
 import { DataTable, Column } from './DataTable';
+import LogTimeModal from './LogTimeModal';
 
 interface ProjectDetailsProps {
   projectId: number;
@@ -16,6 +17,9 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectId, onBack }) =>
   const [name, setName] = useState('');
   const [estimatedHours, setEstimatedHours] = useState(1);
   const [addingTask, setAddingTask] = useState(false);
+
+  // Log Time State
+  const [selectedTaskForLog, setSelectedTaskForLog] = useState<Task | null>(null);
 
   const fetchProject = async () => {
     try {
@@ -80,6 +84,18 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectId, onBack }) =>
     { key: 'name', header: 'Task Name' },
     { key: 'estimatedHours', header: 'Est. Hours' },
     { key: 'completed', header: 'Status', render: (_, item) => <span>{item.completed ? 'Completed' : 'Pending'}</span> },
+    {
+      key: 'id',
+      header: 'Actions',
+      render: (_, item) => (
+        <button 
+          className="button button-small"
+          onClick={() => setSelectedTaskForLog(item)}
+        >
+          Log Time
+        </button>
+      )
+    }
   ];
 
   if (loading) return <div>Loading project details...</div>;
@@ -146,6 +162,19 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectId, onBack }) =>
           </div>
         </form>
       </div>
+
+      {selectedTaskForLog && (
+        <LogTimeModal
+          project={project}
+          task={selectedTaskForLog}
+          onSuccess={() => {
+            setSelectedTaskForLog(null);
+            alert('Time logged successfully!');
+            // Ideally we'd refresh project details if it showed used hours, but for now it's fine.
+          }}
+          onClose={() => setSelectedTaskForLog(null)}
+        />
+      )}
     </div>
   );
 };

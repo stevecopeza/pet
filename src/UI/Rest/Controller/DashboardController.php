@@ -7,6 +7,7 @@ namespace Pet\UI\Rest\Controller;
 use Pet\Domain\Delivery\Repository\ProjectRepository;
 use Pet\Domain\Commercial\Repository\QuoteRepository;
 use Pet\Domain\Activity\Repository\ActivityLogRepository;
+use Pet\Domain\Time\Repository\TimeEntryRepository;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -18,15 +19,18 @@ class DashboardController implements RestController
     private $projectRepository;
     private $quoteRepository;
     private $activityLogRepository;
+    private $timeEntryRepository;
 
     public function __construct(
         ProjectRepository $projectRepository,
         QuoteRepository $quoteRepository,
-        ActivityLogRepository $activityLogRepository
+        ActivityLogRepository $activityLogRepository,
+        TimeEntryRepository $timeEntryRepository
     ) {
         $this->projectRepository = $projectRepository;
         $this->quoteRepository = $quoteRepository;
         $this->activityLogRepository = $activityLogRepository;
+        $this->timeEntryRepository = $timeEntryRepository;
     }
 
     public function registerRoutes(): void
@@ -49,6 +53,16 @@ class DashboardController implements RestController
         $pendingQuotes = $this->quoteRepository->countPending();
         $activities = $this->activityLogRepository->findAll(5); // Get last 5 activities
 
+        // Calculate Revenue This Month
+        $startOfMonth = new \DateTimeImmutable('first day of this month 00:00:00');
+        $endOfMonth = new \DateTimeImmutable('last day of this month 23:59:59');
+        $revenueThisMonth = $this->quoteRepository->sumRevenue($startOfMonth, $endOfMonth);
+
+        // Calculate Utilization Rate (Budget Burn)
+        $totalSoldHours = $this->projectRepository->sumSoldHours();
+        $totalBillableHours = $this->timeEntryRepository->sumBillableHours();
+        $utilizationRate = $totalSoldHours > 0 ? round(($totalBillableHours / $totalSoldHours) * 100) : 0;
+
         $recentActivity = array_map(function ($log) {
             return [
                 'id' => $log->id(),
@@ -62,8 +76,8 @@ class DashboardController implements RestController
             'overview' => [
                 'activeProjects' => $activeProjects,
                 'pendingQuotes' => $pendingQuotes,
-                'utilizationRate' => 85, // Mocked for now
-                'revenueThisMonth' => 0, // Mocked for now
+                'utilizationRate' => $utilizationRate,
+                'revenueThisMonth' => $revenueThisMonth,
             ],
             'recentActivity' => $recentActivity,
         ];

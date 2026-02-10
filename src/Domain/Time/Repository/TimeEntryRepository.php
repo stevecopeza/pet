@@ -16,4 +16,6 @@ interface TimeEntryRepository
     public function findByEmployeeId(int $employeeId): array;
     /** @return TimeEntry[] */
     public function findByTaskId(int $taskId): array;
+
+    public function sumBillableHours(): float;
 }

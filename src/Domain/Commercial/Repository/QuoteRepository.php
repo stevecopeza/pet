@@ -23,4 +23,6 @@ interface QuoteRepository
     public function findAll(): array;
 
     public function countPending(): int;
+
+    public function sumRevenue(\DateTimeImmutable $start, \DateTimeImmutable $end): float;
 }

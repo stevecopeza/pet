@@ -100,6 +100,12 @@ class SqlProjectRepository implements ProjectRepository
         return (int) $this->wpdb->get_var($sql);
     }
 
+    public function sumSoldHours(): float
+    {
+        $sql = "SELECT SUM(sold_hours) FROM {$this->projectsTable}";
+        return (float) $this->wpdb->get_var($sql);
+    }
+
     private function saveTasks(int $projectId, array $tasks): void
     {
         foreach ($tasks as $task) {
@@ -138,12 +144,12 @@ class SqlProjectRepository implements ProjectRepository
             $row->name,
             (float)$row->sold_hours,
             $row->source_quote_id ? (int)$row->source_quote_id : null,
-            (int)$row->id,
             ProjectState::fromString($row->state),
-            $tasks,
+            (int)$row->id,
             $row->created_at ? new \DateTimeImmutable($row->created_at) : null,
             $row->updated_at ? new \DateTimeImmutable($row->updated_at) : null,
-            $row->archived_at ? new \DateTimeImmutable($row->archived_at) : null
+            $row->archived_at ? new \DateTimeImmutable($row->archived_at) : null,
+            $tasks
         );
     }
 

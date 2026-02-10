@@ -93,6 +93,13 @@ class SqlTimeEntryRepository implements TimeEntryRepository
         return array_map([$this, 'hydrate'], $results);
     }
 
+    public function sumBillableHours(): float
+    {
+        $query = "SELECT SUM(duration_minutes) FROM {$this->table} WHERE is_billable = 1";
+        $minutes = (int) $this->db->get_var($query);
+        return round($minutes / 60, 2);
+    }
+
     private function hydrate(object $row): TimeEntry
     {
         return new TimeEntry(

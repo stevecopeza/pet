@@ -92,10 +92,28 @@ class SqlQuoteRepository implements QuoteRepository
     {
         $sql = $this->wpdb->prepare(
             "SELECT COUNT(*) FROM {$this->quotesTable} WHERE state = %s",
-            QuoteState::DRAFT // Assuming Draft is what we count as "Pending" for the dashboard, or maybe Draft + Sent. Let's stick to Draft for now or update logic.
+            QuoteState::DRAFT
         );
         
         return (int) $this->wpdb->get_var($sql);
+    }
+
+    public function sumRevenue(\DateTimeImmutable $start, \DateTimeImmutable $end): float
+    {
+        // Sum total of lines for Accepted quotes updated within the range
+        $sql = $this->wpdb->prepare(
+            "SELECT SUM(l.total) 
+             FROM {$this->quotesTable} q
+             JOIN {$this->quoteLinesTable} l ON q.id = l.quote_id
+             WHERE q.state = %s
+             AND q.updated_at >= %s
+             AND q.updated_at <= %s",
+            QuoteState::ACCEPTED,
+            $start->format('Y-m-d H:i:s'),
+            $end->format('Y-m-d H:i:s')
+        );
+
+        return (float) $this->wpdb->get_var($sql);
     }
 
     private function saveLines(int $quoteId, array $lines): void

@@ -23,4 +23,6 @@ interface ProjectRepository
     public function findByCustomerId(int $customerId): array;
 
     public function countActive(): int;
+
+    public function sumSoldHours(): float;
 }
