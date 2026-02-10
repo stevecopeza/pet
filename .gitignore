@@ -1,0 +1,23 @@
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+playwright-report/
+test-results/
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Composer
+vendor/
+
+# WordPress
+assets/*.map
