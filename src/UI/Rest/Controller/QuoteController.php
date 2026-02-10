@@ -47,6 +47,14 @@ class QuoteController implements RestController
             ],
         ]);
 
+        register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/(?P<id>\d+)', [
+            [
+                'methods' => WP_REST_Server::READABLE,
+                'callback' => [$this, 'getQuote'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+        ]);
+
         register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/(?P<id>\d+)/lines', [
             [
                 'methods' => WP_REST_Server::CREATABLE,
@@ -67,25 +75,42 @@ class QuoteController implements RestController
         $quotes = $this->quoteRepository->findAll();
 
         $data = array_map(function ($quote) {
-            return [
-                'id' => $quote->id(),
-                'customerId' => $quote->customerId(),
-                'state' => $quote->state()->toString(),
-                'version' => $quote->version(),
-                'lines' => array_map(function ($line) {
-                    return [
-                        'id' => $line->id(),
-                        'description' => $line->description(),
-                        'quantity' => $line->quantity(),
-                        'unitPrice' => $line->unitPrice(),
-                        'total' => $line->total(),
-                        'group' => $line->lineGroupType(),
-                    ];
-                }, $quote->lines()),
-            ];
+            return $this->serializeQuote($quote);
         }, $quotes);
 
         return new WP_REST_Response($data, 200);
+    }
+
+    public function getQuote(WP_REST_Request $request): WP_REST_Response
+    {
+        $id = (int) $request->get_param('id');
+        $quote = $this->quoteRepository->findById($id);
+
+        if (!$quote) {
+            return new WP_REST_Response(['error' => 'Quote not found'], 404);
+        }
+
+        return new WP_REST_Response($this->serializeQuote($quote), 200);
+    }
+
+    private function serializeQuote($quote): array
+    {
+        return [
+            'id' => $quote->id(),
+            'customerId' => $quote->customerId(),
+            'state' => $quote->state()->toString(),
+            'version' => $quote->version(),
+            'lines' => array_map(function ($line) {
+                return [
+                    'id' => $line->id(),
+                    'description' => $line->description(),
+                    'quantity' => $line->quantity(),
+                    'unitPrice' => $line->unitPrice(),
+                    'total' => $line->total(),
+                    'group' => $line->lineGroupType(),
+                ];
+            }, $quote->lines()),
+        ];
     }
 
     public function createQuote(WP_REST_Request $request): WP_REST_Response

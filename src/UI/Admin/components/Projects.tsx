@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Project } from '../types';
 import { DataTable, Column } from './DataTable';
 import AddProjectForm from './AddProjectForm';
+import ProjectDetails from './ProjectDetails';
 
 const Projects = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
 
   const fetchProjects = async () => {
     try {
@@ -42,11 +44,50 @@ const Projects = () => {
 
   const columns: Column<Project>[] = [
     { key: 'id', header: 'ID' },
-    { key: 'name', header: 'Project Name', render: (_, item) => <strong>{item.name}</strong> },
+    { 
+      key: 'name', 
+      header: 'Project Name', 
+      render: (_, item) => (
+        <a 
+          href="#" 
+          onClick={(e) => { 
+            e.preventDefault(); 
+            setSelectedProjectId(item.id); 
+          }}
+          style={{ fontWeight: 'bold' }}
+        >
+          {item.name}
+        </a>
+      ) 
+    },
     { key: 'customerId', header: 'Customer ID' },
     { key: 'soldHours', header: 'Sold Hours' },
     { key: 'tasks', header: 'Tasks', render: (_, item) => <span>{item.tasks.length} tasks</span> },
+    {
+      key: 'id',
+      header: 'Actions',
+      render: (_, item) => (
+        <button 
+          className="button button-small"
+          onClick={() => setSelectedProjectId(item.id)}
+        >
+          Manage Tasks
+        </button>
+      )
+    }
   ];
+
+  if (selectedProjectId) {
+    return (
+      <ProjectDetails 
+        projectId={selectedProjectId} 
+        onBack={() => {
+          setSelectedProjectId(null);
+          fetchProjects(); // Refresh list when returning
+        }} 
+      />
+    );
+  }
 
   if (loading && !projects.length) return <div>Loading projects...</div>;
   if (error) return <div style={{ color: 'red' }}>Error: {error}</div>;

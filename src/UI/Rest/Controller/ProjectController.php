@@ -47,6 +47,14 @@ class ProjectController implements RestController
             ],
         ]);
 
+        register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/(?P<id>\d+)', [
+            [
+                'methods' => WP_REST_Server::READABLE,
+                'callback' => [$this, 'getProject'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+        ]);
+
         register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/(?P<id>\d+)/tasks', [
             [
                 'methods' => WP_REST_Server::CREATABLE,
@@ -72,23 +80,40 @@ class ProjectController implements RestController
         }
 
         $data = array_map(function ($project) {
-            return [
-                'id' => $project->id(),
-                'name' => $project->name(),
-                'customerId' => $project->customerId(),
-                'soldHours' => $project->soldHours(),
-                'tasks' => array_map(function ($task) {
-                    return [
-                        'id' => $task->id(),
-                        'name' => $task->name(),
-                        'estimatedHours' => $task->estimatedHours(),
-                        'completed' => $task->isCompleted(),
-                    ];
-                }, $project->tasks()),
-            ];
+            return $this->serializeProject($project);
         }, $projects);
 
         return new WP_REST_Response($data, 200);
+    }
+
+    public function getProject(WP_REST_Request $request): WP_REST_Response
+    {
+        $id = (int) $request->get_param('id');
+        $project = $this->projectRepository->findById($id);
+
+        if (!$project) {
+            return new WP_REST_Response(['error' => 'Project not found'], 404);
+        }
+
+        return new WP_REST_Response($this->serializeProject($project), 200);
+    }
+
+    private function serializeProject($project): array
+    {
+        return [
+            'id' => $project->id(),
+            'name' => $project->name(),
+            'customerId' => $project->customerId(),
+            'soldHours' => $project->soldHours(),
+            'tasks' => array_map(function ($task) {
+                return [
+                    'id' => $task->id(),
+                    'name' => $task->name(),
+                    'estimatedHours' => $task->estimatedHours(),
+                    'completed' => $task->isCompleted(),
+                ];
+            }, $project->tasks()),
+        ];
     }
 
     public function createProject(WP_REST_Request $request): WP_REST_Response
