@@ -22,12 +22,16 @@ class SqlCustomerRepository implements CustomerRepository
     {
         $data = [
             'name' => $customer->name(),
+            'legal_name' => $customer->legalName(),
             'contact_email' => $customer->contactEmail(),
+            'status' => $customer->status(),
+            'malleable_schema_version' => $customer->malleableSchemaVersion(),
+            'malleable_data' => !empty($customer->malleableData()) ? json_encode($customer->malleableData()) : null,
             'created_at' => $this->formatDate($customer->createdAt()),
             'archived_at' => $this->formatDate($customer->archivedAt()),
         ];
 
-        $format = ['%s', '%s', '%s', '%s'];
+        $format = ['%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s'];
 
         if ($customer->id()) {
             $this->wpdb->update(
@@ -71,6 +75,10 @@ class SqlCustomerRepository implements CustomerRepository
             $row->name,
             $row->contact_email,
             (int) $row->id,
+            isset($row->legal_name) ? $row->legal_name : null,
+            isset($row->status) ? $row->status : 'active',
+            isset($row->malleable_schema_version) ? (int) $row->malleable_schema_version : null,
+            isset($row->malleable_data) ? (json_decode($row->malleable_data, true) ?: []) : [],
             new \DateTimeImmutable($row->created_at),
             $row->archived_at ? new \DateTimeImmutable($row->archived_at) : null
         );

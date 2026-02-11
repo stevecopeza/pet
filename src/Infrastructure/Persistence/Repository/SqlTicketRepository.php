@@ -22,23 +22,26 @@ class SqlTicketRepository implements TicketRepository
         
         $data = [
             'customer_id' => $ticket->customerId(),
+            'site_id' => $ticket->siteId(),
+            'sla_id' => $ticket->slaId(),
             'subject' => $ticket->subject(),
             'description' => $ticket->description(),
             'status' => $ticket->status(),
             'priority' => $ticket->priority(),
+            'malleable_schema_version' => $ticket->malleableSchemaVersion(),
+            'malleable_data' => !empty($ticket->malleableData()) ? json_encode($ticket->malleableData()) : null,
             'created_at' => $ticket->createdAt()->format('Y-m-d H:i:s'),
+            'opened_at' => $ticket->openedAt() ? $ticket->openedAt()->format('Y-m-d H:i:s') : null,
+            'closed_at' => $ticket->closedAt() ? $ticket->closedAt()->format('Y-m-d H:i:s') : null,
             'resolved_at' => $ticket->resolvedAt() ? $ticket->resolvedAt()->format('Y-m-d H:i:s') : null,
         ];
 
-        $formats = ['%d', '%s', '%s', '%s', '%s', '%s', '%s'];
+        $formats = ['%d', '%d', '%d', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s'];
 
         if ($ticket->id()) {
             $this->wpdb->update($table, $data, ['id' => $ticket->id()], $formats, ['%d']);
         } else {
             $this->wpdb->insert($table, $data, $formats);
-            // We can't set the ID on the entity since it's immutable-ish and we don't have a setId method.
-            // But usually we'd want to return the new ID or update the entity.
-            // For now, adhering to void return.
         }
     }
 
@@ -70,6 +73,12 @@ class SqlTicketRepository implements TicketRepository
         return array_map([$this, 'hydrate'], $rows);
     }
 
+    public function delete(int $id): void
+    {
+        $table = $this->wpdb->prefix . 'pet_tickets';
+        $this->wpdb->delete($table, ['id' => $id], ['%d']);
+    }
+
     private function hydrate($row): Ticket
     {
         return new Ticket(
@@ -78,9 +87,15 @@ class SqlTicketRepository implements TicketRepository
             $row->description,
             $row->status,
             $row->priority,
+            isset($row->site_id) ? (int) $row->site_id : null,
+            isset($row->sla_id) ? (int) $row->sla_id : null,
             (int) $row->id,
+            isset($row->malleable_schema_version) ? (int) $row->malleable_schema_version : null,
+            isset($row->malleable_data) ? (json_decode($row->malleable_data, true) ?: []) : [],
             new \DateTimeImmutable($row->created_at),
-            $row->resolved_at ? new \DateTimeImmutable($row->resolved_at) : null
+            isset($row->opened_at) && $row->opened_at ? new \DateTimeImmutable($row->opened_at) : null,
+            isset($row->closed_at) && $row->closed_at ? new \DateTimeImmutable($row->closed_at) : null,
+            isset($row->resolved_at) && $row->resolved_at ? new \DateTimeImmutable($row->resolved_at) : null
         );
     }
 }

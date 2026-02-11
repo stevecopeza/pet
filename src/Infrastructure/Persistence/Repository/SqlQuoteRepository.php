@@ -28,12 +28,16 @@ class SqlQuoteRepository implements QuoteRepository
             'customer_id' => $quote->customerId(),
             'state' => $quote->state()->toString(),
             'version' => $quote->version(),
+            'total_value' => $quote->totalValue(),
+            'currency' => $quote->currency(),
+            'accepted_at' => $quote->acceptedAt() ? $quote->acceptedAt()->format('Y-m-d H:i:s') : null,
+            'malleable_data' => json_encode($quote->malleableData()),
             'created_at' => $this->formatDate($quote->createdAt()),
             'updated_at' => $this->formatDate($quote->updatedAt()),
             'archived_at' => $this->formatDate($quote->archivedAt()),
         ];
 
-        $format = ['%d', '%s', '%d', '%s', '%s', '%s'];
+        $format = ['%d', '%s', '%d', '%f', '%s', '%s', '%s', '%s', '%s', '%s'];
 
         if ($quote->id()) {
             $this->wpdb->update(
@@ -72,7 +76,7 @@ class SqlQuoteRepository implements QuoteRepository
     public function findByCustomerId(int $customerId): array
     {
         $sql = $this->wpdb->prepare(
-            "SELECT * FROM {$this->quotesTable} WHERE customer_id = %d ORDER BY created_at DESC",
+            "SELECT * FROM {$this->quotesTable} WHERE customer_id = %d AND (archived_at IS NULL OR archived_at = '') ORDER BY created_at DESC",
             $customerId
         );
         $results = $this->wpdb->get_results($sql);
@@ -82,10 +86,21 @@ class SqlQuoteRepository implements QuoteRepository
 
     public function findAll(): array
     {
-        $sql = "SELECT * FROM {$this->quotesTable} ORDER BY created_at DESC";
+        $sql = "SELECT * FROM {$this->quotesTable} WHERE (archived_at IS NULL OR archived_at = '') ORDER BY created_at DESC";
         $results = $this->wpdb->get_results($sql);
 
         return array_map([$this, 'hydrate'], $results);
+    }
+
+    public function delete(int $id): void
+    {
+        $this->wpdb->update(
+            $this->quotesTable,
+            ['archived_at' => current_time('mysql')],
+            ['id' => $id],
+            ['%s'],
+            ['%d']
+        );
     }
 
     public function countPending(): int
@@ -118,6 +133,15 @@ class SqlQuoteRepository implements QuoteRepository
 
     private function saveLines(int $quoteId, array $lines): void
     {
+        // 1. Get existing line IDs
+        $sql = $this->wpdb->prepare(
+            "SELECT id FROM {$this->quoteLinesTable} WHERE quote_id = %d",
+            $quoteId
+        );
+        $existingIds = $this->wpdb->get_col($sql);
+        $currentIds = [];
+
+        // 2. Save (Insert/Update) current lines
         foreach ($lines as $line) {
             $data = [
                 'quote_id' => $quoteId,
@@ -129,6 +153,7 @@ class SqlQuoteRepository implements QuoteRepository
             $format = ['%d', '%s', '%f', '%f', '%s'];
 
             if ($line->id()) {
+                $currentIds[] = $line->id();
                 $this->wpdb->update(
                     $this->quoteLinesTable,
                     $data,
@@ -144,6 +169,13 @@ class SqlQuoteRepository implements QuoteRepository
                 );
             }
         }
+
+        // 3. Delete removed lines
+        $toDelete = array_diff($existingIds, $currentIds);
+        if (!empty($toDelete)) {
+            $ids = implode(',', array_map('intval', $toDelete));
+            $this->wpdb->query("DELETE FROM {$this->quoteLinesTable} WHERE id IN ($ids)");
+        }
     }
 
     private function hydrate(object $row): Quote
@@ -154,11 +186,15 @@ class SqlQuoteRepository implements QuoteRepository
             (int)$row->customer_id,
             QuoteState::fromString($row->state),
             (int)$row->version,
+            isset($row->total_value) ? (float)$row->total_value : 0.00,
+            isset($row->currency) ? $row->currency : 'USD',
+            !empty($row->accepted_at) ? new \DateTimeImmutable($row->accepted_at) : null,
             (int)$row->id,
             $row->created_at ? new \DateTimeImmutable($row->created_at) : null,
             $row->updated_at ? new \DateTimeImmutable($row->updated_at) : null,
             $row->archived_at ? new \DateTimeImmutable($row->archived_at) : null,
-            $lines
+            $lines,
+            isset($row->malleable_data) ? json_decode($row->malleable_data, true) : []
         );
     }
 

@@ -8,6 +8,10 @@ use Pet\Application\Commercial\Command\AddQuoteLineCommand;
 use Pet\Application\Commercial\Command\AddQuoteLineHandler;
 use Pet\Application\Commercial\Command\CreateQuoteCommand;
 use Pet\Application\Commercial\Command\CreateQuoteHandler;
+use Pet\Application\Commercial\Command\UpdateQuoteCommand;
+use Pet\Application\Commercial\Command\UpdateQuoteHandler;
+use Pet\Application\Commercial\Command\ArchiveQuoteCommand;
+use Pet\Application\Commercial\Command\ArchiveQuoteHandler;
 use Pet\Domain\Commercial\Repository\QuoteRepository;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -20,16 +24,22 @@ class QuoteController implements RestController
 
     private QuoteRepository $quoteRepository;
     private CreateQuoteHandler $createQuoteHandler;
+    private UpdateQuoteHandler $updateQuoteHandler;
     private AddQuoteLineHandler $addQuoteLineHandler;
+    private ArchiveQuoteHandler $archiveQuoteHandler;
 
     public function __construct(
         QuoteRepository $quoteRepository,
         CreateQuoteHandler $createQuoteHandler,
-        AddQuoteLineHandler $addQuoteLineHandler
+        UpdateQuoteHandler $updateQuoteHandler,
+        AddQuoteLineHandler $addQuoteLineHandler,
+        ArchiveQuoteHandler $archiveQuoteHandler
     ) {
         $this->quoteRepository = $quoteRepository;
         $this->createQuoteHandler = $createQuoteHandler;
+        $this->updateQuoteHandler = $updateQuoteHandler;
         $this->addQuoteLineHandler = $addQuoteLineHandler;
+        $this->archiveQuoteHandler = $archiveQuoteHandler;
     }
 
     public function registerRoutes(): void
@@ -51,6 +61,16 @@ class QuoteController implements RestController
             [
                 'methods' => WP_REST_Server::READABLE,
                 'callback' => [$this, 'getQuote'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+            [
+                'methods' => WP_REST_Server::EDITABLE,
+                'callback' => [$this, 'updateQuote'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+            [
+                'methods' => WP_REST_Server::DELETABLE,
+                'callback' => [$this, 'archiveQuote'],
                 'permission_callback' => [$this, 'checkPermission'],
             ],
         ]);
@@ -100,6 +120,10 @@ class QuoteController implements RestController
             'customerId' => $quote->customerId(),
             'state' => $quote->state()->toString(),
             'version' => $quote->version(),
+            'totalValue' => $quote->totalValue(),
+            'currency' => $quote->currency(),
+            'acceptedAt' => $quote->acceptedAt() ? $quote->acceptedAt()->format(\DateTimeImmutable::ATOM) : null,
+            'malleableData' => $quote->malleableData(),
             'lines' => array_map(function ($line) {
                 return [
                     'id' => $line->id(),
@@ -119,12 +143,39 @@ class QuoteController implements RestController
         
         try {
             $command = new CreateQuoteCommand(
-                (int) $params['customerId']
+                (int) $params['customerId'],
+                (float) ($params['totalValue'] ?? 0.00),
+                (string) ($params['currency'] ?? 'USD'),
+                !empty($params['acceptedAt']) ? new \DateTimeImmutable($params['acceptedAt']) : null,
+                $params['malleableData'] ?? []
             );
 
             $this->createQuoteHandler->handle($command);
 
             return new WP_REST_Response(['message' => 'Quote created'], 201);
+        } catch (\Exception $e) {
+            return new WP_REST_Response(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    public function updateQuote(WP_REST_Request $request): WP_REST_Response
+    {
+        $id = (int) $request->get_param('id');
+        $params = $request->get_json_params();
+
+        try {
+            $command = new UpdateQuoteCommand(
+                $id,
+                (int) $params['customerId'],
+                (float) ($params['totalValue'] ?? 0.00),
+                (string) ($params['currency'] ?? 'USD'),
+                !empty($params['acceptedAt']) ? new \DateTimeImmutable($params['acceptedAt']) : null,
+                $params['malleableData'] ?? []
+            );
+
+            $this->updateQuoteHandler->handle($command);
+
+            return new WP_REST_Response(['message' => 'Quote updated'], 200);
         } catch (\Exception $e) {
             return new WP_REST_Response(['error' => $e->getMessage()], 400);
         }
@@ -147,6 +198,20 @@ class QuoteController implements RestController
             $this->addQuoteLineHandler->handle($command);
 
             return new WP_REST_Response(['message' => 'Line added'], 201);
+        } catch (\Exception $e) {
+            return new WP_REST_Response(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    public function archiveQuote(WP_REST_Request $request): WP_REST_Response
+    {
+        $id = (int) $request->get_param('id');
+
+        try {
+            $command = new ArchiveQuoteCommand($id);
+            $this->archiveQuoteHandler->handle($command);
+
+            return new WP_REST_Response(['message' => 'Quote archived'], 200);
         } catch (\Exception $e) {
             return new WP_REST_Response(['error' => $e->getMessage()], 400);
         }

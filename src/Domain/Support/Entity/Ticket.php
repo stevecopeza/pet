@@ -8,11 +8,17 @@ class Ticket
 {
     private ?int $id;
     private int $customerId;
+    private ?int $siteId;
     private string $subject;
     private string $description;
     private string $status;
     private string $priority;
+    private ?int $slaId;
+    private ?int $malleableSchemaVersion;
+    private array $malleableData;
     private \DateTimeImmutable $createdAt;
+    private ?\DateTimeImmutable $openedAt;
+    private ?\DateTimeImmutable $closedAt;
     private ?\DateTimeImmutable $resolvedAt;
 
     public function __construct(
@@ -21,17 +27,29 @@ class Ticket
         string $description,
         string $status = 'new',
         string $priority = 'medium',
+        ?int $siteId = null,
+        ?int $slaId = null,
         ?int $id = null,
+        ?int $malleableSchemaVersion = null,
+        array $malleableData = [],
         ?\DateTimeImmutable $createdAt = null,
+        ?\DateTimeImmutable $openedAt = null,
+        ?\DateTimeImmutable $closedAt = null,
         ?\DateTimeImmutable $resolvedAt = null
     ) {
         $this->id = $id;
         $this->customerId = $customerId;
+        $this->siteId = $siteId;
         $this->subject = $subject;
         $this->description = $description;
         $this->status = $status;
         $this->priority = $priority;
+        $this->slaId = $slaId;
+        $this->malleableSchemaVersion = $malleableSchemaVersion;
+        $this->malleableData = $malleableData;
         $this->createdAt = $createdAt ?? new \DateTimeImmutable();
+        $this->openedAt = $openedAt ?? ($status !== 'new' ? new \DateTimeImmutable() : null);
+        $this->closedAt = $closedAt;
         $this->resolvedAt = $resolvedAt;
     }
 
@@ -43,6 +61,11 @@ class Ticket
     public function customerId(): int
     {
         return $this->customerId;
+    }
+
+    public function siteId(): ?int
+    {
+        return $this->siteId;
     }
 
     public function subject(): string
@@ -65,13 +88,70 @@ class Ticket
         return $this->priority;
     }
 
+    public function slaId(): ?int
+    {
+        return $this->slaId;
+    }
+
+    public function malleableSchemaVersion(): ?int
+    {
+        return $this->malleableSchemaVersion;
+    }
+
+    public function malleableData(): array
+    {
+        return $this->malleableData;
+    }
+
     public function createdAt(): \DateTimeImmutable
     {
         return $this->createdAt;
     }
 
+    public function openedAt(): ?\DateTimeImmutable
+    {
+        return $this->openedAt;
+    }
+
+    public function closedAt(): ?\DateTimeImmutable
+    {
+        return $this->closedAt;
+    }
+
     public function resolvedAt(): ?\DateTimeImmutable
     {
         return $this->resolvedAt;
+    }
+
+    public function update(
+        string $subject,
+        string $description,
+        string $priority,
+        string $status,
+        ?int $siteId,
+        ?int $slaId,
+        array $malleableData
+    ): void {
+        $this->subject = $subject;
+        $this->description = $description;
+        $this->priority = $priority;
+        $this->siteId = $siteId;
+        $this->slaId = $slaId;
+        $this->malleableData = $malleableData;
+
+        // Status transition logic could be here, but for now simple assignment
+        // If transitioning to closed, set closedAt
+        if ($status === 'closed' && $this->status !== 'closed') {
+            $this->closedAt = new \DateTimeImmutable();
+        } elseif ($status !== 'closed') {
+            $this->closedAt = null;
+        }
+        
+        // If transitioning from new to something else, ensure openedAt is set
+        if ($this->status === 'new' && $status !== 'new' && !$this->openedAt) {
+            $this->openedAt = new \DateTimeImmutable();
+        }
+
+        $this->status = $status;
     }
 }

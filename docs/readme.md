@@ -43,6 +43,7 @@ PET spans the full lifecycle of a service business:
 - Time tracking: mobile‑friendly, task‑anchored timesheets
 - Support & SLAs: ticketing with contextual linkage
 - Knowledgebase: capture and reuse of solutions
+- Capabilities & Performance: skills, certifications, role assignments, and evidence-based reviews
 - Dashboards & KPIs: role‑based, explainable metrics
 
 ---

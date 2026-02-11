@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Setting } from '../types';
 import { DataTable, Column } from './DataTable';
+import SchemaManagement from './SchemaManagement';
 
 // Extended interface for UI that includes id
 interface SettingWithId extends Setting {
@@ -8,6 +9,7 @@ interface SettingWithId extends Setting {
 }
 
 const Settings = () => {
+  const [activeTab, setActiveTab] = useState<'general' | 'schemas'>('general');
   const [settings, setSettings] = useState<SettingWithId[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,24 +85,65 @@ const Settings = () => {
     { key: 'updatedAt', header: 'Last Updated', render: (val) => val as string || '-' },
   ];
 
-  if (loading) return <div>Loading settings...</div>;
-  if (error) return <div style={{ color: 'red' }}>Error: {error}</div>;
-
   return (
     <div className="pet-settings">
-      <h2>System Settings</h2>
-      <p>Configure global plugin settings.</p>
-      
-      <DataTable 
-        columns={columns} 
-        data={settings} 
-        emptyMessage="No settings defined." 
-      />
-      
-      <div style={{ marginTop: '20px', padding: '15px', background: '#f0f0f1', border: '1px solid #ccd0d4' }}>
-        <h3>Environment Info</h3>
-        <p><strong>API URL:</strong> {window.petSettings.apiUrl}</p>
+      <div style={{ marginBottom: '20px', borderBottom: '1px solid #ddd' }}>
+        <button
+          onClick={() => setActiveTab('general')}
+          style={{
+            padding: '10px 20px',
+            border: 'none',
+            background: activeTab === 'general' ? '#fff' : 'transparent',
+            borderBottom: activeTab === 'general' ? '2px solid #007cba' : 'none',
+            cursor: 'pointer',
+            fontWeight: activeTab === 'general' ? 'bold' : 'normal',
+            color: activeTab === 'general' ? '#000' : '#555',
+            fontSize: '14px'
+          }}
+        >
+          General Settings
+        </button>
+        <button
+          onClick={() => setActiveTab('schemas')}
+          style={{
+            padding: '10px 20px',
+            border: 'none',
+            background: activeTab === 'schemas' ? '#fff' : 'transparent',
+            borderBottom: activeTab === 'schemas' ? '2px solid #007cba' : 'none',
+            cursor: 'pointer',
+            fontWeight: activeTab === 'schemas' ? 'bold' : 'normal',
+            color: activeTab === 'schemas' ? '#000' : '#555',
+            fontSize: '14px'
+          }}
+        >
+          Schemas & Malleable Fields
+        </button>
       </div>
+
+      {activeTab === 'general' ? (
+        <>
+          <h2>System Settings</h2>
+          <p>Configure global plugin settings.</p>
+          
+          {loading && <div>Loading settings...</div>}
+          {error && <div style={{ color: 'red' }}>Error: {error}</div>}
+          
+          {!loading && !error && (
+            <DataTable 
+              columns={columns} 
+              data={settings} 
+              emptyMessage="No settings defined." 
+            />
+          )}
+          
+          <div style={{ marginTop: '20px', padding: '15px', background: '#f0f0f1', border: '1px solid #ccd0d4' }}>
+            <h3>Note</h3>
+            <p>These settings are stored in the database and affect plugin behavior globally.</p>
+          </div>
+        </>
+      ) : (
+        <SchemaManagement />
+      )}
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import React from 'react';
 import Dashboard from './components/Dashboard';
 import Projects from './components/Projects';
-import Quotes from './components/Quotes';
+import Commercial from './components/Commercial';
 import TimeEntries from './components/TimeEntries';
 import Customers from './components/Customers';
 import Employees from './components/Employees';
@@ -9,6 +9,7 @@ import Support from './components/Support';
 import Knowledge from './components/Knowledge';
 import Activity from './components/Activity';
 import Settings from './components/Settings';
+import Roles from './components/Roles';
 
 const App = () => {
   const currentPage = window.petSettings?.currentPage || 'pet-dashboard';
@@ -17,13 +18,14 @@ const App = () => {
     switch (slug) {
       case 'pet-dashboard': return 'Overview';
       case 'pet-dashboards': return 'Dashboards';
-      case 'pet-crm': return 'CRM';
+      case 'pet-crm': return 'Customers';
       case 'pet-quotes-sales': return 'Quotes & Sales';
       case 'pet-delivery': return 'Delivery';
       case 'pet-time': return 'Time';
       case 'pet-support': return 'Support';
       case 'pet-knowledge': return 'Knowledge';
-      case 'pet-people': return 'People';
+      case 'pet-people': return 'Staff';
+      case 'pet-roles': return 'Roles & Capabilities';
       case 'pet-activity': return 'Activity';
       case 'pet-settings': return 'Settings';
       default: return 'PET';
@@ -37,13 +39,15 @@ const App = () => {
       case 'pet-delivery':
         return <Projects />;
       case 'pet-quotes-sales':
-        return <Quotes />;
+        return <Commercial />;
       case 'pet-time':
         return <TimeEntries />;
       case 'pet-crm':
         return <Customers />;
       case 'pet-people':
         return <Employees />;
+      case 'pet-roles':
+        return <Roles />;
       case 'pet-support':
         return <Support />;
       case 'pet-knowledge':

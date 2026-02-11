@@ -18,57 +18,66 @@ class CreateCommercialTables implements Migration
     public function up(): void
     {
         $charsetCollate = $this->wpdb->get_charset_collate();
+        
+        // Leads Table
+        $leadsTable = $this->wpdb->prefix . 'pet_leads';
+        $leadsSql = "CREATE TABLE $leadsTable (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            customer_id mediumint(9) NOT NULL,
+            subject varchar(255) NOT NULL,
+            description text NOT NULL,
+            status varchar(50) NOT NULL DEFAULT 'new',
+            source varchar(50) DEFAULT NULL,
+            estimated_value decimal(10,2) DEFAULT NULL,
+            malleable_schema_version mediumint(9) DEFAULT NULL,
+            malleable_data json DEFAULT NULL,
+            created_at datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
+            updated_at datetime DEFAULT NULL,
+            converted_at datetime DEFAULT NULL,
+            PRIMARY KEY  (id),
+            KEY customer_id (customer_id),
+            KEY status (status)
+        ) $charsetCollate;";
 
         // Quotes Table
         $quotesTable = $this->wpdb->prefix . 'pet_quotes';
-        $sqlQuotes = "CREATE TABLE IF NOT EXISTS $quotesTable (
-            id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-            customer_id bigint(20) UNSIGNED NOT NULL,
+        $quotesSql = "CREATE TABLE $quotesTable (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            customer_id mediumint(9) NOT NULL,
             state varchar(20) NOT NULL,
-            version int(11) NOT NULL DEFAULT 1,
-            created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
+            version mediumint(9) NOT NULL DEFAULT 1,
+            total_value decimal(10, 2) NOT NULL DEFAULT 0.00,
+            currency varchar(3) NOT NULL DEFAULT 'USD',
+            accepted_at datetime DEFAULT NULL,
+            malleable_data longtext DEFAULT NULL,
+            created_at datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
             updated_at datetime DEFAULT NULL,
             archived_at datetime DEFAULT NULL,
-            PRIMARY KEY (id),
-            KEY customer_id (customer_id),
-            KEY state (state)
+            PRIMARY KEY  (id),
+            KEY customer_id (customer_id)
         ) $charsetCollate;";
 
         // Quote Lines Table
         $quoteLinesTable = $this->wpdb->prefix . 'pet_quote_lines';
-        $sqlQuoteLines = "CREATE TABLE IF NOT EXISTS $quoteLinesTable (
-            id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-            quote_id bigint(20) UNSIGNED NOT NULL,
+        $quoteLinesSql = "CREATE TABLE $quoteLinesTable (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            quote_id mediumint(9) NOT NULL,
             description text NOT NULL,
-            quantity decimal(10, 2) NOT NULL,
-            unit_price decimal(10, 2) NOT NULL,
-            line_group_type varchar(20) NOT NULL,
-            created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
-            PRIMARY KEY (id),
+            quantity decimal(10,2) NOT NULL,
+            unit_price decimal(10,2) NOT NULL,
+            line_group_type varchar(50) NOT NULL,
+            PRIMARY KEY  (id),
             KEY quote_id (quote_id)
-        ) $charsetCollate;";
-        
-        // Quote Versions Table (Immutable history)
-        $quoteVersionsTable = $this->wpdb->prefix . 'pet_quote_versions';
-        $sqlQuoteVersions = "CREATE TABLE IF NOT EXISTS $quoteVersionsTable (
-            id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-            quote_id bigint(20) UNSIGNED NOT NULL,
-            version int(11) NOT NULL,
-            payload longtext NOT NULL, -- JSON snapshot of the quote at this version
-            created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
-            created_by_employee_id bigint(20) UNSIGNED NULL,
-            PRIMARY KEY (id),
-            KEY quote_id_version (quote_id, version)
         ) $charsetCollate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        dbDelta($sqlQuotes);
-        dbDelta($sqlQuoteLines);
-        dbDelta($sqlQuoteVersions);
+        dbDelta($leadsSql);
+        dbDelta($quotesSql);
+        dbDelta($quoteLinesSql);
     }
 
     public function getDescription(): string
     {
-        return 'Create commercial tables: quotes, quote_lines, and quote_versions.';
+        return 'Create commercial tables (leads, quotes, quote lines).';
     }
 }

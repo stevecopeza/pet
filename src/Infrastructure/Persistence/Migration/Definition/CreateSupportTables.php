@@ -27,10 +27,15 @@ class CreateSupportTables implements Migration
             description text NOT NULL,
             status varchar(50) NOT NULL DEFAULT 'new',
             priority varchar(50) NOT NULL DEFAULT 'medium',
+            site_id mediumint(9) DEFAULT NULL,
+            sla_id mediumint(9) DEFAULT NULL,
+            opened_at datetime DEFAULT NULL,
+            closed_at datetime DEFAULT NULL,
             created_at datetime DEFAULT '0000-00-00 00:00:00' NOT NULL,
             resolved_at datetime DEFAULT NULL,
             PRIMARY KEY  (id),
-            KEY customer_id (customer_id)
+            KEY customer_id (customer_id),
+            KEY site_id (site_id)
         ) $charsetCollate;";
 
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');

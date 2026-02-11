@@ -10,17 +10,20 @@ class CreateArticleCommand
     private string $content;
     private string $category;
     private string $status;
+    private array $malleableData;
 
     public function __construct(
         string $title,
         string $content,
         string $category = 'general',
-        string $status = 'draft'
+        string $status = 'draft',
+        array $malleableData = []
     ) {
         $this->title = $title;
         $this->content = $content;
         $this->category = $category;
         $this->status = $status;
+        $this->malleableData = $malleableData;
     }
 
     public function title(): string
@@ -41,5 +44,10 @@ class CreateArticleCommand
     public function status(): string
     {
         return $this->status;
+    }
+
+    public function malleableData(): array
+    {
+        return $this->malleableData;
     }
 }

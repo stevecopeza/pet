@@ -197,6 +197,15 @@ The following actions are blocked:
 
 ---
 
+## Technical Implementation
+
+- **API**: `/pet/v1/projects` (GET, POST)
+- **API**: `/pet/v1/projects/{id}` (PUT, DELETE/Archive)
+- **Frontend**: `Projects.tsx`, `ProjectForm.tsx` (Unified Add/Edit component).
+- **Malleable Fields**: Supported (Schema: `project`).
+
+---
+
 **Authority**: Normative
 
 This document defines how PET enforces project delivery against sold commitments.

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Quote, QuoteLine } from '../types';
 import { DataTable, Column } from './DataTable';
+import MalleableFieldsRenderer from './MalleableFieldsRenderer';
 
 interface QuoteDetailsProps {
   quoteId: number;
@@ -11,6 +12,31 @@ const QuoteDetails: React.FC<QuoteDetailsProps> = ({ quoteId, onBack }) => {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeSchema, setActiveSchema] = useState<any | null>(null);
+
+  const fetchSchema = async () => {
+    try {
+      // @ts-ignore
+      const apiUrl = window.petSettings?.apiUrl;
+      // @ts-ignore
+      const nonce = window.petSettings?.nonce;
+
+      const response = await fetch(`${apiUrl}/schemas/quote?status=active`, {
+        headers: {
+          'X-WP-Nonce': nonce,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+          setActiveSchema(data[0]);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch schema', err);
+    }
+  };
   
   // Add Line Form State
   const [description, setDescription] = useState('');
@@ -43,6 +69,7 @@ const QuoteDetails: React.FC<QuoteDetailsProps> = ({ quoteId, onBack }) => {
 
   useEffect(() => {
     fetchQuote();
+    fetchSchema();
   }, [quoteId]);
 
   const handleAddLine = async (e: React.FormEvent) => {
@@ -104,13 +131,22 @@ const QuoteDetails: React.FC<QuoteDetailsProps> = ({ quoteId, onBack }) => {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
           <div>
             <p><strong>Customer ID:</strong> {quote.customerId}</p>
-            <p><strong>State:</strong> <span className={`pet-status pet-status-${quote.state.toLowerCase()}`}>{quote.state}</span></p>
+            <p><strong>State:</strong> <span className={`pet-status-badge status-${quote.state.toLowerCase()}`}>{quote.state}</span></p>
           </div>
           <div>
             <p><strong>Total Value:</strong> ${quote.lines.reduce((sum, line) => sum + line.total, 0).toFixed(2)}</p>
             <p><strong>Items:</strong> {quote.lines.length}</p>
           </div>
         </div>
+
+        {activeSchema && quote.malleableData && (
+          <MalleableFieldsRenderer 
+            schema={activeSchema} 
+            values={quote.malleableData} 
+            onChange={() => {}} 
+            readOnly={true}
+          />
+        )}
       </div>
 
       <h3>Line Items</h3>

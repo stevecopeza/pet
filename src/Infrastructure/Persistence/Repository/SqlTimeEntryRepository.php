@@ -29,6 +29,8 @@ class SqlTimeEntryRepository implements TimeEntryRepository
             'is_billable' => $timeEntry->isBillable() ? 1 : 0,
             'description' => $timeEntry->description(),
             'status' => $timeEntry->status(),
+            'malleable_data' => json_encode($timeEntry->malleableData()),
+            'archived_at' => $timeEntry->archivedAt() ? $timeEntry->archivedAt()->format('Y-m-d H:i:s') : null,
         ];
 
         if ($timeEntry->id()) {
@@ -43,6 +45,15 @@ class SqlTimeEntryRepository implements TimeEntryRepository
             // In a real implementation we would set the ID back on the entity via reflection or a setter
             // $timeEntry->setId($this->db->insert_id);
         }
+    }
+
+    public function delete(int $id): void
+    {
+        $this->db->update(
+            $this->table,
+            ['archived_at' => current_time('mysql')],
+            ['id' => $id]
+        );
     }
 
     public function findById(int $id): ?TimeEntry
@@ -110,7 +121,10 @@ class SqlTimeEntryRepository implements TimeEntryRepository
             (bool) $row->is_billable,
             $row->description,
             $row->status,
-            (int) $row->id
+            (int) $row->id,
+            json_decode($row->malleable_data ?? '[]', true),
+            isset($row->created_at) ? new \DateTimeImmutable($row->created_at) : null,
+            isset($row->archived_at) ? new \DateTimeImmutable($row->archived_at) : null
         );
     }
 }

@@ -28,14 +28,19 @@ class SqlProjectRepository implements ProjectRepository
             'customer_id' => $project->customerId(),
             'source_quote_id' => $project->sourceQuoteId(),
             'name' => $project->name(),
-            'state' => $project->state()->toString(),
             'sold_hours' => $project->soldHours(),
-            'created_at' => $this->formatDate($project->createdAt()),
-            'updated_at' => $this->formatDate($project->updatedAt()),
-            'archived_at' => $this->formatDate($project->archivedAt()),
+            'state' => $project->state()->toString(),
+            'sold_value' => $project->soldValue(),
+            'start_date' => $project->startDate() ? $project->startDate()->format('Y-m-d') : null,
+            'end_date' => $project->endDate() ? $project->endDate()->format('Y-m-d') : null,
+            'malleable_schema_version' => $project->malleableSchemaVersion(),
+            'malleable_data' => !empty($project->malleableData()) ? json_encode($project->malleableData()) : null,
+            'created_at' => $project->createdAt()->format('Y-m-d H:i:s'),
+            'updated_at' => $project->updatedAt() ? $project->updatedAt()->format('Y-m-d H:i:s') : null,
+            'archived_at' => $project->archivedAt() ? $project->archivedAt()->format('Y-m-d H:i:s') : null,
         ];
 
-        $format = ['%d', '%d', '%s', '%s', '%f', '%s', '%s', '%s'];
+        $format = ['%d', '%d', '%s', '%f', '%s', '%f', '%s', '%s', '%d', '%s', '%s', '%s', '%s'];
 
         if ($project->id()) {
             $this->wpdb->update(
@@ -106,8 +111,58 @@ class SqlProjectRepository implements ProjectRepository
         return (float) $this->wpdb->get_var($sql);
     }
 
+    private function hydrate(object $row): Project
+    {
+        $tasks = $this->findTasksByProjectId((int)$row->id);
+
+        return new Project(
+            (int) $row->customer_id,
+            $row->name,
+            (float) $row->sold_hours,
+            $row->source_quote_id ? (int) $row->source_quote_id : null,
+            ProjectState::fromString($row->state),
+            isset($row->sold_value) ? (float) $row->sold_value : 0.00,
+            !empty($row->start_date) ? new \DateTimeImmutable($row->start_date) : null,
+            !empty($row->end_date) ? new \DateTimeImmutable($row->end_date) : null,
+            (int) $row->id,
+            isset($row->malleable_schema_version) ? (int) $row->malleable_schema_version : null,
+            isset($row->malleable_data) ? (json_decode($row->malleable_data, true) ?: []) : [],
+            new \DateTimeImmutable($row->created_at),
+            $row->updated_at ? new \DateTimeImmutable($row->updated_at) : null,
+            $row->archived_at ? new \DateTimeImmutable($row->archived_at) : null,
+            $tasks
+        );
+    }
+
+    private function findTasksByProjectId(int $projectId): array
+    {
+        $sql = $this->wpdb->prepare(
+            "SELECT * FROM {$this->tasksTable} WHERE project_id = %d ORDER BY created_at ASC",
+            $projectId
+        );
+        $results = $this->wpdb->get_results($sql);
+
+        return array_map(function ($row) {
+            return new Task(
+                $row->name,
+                (float) $row->estimated_hours,
+                (bool) $row->is_completed,
+                (int) $row->id
+            );
+        }, $results);
+    }
+
     private function saveTasks(int $projectId, array $tasks): void
     {
+        // 1. Get existing task IDs
+        $sql = $this->wpdb->prepare(
+            "SELECT id FROM {$this->tasksTable} WHERE project_id = %d",
+            $projectId
+        );
+        $existingIds = $this->wpdb->get_col($sql);
+        $currentIds = [];
+
+        // 2. Save (Insert/Update) current tasks
         foreach ($tasks as $task) {
             $data = [
                 'project_id' => $projectId,
@@ -118,6 +173,7 @@ class SqlProjectRepository implements ProjectRepository
             $format = ['%d', '%s', '%f', '%d'];
 
             if ($task->id()) {
+                $currentIds[] = $task->id();
                 $this->wpdb->update(
                     $this->tasksTable,
                     $data,
@@ -131,44 +187,17 @@ class SqlProjectRepository implements ProjectRepository
                     $data,
                     $format
                 );
+                // Note: We don't update the task object with ID here as it's passed by value/reference issue
+                // But for standard aggregate saving, this is acceptable if we reload or don't rely on immediate ID availability
             }
         }
-    }
 
-    private function hydrate(object $row): Project
-    {
-        $tasks = $this->findTasksByProjectId((int)$row->id);
-
-        return new Project(
-            (int)$row->customer_id,
-            $row->name,
-            (float)$row->sold_hours,
-            $row->source_quote_id ? (int)$row->source_quote_id : null,
-            ProjectState::fromString($row->state),
-            (int)$row->id,
-            $row->created_at ? new \DateTimeImmutable($row->created_at) : null,
-            $row->updated_at ? new \DateTimeImmutable($row->updated_at) : null,
-            $row->archived_at ? new \DateTimeImmutable($row->archived_at) : null,
-            $tasks
-        );
-    }
-
-    private function findTasksByProjectId(int $projectId): array
-    {
-        $sql = $this->wpdb->prepare(
-            "SELECT * FROM {$this->tasksTable} WHERE project_id = %d",
-            $projectId
-        );
-        $results = $this->wpdb->get_results($sql);
-
-        return array_map(function ($row) {
-            return new Task(
-                $row->name,
-                (float)$row->estimated_hours,
-                (bool)$row->is_completed,
-                (int)$row->id
-            );
-        }, $results);
+        // 3. Delete removed tasks
+        $toDelete = array_diff($existingIds, $currentIds);
+        if (!empty($toDelete)) {
+            $ids = implode(',', array_map('intval', $toDelete));
+            $this->wpdb->query("DELETE FROM {$this->tasksTable} WHERE id IN ($ids)");
+        }
     }
 
     private function formatDate(?\DateTimeImmutable $date): ?string

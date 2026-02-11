@@ -33,6 +33,19 @@ add_action('plugins_loaded', function () {
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateKnowledgeTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateActivityTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateSettingsTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\UpdateIdentitySchema::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\UpdateMalleableSchema::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddSchemaStatusToDefinition::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddMalleableIndexes::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddContactAffiliations::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddMissingCoreFields::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateAssetTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateTeamTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\UpdateTeamEscalationColumn::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\UpdateCommercialSchema::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\UpdateIdentityCoreFields::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateWorkTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreatePerformanceTables::class,
         ]);
 
         // Register UI

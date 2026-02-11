@@ -83,7 +83,7 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectId, onBack }) =>
   const taskColumns: Column<Task>[] = [
     { key: 'name', header: 'Task Name' },
     { key: 'estimatedHours', header: 'Est. Hours' },
-    { key: 'completed', header: 'Status', render: (_, item) => <span>{item.completed ? 'Completed' : 'Pending'}</span> },
+    { key: 'completed', header: 'Status', render: (_, item) => <span className={`pet-status-badge status-${item.completed ? 'completed' : 'pending'}`}>{item.completed ? 'Completed' : 'Pending'}</span> },
     {
       key: 'id',
       header: 'Actions',

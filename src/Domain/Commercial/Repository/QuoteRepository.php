@@ -25,4 +25,6 @@ interface QuoteRepository
     public function countPending(): int;
 
     public function sumRevenue(\DateTimeImmutable $start, \DateTimeImmutable $end): float;
+
+    public function delete(int $id): void;
 }

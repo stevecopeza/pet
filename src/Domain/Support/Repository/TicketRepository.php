@@ -12,4 +12,5 @@ interface TicketRepository
     public function findById(int $id): ?Ticket;
     public function findAll(): array;
     public function findByCustomerId(int $customerId): array;
+    public function delete(int $id): void;
 }

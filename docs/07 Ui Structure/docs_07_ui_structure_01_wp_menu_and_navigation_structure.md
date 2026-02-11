@@ -43,7 +43,12 @@ PET
 │  ├─ Delivery
 │  ├─ Support
 │  └─ People
-├─ CRM
+├─ Staff (Tabbed Interface)
+│  ├─ Org
+│  ├─ Teams
+│  ├─ People (Employees List)
+│  └─ KPIs
+├─ Customers
 │  ├─ Leads
 │  ├─ Qualifications
 │  ├─ Opportunities
@@ -67,10 +72,6 @@ PET
 ├─ Knowledge
 │  ├─ Knowledgebase
 │  └─ Article Drafts
-├─ People
-│  ├─ Employees
-│  ├─ Teams
-│  └─ Org Chart
 ├─ Activity
 │  └─ Activity Feed
 └─ Settings

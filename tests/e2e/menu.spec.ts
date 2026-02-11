@@ -20,13 +20,13 @@ test('pet menu structure and routing works', async ({ page }) => {
   const submenus = [
     'Overview',
     'Dashboards',
-    'CRM',
+    'Customers',
     'Quotes & Sales',
     'Delivery',
     'Time',
     'Support',
     'Knowledge',
-    'People',
+    'Staff',
     'Activity',
     'Settings'
   ];
@@ -35,14 +35,11 @@ test('pet menu structure and routing works', async ({ page }) => {
     await expect(page.locator('.wp-submenu a', { hasText: item })).toBeVisible();
   }
 
-  // 5. Navigate to a submenu (e.g., CRM)
-  await page.click('.wp-submenu a:has-text("CRM")');
-  
-  // 6. Verify React App Routing
-  await expect(page).toHaveURL(/page=pet-crm/);
-  await expect(page.locator('h1', { hasText: 'PET - CRM' })).toBeVisible();
-  await expect(page.locator('h2', { hasText: 'Coming Soon' })).toBeVisible();
-  await expect(page.locator('p', { hasText: 'The CRM module is currently under development.' })).toBeVisible();
+  // 5. Navigate to a submenu (e.g., Customers)
+  await page.click('.wp-submenu a:has-text("Customers")');
+  await expect(page.locator('h1', { hasText: 'PET - Customers' })).toBeVisible();
+  // Expect Customers component content instead of Coming Soon
+  await expect(page.locator('.pet-customers h2', { hasText: 'Customers' })).toBeVisible();
 
   // 7. Navigate back to Overview
   await page.click('.wp-submenu a:has-text("Overview")');

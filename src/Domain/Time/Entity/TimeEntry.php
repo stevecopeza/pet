@@ -17,6 +17,9 @@ class TimeEntry
     private bool $isBillable;
     private string $description;
     private string $status; // draft, submitted, locked
+    private array $malleableData;
+    private ?\DateTimeImmutable $createdAt;
+    private ?\DateTimeImmutable $archivedAt;
 
     private const STATUS_DRAFT = 'draft';
     private const STATUS_SUBMITTED = 'submitted';
@@ -32,7 +35,10 @@ class TimeEntry
         bool $isBillable,
         string $description,
         string $status = self::STATUS_DRAFT,
-        ?int $id = null
+        ?int $id = null,
+        array $malleableData = [],
+        ?\DateTimeImmutable $createdAt = null,
+        ?\DateTimeImmutable $archivedAt = null
     ) {
         if ($end <= $start) {
             throw new \DomainException('End time must be after start time.');
@@ -46,9 +52,33 @@ class TimeEntry
         $this->isBillable = $isBillable;
         $this->description = $description;
         $this->status = $status;
+        $this->malleableData = $malleableData;
+        $this->createdAt = $createdAt ?? new \DateTimeImmutable();
+        $this->archivedAt = $archivedAt;
         
         $this->durationMinutes = (int) ceil(($end->getTimestamp() - $start->getTimestamp()) / 60);
     }
+
+    public function malleableData(): array
+    {
+        return $this->malleableData;
+    }
+
+    public function createdAt(): \DateTimeImmutable
+    {
+        return $this->createdAt;
+    }
+
+    public function archivedAt(): ?\DateTimeImmutable
+    {
+        return $this->archivedAt;
+    }
+
+    public function archive(): void
+    {
+        $this->archivedAt = new \DateTimeImmutable();
+    }
+
 
     public function submit(): void
     {

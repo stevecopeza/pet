@@ -12,6 +12,7 @@ class LogTimeCommand
     private \DateTimeImmutable $end;
     private bool $isBillable;
     private string $description;
+    private array $malleableData;
 
     public function __construct(
         int $employeeId,
@@ -19,7 +20,8 @@ class LogTimeCommand
         \DateTimeImmutable $start,
         \DateTimeImmutable $end,
         bool $isBillable,
-        string $description
+        string $description,
+        array $malleableData = []
     ) {
         $this->employeeId = $employeeId;
         $this->taskId = $taskId;
@@ -27,6 +29,7 @@ class LogTimeCommand
         $this->end = $end;
         $this->isBillable = $isBillable;
         $this->description = $description;
+        $this->malleableData = $malleableData;
     }
 
     public function employeeId(): int
@@ -57,5 +60,10 @@ class LogTimeCommand
     public function description(): string
     {
         return $this->description;
+    }
+
+    public function malleableData(): array
+    {
+        return $this->malleableData;
     }
 }

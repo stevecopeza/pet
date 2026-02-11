@@ -14,6 +14,11 @@ class Project
     private string $name;
     private ProjectState $state;
     private float $soldHours; // Immutable constraint from quote
+    private float $soldValue;
+    private ?\DateTimeImmutable $startDate;
+    private ?\DateTimeImmutable $endDate;
+    private ?int $malleableSchemaVersion;
+    private array $malleableData;
     private ?\DateTimeImmutable $createdAt;
     private ?\DateTimeImmutable $updatedAt;
     private ?\DateTimeImmutable $archivedAt;
@@ -29,7 +34,12 @@ class Project
         float $soldHours,
         ?int $sourceQuoteId = null,
         ?ProjectState $state = null,
+        float $soldValue = 0.00,
+        ?\DateTimeImmutable $startDate = null,
+        ?\DateTimeImmutable $endDate = null,
         ?int $id = null,
+        ?int $malleableSchemaVersion = null,
+        array $malleableData = [],
         ?\DateTimeImmutable $createdAt = null,
         ?\DateTimeImmutable $updatedAt = null,
         ?\DateTimeImmutable $archivedAt = null,
@@ -41,6 +51,11 @@ class Project
         $this->name = $name;
         $this->soldHours = $soldHours;
         $this->state = $state ?? ProjectState::planned();
+        $this->soldValue = $soldValue;
+        $this->startDate = $startDate;
+        $this->endDate = $endDate;
+        $this->malleableSchemaVersion = $malleableSchemaVersion;
+        $this->malleableData = $malleableData;
         $this->createdAt = $createdAt ?? new \DateTimeImmutable();
         $this->updatedAt = $updatedAt;
         $this->archivedAt = $archivedAt;
@@ -62,6 +77,21 @@ class Project
         return $this->soldHours;
     }
 
+    public function soldValue(): float
+    {
+        return $this->soldValue;
+    }
+
+    public function startDate(): ?\DateTimeImmutable
+    {
+        return $this->startDate;
+    }
+
+    public function endDate(): ?\DateTimeImmutable
+    {
+        return $this->endDate;
+    }
+
     public function state(): ProjectState
     {
         return $this->state;
@@ -75,6 +105,16 @@ class Project
     public function sourceQuoteId(): ?int
     {
         return $this->sourceQuoteId;
+    }
+
+    public function malleableSchemaVersion(): ?int
+    {
+        return $this->malleableSchemaVersion;
+    }
+
+    public function malleableData(): array
+    {
+        return $this->malleableData;
     }
 
     public function createdAt(): \DateTimeImmutable
@@ -102,43 +142,28 @@ class Project
 
     public function addTask(Task $task): void
     {
-        if ($this->state->isTerminal()) {
-            throw new \DomainException('Cannot add tasks to a completed or cancelled project.');
-        }
-        
-        // Ensure total planned hours do not exceed sold hours (simplified check)
-        $currentPlanned = $this->calculatePlannedHours();
-        if (($currentPlanned + $task->estimatedHours()) > $this->soldHours) {
-             // In a real scenario, this might trigger a variance warning rather than a hard block,
-             // but per specs: "PMs may not Increase total sold hours" and "Variance is flagged immediately".
-             // For strict enforcement, we'll allow it but flagging variance would be the next step.
-             // For now, we allow adding but we should track variance.
-        }
-
         $this->tasks[] = $task;
     }
 
-    public function calculatePlannedHours(): float
-    {
-        $total = 0.0;
-        foreach ($this->tasks as $task) {
-            $total += $task->estimatedHours();
-        }
-        return $total;
-    }
-
-    public function start(): void
-    {
-        $this->state = ProjectState::active();
+    public function update(
+        string $name, 
+        string $status, 
+        ?\DateTimeImmutable $startDate, 
+        ?\DateTimeImmutable $endDate, 
+        array $malleableData
+    ): void {
+        $this->name = $name;
+        // Note: soldHours and soldValue are immutable as they come from a quote or initial agreement
+        // State transition should ideally be handled via specific methods, but for generic update we allow it if valid
+        $this->state = new ProjectState($status); 
+        $this->startDate = $startDate;
+        $this->endDate = $endDate;
+        $this->malleableData = $malleableData;
         $this->updatedAt = new \DateTimeImmutable();
     }
 
-    public function complete(): void
+    public function archive(): void
     {
-        // "Completing a project with unresolved variance" is blocked.
-        // Simplified check: ensure we tracked time (future) doesn't exceed sold?
-        
-        $this->state = ProjectState::completed();
-        $this->updatedAt = new \DateTimeImmutable();
+        $this->archivedAt = new \DateTimeImmutable();
     }
 }

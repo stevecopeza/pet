@@ -38,13 +38,14 @@ class AdminPageRegistry
         $submenus = [
             'pet-dashboard' => 'Overview', // Rename first item
             'pet-dashboards' => 'Dashboards',
-            'pet-crm' => 'CRM',
+            'pet-crm' => 'Customers',
             'pet-quotes-sales' => 'Quotes & Sales',
             'pet-delivery' => 'Delivery',
             'pet-time' => 'Time',
             'pet-support' => 'Support',
             'pet-knowledge' => 'Knowledge',
-            'pet-people' => 'People',
+            'pet-people' => 'Staff',
+            'pet-roles' => 'Roles & Capabilities',
             'pet-activity' => 'Activity',
             'pet-settings' => 'Settings',
         ];
@@ -74,6 +75,8 @@ class AdminPageRegistry
         if (strpos($hook, 'page_pet-') === false) {
             return;
         }
+
+        wp_enqueue_media();
 
         $manifestPath = $this->pluginPath . '/dist/.vite/manifest.json';
         

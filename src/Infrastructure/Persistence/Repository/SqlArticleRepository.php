@@ -25,11 +25,13 @@ class SqlArticleRepository implements ArticleRepository
             'content' => $article->content(),
             'category' => $article->category(),
             'status' => $article->status(),
+            'malleable_schema_version' => $article->malleableSchemaVersion(),
+            'malleable_data' => !empty($article->malleableData()) ? json_encode($article->malleableData()) : null,
             'created_at' => $article->createdAt()->format('Y-m-d H:i:s'),
             'updated_at' => $article->updatedAt() ? $article->updatedAt()->format('Y-m-d H:i:s') : null,
         ];
 
-        $formats = ['%s', '%s', '%s', '%s', '%s', '%s'];
+        $formats = ['%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s'];
 
         if ($article->id()) {
             $this->wpdb->update($table, $data, ['id' => $article->id()], $formats, ['%d']);
@@ -74,6 +76,8 @@ class SqlArticleRepository implements ArticleRepository
             $row->category,
             $row->status,
             (int) $row->id,
+            isset($row->malleable_schema_version) ? (int) $row->malleable_schema_version : null,
+            isset($row->malleable_data) ? (json_decode($row->malleable_data, true) ?: []) : [],
             new \DateTimeImmutable($row->created_at),
             $row->updated_at ? new \DateTimeImmutable($row->updated_at) : null
         );

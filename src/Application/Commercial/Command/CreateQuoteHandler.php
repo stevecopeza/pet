@@ -31,7 +31,17 @@ class CreateQuoteHandler
 
         $quote = new Quote(
             $command->customerId(),
-            QuoteState::draft()
+            QuoteState::draft(),
+            1,
+            $command->totalValue(),
+            $command->currency(),
+            $command->acceptedAt(),
+            null,
+            new \DateTimeImmutable(),
+            new \DateTimeImmutable(),
+            null,
+            [],
+            $command->malleableData()
         );
 
         $this->quoteRepository->save($quote);

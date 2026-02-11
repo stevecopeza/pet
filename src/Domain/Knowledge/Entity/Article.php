@@ -11,6 +11,8 @@ class Article
     private string $content;
     private string $category;
     private string $status;
+    private ?int $malleableSchemaVersion;
+    private array $malleableData;
     private \DateTimeImmutable $createdAt;
     private ?\DateTimeImmutable $updatedAt;
 
@@ -20,6 +22,8 @@ class Article
         string $category = 'general',
         string $status = 'draft',
         ?int $id = null,
+        ?int $malleableSchemaVersion = null,
+        array $malleableData = [],
         ?\DateTimeImmutable $createdAt = null,
         ?\DateTimeImmutable $updatedAt = null
     ) {
@@ -28,6 +32,8 @@ class Article
         $this->content = $content;
         $this->category = $category;
         $this->status = $status;
+        $this->malleableSchemaVersion = $malleableSchemaVersion;
+        $this->malleableData = $malleableData;
         $this->createdAt = $createdAt ?? new \DateTimeImmutable();
         $this->updatedAt = $updatedAt;
     }
@@ -57,6 +63,16 @@ class Article
         return $this->status;
     }
 
+    public function malleableSchemaVersion(): ?int
+    {
+        return $this->malleableSchemaVersion;
+    }
+
+    public function malleableData(): array
+    {
+        return $this->malleableData;
+    }
+
     public function createdAt(): \DateTimeImmutable
     {
         return $this->createdAt;
@@ -65,5 +81,26 @@ class Article
     public function updatedAt(): ?\DateTimeImmutable
     {
         return $this->updatedAt;
+    }
+
+    public function update(
+        string $title,
+        string $content,
+        string $category,
+        string $status,
+        array $malleableData
+    ): void {
+        $this->title = $title;
+        $this->content = $content;
+        $this->category = $category;
+        $this->status = $status;
+        $this->malleableData = $malleableData;
+        $this->updatedAt = new \DateTimeImmutable();
+    }
+
+    public function archive(): void
+    {
+        $this->status = 'archived';
+        $this->updatedAt = new \DateTimeImmutable();
     }
 }

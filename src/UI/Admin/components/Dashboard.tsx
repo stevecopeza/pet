@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardData } from '../types';
 import { DataTable, Column } from './DataTable';
+import { SkillHeatmapWidget } from './SkillHeatmapWidget';
+import { KpiPerformanceWidget } from './KpiPerformanceWidget';
 
 const Dashboard = () => {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -64,6 +66,11 @@ const Dashboard = () => {
             <p className="stat-value">${data.overview.revenueThisMonth.toLocaleString()}</p>
           </div>
         </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '20px' }}>
+          <SkillHeatmapWidget data={data.skillHeatmap || []} />
+          <KpiPerformanceWidget data={data.kpiPerformance || []} />
       </div>
 
       <div className="pet-card activity" style={{ marginTop: '20px' }}>

@@ -89,6 +89,15 @@ Knowledge KPIs include:
 
 ---
 
+## Technical Implementation
+
+- **API**: `/pet/v1/articles` (GET, POST)
+- **API**: `/pet/v1/articles/{id}` (PUT, DELETE/Archive)
+- **Frontend**: `Knowledge.tsx`, `ArticleForm.tsx` (Unified Add/Edit component).
+- **Malleable Fields**: Supported (Schema: `article`).
+
+---
+
 **Authority**: Normative
 
 This document defines PET’s knowledge management model.

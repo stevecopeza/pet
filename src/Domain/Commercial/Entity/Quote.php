@@ -12,6 +12,9 @@ class Quote
     private int $customerId;
     private QuoteState $state;
     private int $version;
+    private float $totalValue;
+    private ?string $currency;
+    private ?\DateTimeImmutable $acceptedAt;
     private ?\DateTimeImmutable $createdAt;
     private ?\DateTimeImmutable $updatedAt;
 
@@ -20,27 +23,41 @@ class Quote
      */
     private array $lines = [];
 
+    private ?\DateTimeImmutable $archivedAt;
+    private array $malleableData;
+
     public function __construct(
         int $customerId,
         QuoteState $state,
         int $version = 1,
+        float $totalValue = 0.00,
+        ?string $currency = 'USD',
+        ?\DateTimeImmutable $acceptedAt = null,
         ?int $id = null,
         ?\DateTimeImmutable $createdAt = null,
         ?\DateTimeImmutable $updatedAt = null,
         ?\DateTimeImmutable $archivedAt = null,
-        array $lines = []
+        array $lines = [],
+        array $malleableData = []
     ) {
         $this->id = $id;
         $this->customerId = $customerId;
         $this->state = $state;
         $this->version = $version;
+        $this->totalValue = $totalValue;
+        $this->currency = $currency;
+        $this->acceptedAt = $acceptedAt;
         $this->createdAt = $createdAt ?? new \DateTimeImmutable();
         $this->updatedAt = $updatedAt;
         $this->archivedAt = $archivedAt;
         $this->lines = $lines;
+        $this->malleableData = $malleableData;
     }
     
-    private ?\DateTimeImmutable $archivedAt;
+    public function malleableData(): array
+    {
+        return $this->malleableData;
+    }
 
     public function id(): ?int
     {
@@ -60,6 +77,21 @@ class Quote
     public function version(): int
     {
         return $this->version;
+    }
+
+    public function totalValue(): float
+    {
+        return $this->totalValue;
+    }
+
+    public function currency(): ?string
+    {
+        return $this->currency;
+    }
+
+    public function acceptedAt(): ?\DateTimeImmutable
+    {
+        return $this->acceptedAt;
     }
     
     public function createdAt(): \DateTimeImmutable
@@ -98,6 +130,24 @@ class Quote
         $this->transitionTo(QuoteState::sent());
     }
 
+    public function update(
+        int $customerId, 
+        float $totalValue,
+        string $currency,
+        ?\DateTimeImmutable $acceptedAt,
+        array $malleableData = []
+    ): void {
+        if ($this->state->toString() !== QuoteState::draft()->toString()) {
+            throw new \DomainException('Cannot update a quote that is not in draft state.');
+        }
+        $this->customerId = $customerId;
+        $this->totalValue = $totalValue;
+        $this->currency = $currency;
+        $this->acceptedAt = $acceptedAt;
+        $this->malleableData = $malleableData;
+        $this->updatedAt = new \DateTimeImmutable();
+    }
+
     public function accept(): void
     {
         $this->transitionTo(QuoteState::accepted());
@@ -106,6 +156,11 @@ class Quote
     public function reject(): void
     {
         $this->transitionTo(QuoteState::rejected());
+    }
+
+    public function archive(): void
+    {
+        $this->archivedAt = new \DateTimeImmutable();
     }
 
     private function transitionTo(QuoteState $newState): void

@@ -7,12 +7,23 @@ namespace Pet\Application\Identity\Command;
 class CreateCustomerCommand
 {
     private string $name;
+    private ?string $legalName;
     private string $contactEmail;
+    private string $status;
+    private array $malleableData;
 
-    public function __construct(string $name, string $contactEmail)
-    {
+    public function __construct(
+        string $name, 
+        string $contactEmail, 
+        ?string $legalName = null,
+        string $status = 'active',
+        array $malleableData = []
+    ) {
         $this->name = $name;
         $this->contactEmail = $contactEmail;
+        $this->legalName = $legalName;
+        $this->status = $status;
+        $this->malleableData = $malleableData;
     }
 
     public function name(): string
@@ -20,8 +31,23 @@ class CreateCustomerCommand
         return $this->name;
     }
 
+    public function legalName(): ?string
+    {
+        return $this->legalName;
+    }
+
     public function contactEmail(): string
     {
         return $this->contactEmail;
+    }
+
+    public function status(): string
+    {
+        return $this->status;
+    }
+
+    public function malleableData(): array
+    {
+        return $this->malleableData;
     }
 }

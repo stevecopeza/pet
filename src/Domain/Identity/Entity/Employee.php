@@ -11,6 +11,12 @@ class Employee
     private string $firstName;
     private string $lastName;
     private string $email;
+    private string $status;
+    private ?\DateTimeImmutable $hireDate;
+    private ?int $managerId;
+    private ?int $malleableSchemaVersion;
+    private array $malleableData;
+    private array $teamIds;
     private ?\DateTimeImmutable $createdAt;
     private ?\DateTimeImmutable $archivedAt;
 
@@ -20,6 +26,12 @@ class Employee
         string $lastName,
         string $email,
         ?int $id = null,
+        string $status = 'active',
+        ?\DateTimeImmutable $hireDate = null,
+        ?int $managerId = null,
+        ?int $malleableSchemaVersion = null,
+        array $malleableData = [],
+        array $teamIds = [],
         ?\DateTimeImmutable $createdAt = null,
         ?\DateTimeImmutable $archivedAt = null
     ) {
@@ -28,6 +40,12 @@ class Employee
         $this->firstName = $firstName;
         $this->lastName = $lastName;
         $this->email = $email;
+        $this->status = $status;
+        $this->hireDate = $hireDate;
+        $this->managerId = $managerId;
+        $this->malleableSchemaVersion = $malleableSchemaVersion;
+        $this->malleableData = $malleableData;
+        $this->teamIds = $teamIds;
         $this->createdAt = $createdAt ?? new \DateTimeImmutable();
         $this->archivedAt = $archivedAt;
     }
@@ -35,6 +53,11 @@ class Employee
     public function id(): ?int
     {
         return $this->id;
+    }
+
+    public function teamIds(): array
+    {
+        return $this->teamIds;
     }
 
     public function wpUserId(): int
@@ -62,6 +85,31 @@ class Employee
         return $this->email;
     }
 
+    public function status(): string
+    {
+        return $this->status;
+    }
+
+    public function hireDate(): ?\DateTimeImmutable
+    {
+        return $this->hireDate;
+    }
+
+    public function managerId(): ?int
+    {
+        return $this->managerId;
+    }
+
+    public function malleableSchemaVersion(): ?int
+    {
+        return $this->malleableSchemaVersion;
+    }
+
+    public function malleableData(): array
+    {
+        return $this->malleableData;
+    }
+
     public function createdAt(): \DateTimeImmutable
     {
         return $this->createdAt;
@@ -75,5 +123,30 @@ class Employee
     public function isArchived(): bool
     {
         return $this->archivedAt !== null;
+    }
+
+    public function update(
+        string $firstName, 
+        string $lastName, 
+        string $email, 
+        string $status, 
+        ?\DateTimeImmutable $hireDate, 
+        ?int $managerId, 
+        array $malleableData,
+        array $teamIds
+    ): void {
+        $this->firstName = $firstName;
+        $this->lastName = $lastName;
+        $this->email = $email;
+        $this->status = $status;
+        $this->hireDate = $hireDate;
+        $this->managerId = $managerId;
+        $this->malleableData = $malleableData;
+        $this->teamIds = $teamIds;
+    }
+
+    public function archive(): void
+    {
+        $this->archivedAt = new \DateTimeImmutable();
     }
 }

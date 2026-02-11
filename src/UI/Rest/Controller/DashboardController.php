@@ -8,6 +8,8 @@ use Pet\Domain\Delivery\Repository\ProjectRepository;
 use Pet\Domain\Commercial\Repository\QuoteRepository;
 use Pet\Domain\Activity\Repository\ActivityLogRepository;
 use Pet\Domain\Time\Repository\TimeEntryRepository;
+use Pet\Domain\Work\Repository\PersonSkillRepository;
+use Pet\Domain\Work\Repository\PersonKpiRepository;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -20,17 +22,23 @@ class DashboardController implements RestController
     private $quoteRepository;
     private $activityLogRepository;
     private $timeEntryRepository;
+    private $personSkillRepository;
+    private $personKpiRepository;
 
     public function __construct(
         ProjectRepository $projectRepository,
         QuoteRepository $quoteRepository,
         ActivityLogRepository $activityLogRepository,
-        TimeEntryRepository $timeEntryRepository
+        TimeEntryRepository $timeEntryRepository,
+        PersonSkillRepository $personSkillRepository,
+        PersonKpiRepository $personKpiRepository
     ) {
         $this->projectRepository = $projectRepository;
         $this->quoteRepository = $quoteRepository;
         $this->activityLogRepository = $activityLogRepository;
         $this->timeEntryRepository = $timeEntryRepository;
+        $this->personSkillRepository = $personSkillRepository;
+        $this->personKpiRepository = $personKpiRepository;
     }
 
     public function registerRoutes(): void
@@ -72,6 +80,10 @@ class DashboardController implements RestController
             ];
         }, $activities);
 
+        // New Metrics
+        $skillHeatmap = $this->personSkillRepository->getAverageProficiencyBySkill();
+        $kpiPerformance = $this->personKpiRepository->getAverageAchievementByKpi();
+
         $data = [
             'overview' => [
                 'activeProjects' => $activeProjects,
@@ -80,6 +92,8 @@ class DashboardController implements RestController
                 'revenueThisMonth' => $revenueThisMonth,
             ],
             'recentActivity' => $recentActivity,
+            'skillHeatmap' => $skillHeatmap,
+            'kpiPerformance' => $kpiPerformance,
         ];
 
         return new WP_REST_Response($data, 200);
@@ -89,9 +103,6 @@ class DashboardController implements RestController
         $now = new \DateTimeImmutable();
         $diff = $now->diff($datetime);
 
-        // Calculate weeks manually if needed, but for simplicity let's stick to days
-        // If days > 7, we can show weeks, but standard DateInterval usage is safer without custom properties.
-        
         $string = array(
             'y' => 'year',
             'm' => 'month',

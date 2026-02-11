@@ -72,6 +72,9 @@ class TimeEntryController implements RestController
                 'description' => $entry->description(),
                 'billable' => $entry->isBillable(),
                 'status' => $entry->status(),
+                'malleableData' => $entry->malleableData(),
+                'createdAt' => $entry->createdAt() ? $entry->createdAt()->format('Y-m-d H:i:s') : null,
+                'archivedAt' => $entry->archivedAt() ? $entry->archivedAt()->format('Y-m-d H:i:s') : null,
             ];
         }, $entries);
 
@@ -89,7 +92,8 @@ class TimeEntryController implements RestController
                 new \DateTimeImmutable($params['start']),
                 new \DateTimeImmutable($params['end']),
                 (bool) $params['isBillable'],
-                $params['description']
+                $params['description'],
+                $params['malleableData'] ?? []
             );
 
             $this->logTimeHandler->handle($command);

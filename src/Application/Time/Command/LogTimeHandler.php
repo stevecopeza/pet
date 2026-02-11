@@ -42,7 +42,10 @@ class LogTimeHandler
             $command->start(),
             $command->end(),
             $command->isBillable(),
-            $command->description()
+            $command->description(),
+            'draft',
+            null,
+            $command->malleableData()
         );
 
         $this->timeEntryRepository->save($timeEntry);
