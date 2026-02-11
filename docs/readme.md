@@ -32,6 +32,21 @@ PET enforces alignment between these areas by design.
 
 ---
 
+## Organisational Integrity
+
+PET does not only govern work delivery.
+It governs the capability required to deliver that work.
+
+- **Roles are versioned and immutable** once published.
+- **KPIs are instantiated** from role templates and locked per review cycle.
+- **Certifications can enforce compliance** and expiry rules.
+- **Skills are assessed** with dual authority and evidence support.
+- **Historical truth is preserved** across promotions, restructures, and change.
+
+PET therefore measures not only performance, but **organisational readiness**.
+
+---
+
 ## What PET Covers
 
 PET spans the full lifecycle of a service business:
@@ -43,7 +58,15 @@ PET spans the full lifecycle of a service business:
 - Time tracking: mobile‑friendly, task‑anchored timesheets
 - Support & SLAs: ticketing with contextual linkage
 - Knowledgebase: capture and reuse of solutions
-- Capabilities & Performance: skills, certifications, role assignments, and evidence-based reviews
+- Capabilities & Organisational Governance
+  - Versioned role definitions with KPI templates
+  - Structured skill and certification frameworks
+  - Multi-role assignment with allocation modelling
+  - Compliance tracking with expiry enforcement
+  - Dual skill assessment with review-cycle locking
+  - Snapshot hiring profiles derived from role baselines
+  - Evidence-backed performance history
+  - Organisational capability gap visibility
 - Dashboards & KPIs: role‑based, explainable metrics
 
 ---
@@ -143,5 +166,5 @@ License details to be defined by the project owner.
 
 ---
 
-PET exists to make **planning honest, execution disciplined, and tracking meaningful**.
+PET exists to make **planning honest, execution disciplined, tracking meaningful, and capability accountable**.
 
