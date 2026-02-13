@@ -13,6 +13,7 @@ export default defineConfig({
   use: {
     baseURL: 'https://pet.cope.zone',
     trace: 'on-first-retry',
+    ignoreHTTPSErrors: true,
   },
   projects: [
     {

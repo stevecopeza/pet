@@ -27,6 +27,7 @@ class ApiRegistry
             \Pet\UI\Rest\Controller\DashboardController::class,
             \Pet\UI\Rest\Controller\ProjectController::class,
             \Pet\UI\Rest\Controller\QuoteController::class,
+            \Pet\UI\Rest\Controller\CatalogItemController::class,
             \Pet\UI\Rest\Controller\LeadController::class,
             \Pet\UI\Rest\Controller\TimeEntryController::class,
             \Pet\UI\Rest\Controller\CustomerController::class,
@@ -50,6 +51,9 @@ class ApiRegistry
             \Pet\UI\Rest\Controller\RoleKpiController::class,
             \Pet\UI\Rest\Controller\PersonKpiController::class,
             \Pet\UI\Rest\Controller\PerformanceReviewController::class,
+            \Pet\UI\Rest\Controller\CalendarController::class,
+            \Pet\UI\Rest\Controller\SlaController::class,
+            \Pet\UI\Rest\Controller\SystemController::class,
         ];
 
         foreach ($controllers as $controllerClass) {

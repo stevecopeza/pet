@@ -40,6 +40,7 @@ class AdminPageRegistry
             'pet-dashboards' => 'Dashboards',
             'pet-crm' => 'Customers',
             'pet-quotes-sales' => 'Quotes & Sales',
+            'pet-finance' => 'Finance',
             'pet-delivery' => 'Delivery',
             'pet-time' => 'Time',
             'pet-support' => 'Support',
@@ -96,7 +97,7 @@ class AdminPageRegistry
                 'pet-admin-app',
                 $this->pluginUrl . '/dist/' . $file,
                 [],
-                null,
+                '1.0.2.' . time(), // Force cache bust
                 true
             );
 
@@ -114,7 +115,7 @@ class AdminPageRegistry
                     'pet-admin-style',
                     $this->pluginUrl . '/dist/' . $cssFile,
                     [],
-                    null
+                    '1.0.2.' . time() // Force cache bust
                 );
             }
         }

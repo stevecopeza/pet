@@ -14,6 +14,7 @@ class CreateProjectCommand
     private ?\DateTimeImmutable $startDate;
     private ?\DateTimeImmutable $endDate;
     private array $malleableData;
+    private array $tasks;
 
     public function __construct(
         int $customerId,
@@ -23,7 +24,8 @@ class CreateProjectCommand
         float $soldValue = 0.00,
         ?\DateTimeImmutable $startDate = null,
         ?\DateTimeImmutable $endDate = null,
-        array $malleableData = []
+        array $malleableData = [],
+        array $tasks = []
     ) {
         $this->customerId = $customerId;
         $this->name = $name;
@@ -33,6 +35,7 @@ class CreateProjectCommand
         $this->startDate = $startDate;
         $this->endDate = $endDate;
         $this->malleableData = $malleableData;
+        $this->tasks = $tasks;
     }
 
     public function customerId(): int
@@ -73,5 +76,10 @@ class CreateProjectCommand
     public function malleableData(): array
     {
         return $this->malleableData;
+    }
+
+    public function tasks(): array
+    {
+        return $this->tasks;
     }
 }

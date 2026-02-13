@@ -7,20 +7,23 @@ namespace Pet\Application\Commercial\Command;
 class CreateQuoteCommand
 {
     private int $customerId;
-    private float $totalValue;
+    private string $title;
+    private ?string $description;
     private string $currency;
     private ?\DateTimeImmutable $acceptedAt;
     private array $malleableData;
 
     public function __construct(
-        int $customerId, 
-        float $totalValue = 0.00,
+        int $customerId,
+        string $title,
+        ?string $description,
         string $currency = 'USD',
         ?\DateTimeImmutable $acceptedAt = null,
         array $malleableData = []
     ) {
         $this->customerId = $customerId;
-        $this->totalValue = $totalValue;
+        $this->title = $title;
+        $this->description = $description;
         $this->currency = $currency;
         $this->acceptedAt = $acceptedAt;
         $this->malleableData = $malleableData;
@@ -31,9 +34,14 @@ class CreateQuoteCommand
         return $this->customerId;
     }
 
-    public function totalValue(): float
+    public function title(): string
     {
-        return $this->totalValue;
+        return $this->title;
+    }
+
+    public function description(): ?string
+    {
+        return $this->description;
     }
 
     public function currency(): string

@@ -1,13 +1,14 @@
 {
     "name": "stevecopeza/pet",
-    "description": "PET – Plan. Execute. Track",
+    "description": "PET (Plan. Execute. Track)",
     "type": "wordpress-plugin",
     "require": {
         "php": "^7.4|^8.0",
         "php-di/php-di": "^6.0"
     },
     "require-dev": {
-        "phpunit/phpunit": "^9.0"
+        "phpunit/phpunit": "^9.0",
+        "psr/event-dispatcher": "^1.0"
     },
     "autoload": {
         "psr-4": {

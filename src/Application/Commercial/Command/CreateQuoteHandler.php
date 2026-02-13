@@ -22,7 +22,7 @@ class CreateQuoteHandler
         $this->customerRepository = $customerRepository;
     }
 
-    public function handle(CreateQuoteCommand $command): void
+    public function handle(CreateQuoteCommand $command): int
     {
         $customer = $this->customerRepository->findById($command->customerId());
         if (!$customer) {
@@ -31,9 +31,12 @@ class CreateQuoteHandler
 
         $quote = new Quote(
             $command->customerId(),
+            $command->title(),
+            $command->description(),
             QuoteState::draft(),
             1,
-            $command->totalValue(),
+            0.00, // Initial totalValue
+            0.00, // totalInternalCost
             $command->currency(),
             $command->acceptedAt(),
             null,
@@ -45,5 +48,7 @@ class CreateQuoteHandler
         );
 
         $this->quoteRepository->save($quote);
+        
+        return $quote->id();
     }
 }

@@ -25,7 +25,6 @@ class UpdateQuoteHandler
 
         $quote->update(
             $command->customerId(),
-            $command->totalValue(),
             $command->currency(),
             $command->acceptedAt(),
             $command->malleableData()

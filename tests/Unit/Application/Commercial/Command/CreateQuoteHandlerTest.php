@@ -31,7 +31,7 @@ class CreateQuoteHandlerTest extends TestCase
     public function testHandleCreatesQuoteSuccessfully()
     {
         $customerId = 1;
-        $command = new CreateQuoteCommand($customerId);
+        $command = new CreateQuoteCommand($customerId, 'Test Quote', 'Description');
         
         $customer = $this->createMock(Customer::class);
         $this->customerRepository->method('findById')
@@ -40,7 +40,13 @@ class CreateQuoteHandlerTest extends TestCase
 
         $this->quoteRepository->expects($this->once())
             ->method('save')
-            ->with($this->isInstanceOf(Quote::class));
+            ->with($this->isInstanceOf(Quote::class))
+            ->will($this->returnCallback(function ($quote) {
+                $ref = new \ReflectionClass($quote);
+                $prop = $ref->getProperty('id');
+                $prop->setAccessible(true);
+                $prop->setValue($quote, 123);
+            }));
 
         $this->handler->handle($command);
     }
@@ -48,7 +54,7 @@ class CreateQuoteHandlerTest extends TestCase
     public function testHandleThrowsExceptionIfCustomerNotFound()
     {
         $customerId = 999;
-        $command = new CreateQuoteCommand($customerId);
+        $command = new CreateQuoteCommand($customerId, 'Test Quote', 'Description');
 
         $this->customerRepository->method('findById')
             ->with($customerId)

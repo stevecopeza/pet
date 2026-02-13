@@ -9,6 +9,7 @@ use Pet\Domain\Delivery\Repository\ProjectRepository;
 use Pet\Domain\Identity\Repository\CustomerRepository;
 use Pet\Domain\Configuration\Repository\SchemaDefinitionRepository;
 use Pet\Domain\Configuration\Service\SchemaValidator;
+use Pet\Domain\Delivery\Event\ProjectCreated;
 use Pet\Domain\Event\EventBus;
 
 class CreateProjectHandler
@@ -65,12 +66,15 @@ class CreateProjectHandler
             $command->endDate(),
             null, // id
             $malleableSchemaId,
-            $malleableData
+            $malleableData,
+            null, // createdAt
+            null, // updatedAt
+            null, // archivedAt
+            $command->tasks()
         );
 
         $this->projectRepository->save($project);
 
-        // Dispatch domain event if needed (e.g. ProjectCreated)
-        // $this->eventBus->dispatch(new ProjectCreated($project));
+        $this->eventBus->dispatch(new ProjectCreated($project));
     }
 }

@@ -8,7 +8,6 @@ class UpdateQuoteCommand
 {
     private int $id;
     private int $customerId;
-    private float $totalValue;
     private string $currency;
     private ?\DateTimeImmutable $acceptedAt;
     private array $malleableData;
@@ -16,14 +15,12 @@ class UpdateQuoteCommand
     public function __construct(
         int $id, 
         int $customerId, 
-        float $totalValue = 0.00,
         string $currency = 'USD',
         ?\DateTimeImmutable $acceptedAt = null,
         array $malleableData = []
     ) {
         $this->id = $id;
         $this->customerId = $customerId;
-        $this->totalValue = $totalValue;
         $this->currency = $currency;
         $this->acceptedAt = $acceptedAt;
         $this->malleableData = $malleableData;
@@ -37,11 +34,6 @@ class UpdateQuoteCommand
     public function customerId(): int
     {
         return $this->customerId;
-    }
-
-    public function totalValue(): float
-    {
-        return $this->totalValue;
     }
 
     public function currency(): string

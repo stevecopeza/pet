@@ -54,9 +54,32 @@ class ContainerFactory
                 return new \Pet\Infrastructure\Persistence\Repository\SqlProjectRepository($wpdb);
             },
 
+            \Pet\Domain\Commercial\Repository\CostAdjustmentRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlCostAdjustmentRepository($wpdb);
+            },
+            \Pet\Domain\Commercial\Repository\ForecastRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlForecastRepository($wpdb);
+            },
             \Pet\Domain\Commercial\Repository\QuoteRepository::class => function () {
                 global $wpdb;
-                return new \Pet\Infrastructure\Persistence\Repository\SqlQuoteRepository($wpdb);
+                $costAdjustmentRepository = new \Pet\Infrastructure\Persistence\Repository\SqlCostAdjustmentRepository(); // It uses global $wpdb internally in constructor if no arg passed, or pass $wpdb if updated.
+                // Wait, I didn't update SqlCostAdjustmentRepository constructor yet.
+                // Let's check SqlCostAdjustmentRepository constructor.
+                return new \Pet\Infrastructure\Persistence\Repository\SqlQuoteRepository($wpdb, $costAdjustmentRepository);
+            },
+            \Pet\Domain\Commercial\Repository\CatalogItemRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlCatalogItemRepository($wpdb);
+            },
+            \Pet\Domain\Commercial\Repository\ContractRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlContractRepository($wpdb);
+            },
+            \Pet\Domain\Commercial\Repository\BaselineRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlBaselineRepository($wpdb);
             },
             \Pet\Domain\Commercial\Repository\LeadRepository::class => function () {
                 global $wpdb;
@@ -71,6 +94,10 @@ class ContainerFactory
             \Pet\Domain\Support\Repository\TicketRepository::class => function () {
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlTicketRepository($wpdb);
+            },
+            \Pet\Domain\Support\Repository\SlaClockStateRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlSlaClockStateRepository($wpdb);
             },
 
             \Pet\Domain\Knowledge\Repository\ArticleRepository::class => function () {
@@ -148,6 +175,19 @@ class ContainerFactory
                 return new \Pet\Infrastructure\Persistence\Repository\SqlPerformanceReviewRepository($wpdb);
             },
 
+            // Calendar & SLA Repositories
+            \Pet\Domain\Calendar\Repository\CalendarRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlCalendarRepository($wpdb);
+            },
+            \Pet\Domain\Sla\Repository\SlaRepository::class => function (\DI\Container $c) {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlSlaRepository(
+                    $wpdb,
+                    $c->get(\Pet\Domain\Calendar\Repository\CalendarRepository::class)
+                );
+            },
+
             // Application Handlers
             \Pet\Application\Delivery\Command\CreateProjectHandler::class => \DI\autowire(\Pet\Application\Delivery\Command\CreateProjectHandler::class),
             \Pet\Application\Delivery\Command\AddTaskHandler::class => \DI\autowire(\Pet\Application\Delivery\Command\AddTaskHandler::class),
@@ -156,11 +196,21 @@ class ContainerFactory
             
             \Pet\Application\Commercial\Command\CreateQuoteHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\CreateQuoteHandler::class),
             \Pet\Application\Commercial\Command\UpdateQuoteHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\UpdateQuoteHandler::class),
+            \Pet\Application\Commercial\Command\SendQuoteHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\SendQuoteHandler::class),
+            \Pet\Application\Commercial\Command\AcceptQuoteHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\AcceptQuoteHandler::class),
+            \Pet\Application\Commercial\Command\SetPaymentScheduleHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\SetPaymentScheduleHandler::class),
             \Pet\Application\Commercial\Command\AddQuoteLineHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\AddQuoteLineHandler::class),
+            \Pet\Application\Commercial\Command\AddComponentHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\AddComponentHandler::class),
+            \Pet\Application\Commercial\Command\RemoveComponentHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\RemoveComponentHandler::class),
             \Pet\Application\Commercial\Command\ArchiveQuoteHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\ArchiveQuoteHandler::class),
+            \Pet\Application\Commercial\Listener\QuoteAcceptedListener::class => \DI\autowire(\Pet\Application\Commercial\Listener\QuoteAcceptedListener::class),
+            \Pet\Application\Commercial\Listener\CreateForecastFromQuoteListener::class => \DI\autowire(\Pet\Application\Commercial\Listener\CreateForecastFromQuoteListener::class),
+            \Pet\Application\Delivery\Listener\CreateProjectFromQuoteListener::class => \DI\autowire(\Pet\Application\Delivery\Listener\CreateProjectFromQuoteListener::class),
             \Pet\Application\Commercial\Command\CreateLeadHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\CreateLeadHandler::class),
             \Pet\Application\Commercial\Command\UpdateLeadHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\UpdateLeadHandler::class),
             \Pet\Application\Commercial\Command\DeleteLeadHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\DeleteLeadHandler::class),
+            \Pet\Application\Commercial\Command\AddCostAdjustmentHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\AddCostAdjustmentHandler::class),
+            \Pet\Application\Commercial\Command\RemoveCostAdjustmentHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\RemoveCostAdjustmentHandler::class),
 
             \Pet\Application\Team\Command\CreateTeamHandler::class => \DI\autowire(\Pet\Application\Team\Command\CreateTeamHandler::class),
             \Pet\Application\Team\Command\UpdateTeamHandler::class => \DI\autowire(\Pet\Application\Team\Command\UpdateTeamHandler::class),
@@ -215,6 +265,7 @@ class ContainerFactory
             \Pet\UI\Rest\Controller\SettingsController::class => \DI\autowire(),
             \Pet\UI\Rest\Controller\SchemaController::class => \DI\autowire(),
             \Pet\UI\Rest\Controller\DashboardController::class => \DI\autowire(),
+            \Pet\UI\Rest\Controller\CalendarController::class => \DI\autowire(),
             \Pet\UI\Rest\Controller\SlaController::class => \DI\autowire(),
             \Pet\UI\Rest\Controller\RoleController::class => \DI\autowire(),
             \Pet\UI\Rest\Controller\AssignmentController::class => \DI\autowire(),

@@ -24,7 +24,7 @@ class SqlQuoteRepositoryTest extends TestCase
         $wpdb->expects($this->once())
              ->method('prepare')
              ->with(
-                 $this->stringContains('SELECT SUM(l.total)'),
+                 $this->stringContains('SELECT SUM(total_value)'),
                  QuoteState::ACCEPTED,
                  $start->format('Y-m-d H:i:s'),
                  $end->format('Y-m-d H:i:s')

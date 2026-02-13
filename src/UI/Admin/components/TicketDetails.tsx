@@ -73,6 +73,20 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack }) => {
     }
   };
 
+  const getSlaStatusColor = (status?: string) => {
+    switch (status) {
+      case 'breached': return '#dc3232'; // Red
+      case 'warning': return '#dba617'; // Orange
+      case 'achieved': return '#46b450'; // Green
+      default: return '#72aee6'; // Blue
+    }
+  };
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return 'N/A';
+    return new Date(dateStr).toLocaleString();
+  };
+
   return (
     <div className="pet-ticket-details">
       <div style={{ marginBottom: '20px' }}>
@@ -146,6 +160,34 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack }) => {
         </div>
 
         <div className="pet-ticket-sidebar">
+          <div className="pet-box" style={{ background: '#fff', padding: '20px', border: '1px solid #ccd0d4', marginBottom: '20px' }}>
+            <h3 style={{ marginTop: 0 }}>SLA Status</h3>
+            {ticket.slaId ? (
+              <div>
+                <div style={{ marginBottom: '10px' }}>
+                  <strong>Status: </strong>
+                  <span style={{ 
+                    fontWeight: 'bold', 
+                    color: getSlaStatusColor(ticket.sla_status),
+                    textTransform: 'uppercase'
+                  }}>
+                    {ticket.sla_status || 'Pending'}
+                  </span>
+                </div>
+                <div style={{ marginBottom: '10px' }}>
+                  <strong>Response Due:</strong><br/>
+                  {formatDate(ticket.response_due_at)}
+                </div>
+                <div>
+                  <strong>Resolution Due:</strong><br/>
+                  {formatDate(ticket.resolution_due_at)}
+                </div>
+              </div>
+            ) : (
+              <p style={{ fontStyle: 'italic', color: '#666' }}>No SLA assigned to this ticket.</p>
+            )}
+          </div>
+
           <div className="pet-box" style={{ background: '#fff', padding: '20px', border: '1px solid #ccd0d4', marginBottom: '20px' }}>
             <h3 style={{ marginTop: 0 }}>Customer Details</h3>
             {loadingCustomer ? (

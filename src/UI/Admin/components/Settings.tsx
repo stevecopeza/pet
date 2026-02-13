@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Setting } from '../types';
 import { DataTable, Column } from './DataTable';
 import SchemaManagement from './SchemaManagement';
+import Calendars from './Calendars';
+import SlaDefinitions from './SlaDefinitions';
 
 // Extended interface for UI that includes id
 interface SettingWithId extends Setting {
@@ -9,7 +11,7 @@ interface SettingWithId extends Setting {
 }
 
 const Settings = () => {
-  const [activeTab, setActiveTab] = useState<'general' | 'schemas'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'schemas' | 'calendars' | 'slas'>('general');
   const [settings, setSettings] = useState<SettingWithId[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -118,9 +120,39 @@ const Settings = () => {
         >
           Schemas & Malleable Fields
         </button>
+        <button
+          onClick={() => setActiveTab('calendars')}
+          style={{
+            padding: '10px 20px',
+            border: 'none',
+            background: activeTab === 'calendars' ? '#fff' : 'transparent',
+            borderBottom: activeTab === 'calendars' ? '2px solid #007cba' : 'none',
+            cursor: 'pointer',
+            fontWeight: activeTab === 'calendars' ? 'bold' : 'normal',
+            color: activeTab === 'calendars' ? '#000' : '#555',
+            fontSize: '14px'
+          }}
+        >
+          Calendars
+        </button>
+        <button
+          onClick={() => setActiveTab('slas')}
+          style={{
+            padding: '10px 20px',
+            border: 'none',
+            background: activeTab === 'slas' ? '#fff' : 'transparent',
+            borderBottom: activeTab === 'slas' ? '2px solid #007cba' : 'none',
+            cursor: 'pointer',
+            fontWeight: activeTab === 'slas' ? 'bold' : 'normal',
+            color: activeTab === 'slas' ? '#000' : '#555',
+            fontSize: '14px'
+          }}
+        >
+          SLA Definitions
+        </button>
       </div>
 
-      {activeTab === 'general' ? (
+      {activeTab === 'general' && (
         <>
           <h2>System Settings</h2>
           <p>Configure global plugin settings.</p>
@@ -141,9 +173,11 @@ const Settings = () => {
             <p>These settings are stored in the database and affect plugin behavior globally.</p>
           </div>
         </>
-      ) : (
-        <SchemaManagement />
       )}
+
+      {activeTab === 'schemas' && <SchemaManagement />}
+      {activeTab === 'calendars' && <Calendars />}
+      {activeTab === 'slas' && <SlaDefinitions />}
     </div>
   );
 };

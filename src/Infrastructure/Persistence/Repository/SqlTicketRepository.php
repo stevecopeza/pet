@@ -34,14 +34,23 @@ class SqlTicketRepository implements TicketRepository
             'opened_at' => $ticket->openedAt() ? $ticket->openedAt()->format('Y-m-d H:i:s') : null,
             'closed_at' => $ticket->closedAt() ? $ticket->closedAt()->format('Y-m-d H:i:s') : null,
             'resolved_at' => $ticket->resolvedAt() ? $ticket->resolvedAt()->format('Y-m-d H:i:s') : null,
+            'sla_snapshot_id' => $ticket->slaSnapshotId(),
+            'response_due_at' => $ticket->responseDueAt() ? $ticket->responseDueAt()->format('Y-m-d H:i:s') : null,
+            'resolution_due_at' => $ticket->resolutionDueAt() ? $ticket->resolutionDueAt()->format('Y-m-d H:i:s') : null,
+            'responded_at' => $ticket->respondedAt() ? $ticket->respondedAt()->format('Y-m-d H:i:s') : null,
         ];
 
-        $formats = ['%d', '%d', '%d', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s'];
+        $formats = [
+            '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s',
+            '%d', '%s', '%s', '%s'
+        ];
 
         if ($ticket->id()) {
             $this->wpdb->update($table, $data, ['id' => $ticket->id()], $formats, ['%d']);
         } else {
             $this->wpdb->insert($table, $data, $formats);
+            // $ticket->id = $this->wpdb->insert_id; // Ticket is immutable/readonly on ID usually, but for consistency we might want to reload or return ID.
+            // Since Ticket doesn't expose setId, we rely on repository users to reload or we just persist.
         }
     }
 
@@ -73,6 +82,20 @@ class SqlTicketRepository implements TicketRepository
         return array_map([$this, 'hydrate'], $rows);
     }
 
+    public function findActive(): array
+    {
+        $table = $this->wpdb->prefix . 'pet_tickets';
+        // Active tickets are those not resolved or closed.
+        // Assuming status 'resolved' and 'closed' are the terminal states.
+        $rows = $this->wpdb->get_results(
+            "SELECT * FROM $table 
+            WHERE status NOT IN ('resolved', 'closed') 
+            ORDER BY created_at ASC"
+        );
+
+        return array_map([$this, 'hydrate'], $rows);
+    }
+
     public function delete(int $id): void
     {
         $table = $this->wpdb->prefix . 'pet_tickets';
@@ -95,7 +118,11 @@ class SqlTicketRepository implements TicketRepository
             new \DateTimeImmutable($row->created_at),
             isset($row->opened_at) && $row->opened_at ? new \DateTimeImmutable($row->opened_at) : null,
             isset($row->closed_at) && $row->closed_at ? new \DateTimeImmutable($row->closed_at) : null,
-            isset($row->resolved_at) && $row->resolved_at ? new \DateTimeImmutable($row->resolved_at) : null
+            isset($row->resolved_at) && $row->resolved_at ? new \DateTimeImmutable($row->resolved_at) : null,
+            isset($row->sla_snapshot_id) ? (int) $row->sla_snapshot_id : null,
+            isset($row->response_due_at) && $row->response_due_at ? new \DateTimeImmutable($row->response_due_at) : null,
+            isset($row->resolution_due_at) && $row->resolution_due_at ? new \DateTimeImmutable($row->resolution_due_at) : null,
+            isset($row->responded_at) && $row->responded_at ? new \DateTimeImmutable($row->responded_at) : null
         );
     }
 }

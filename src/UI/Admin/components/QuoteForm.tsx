@@ -3,7 +3,7 @@ import { Customer, Quote } from '../types';
 import MalleableFieldsRenderer from './MalleableFieldsRenderer';
 
 interface QuoteFormProps {
-  onSuccess: () => void;
+  onSuccess: (quote?: Quote) => void;
   onCancel: () => void;
   initialData?: Quote;
 }
@@ -11,6 +11,8 @@ interface QuoteFormProps {
 const QuoteForm: React.FC<QuoteFormProps> = ({ onSuccess, onCancel, initialData }) => {
   const isEditMode = !!initialData;
   const [customerId, setCustomerId] = useState(initialData?.customerId?.toString() || '');
+  const [title, setTitle] = useState(initialData?.title || '');
+  const [description, setDescription] = useState(initialData?.description || '');
   const [totalValue, setTotalValue] = useState(initialData?.totalValue?.toString() || '0.00');
   const [currency, setCurrency] = useState(initialData?.currency || 'USD');
   const [acceptedAt, setAcceptedAt] = useState(initialData?.acceptedAt || '');
@@ -77,10 +79,19 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ onSuccess, onCancel, initialData 
     fetchSchema();
   }, [isEditMode]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent | React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     if (!customerId) {
       setError('Please select a customer');
+      return;
+    }
+
+    if (!title) {
+      setError('Please enter a quote title');
       return;
     }
 
@@ -88,6 +99,7 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ onSuccess, onCancel, initialData 
     setError(null);
 
     try {
+      console.log('Submitting quote form...', { isEditMode, customerId, totalValue });
       // @ts-ignore
       const apiUrl = window.petSettings?.apiUrl;
       // @ts-ignore
@@ -105,6 +117,8 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ onSuccess, onCancel, initialData 
         },
         body: JSON.stringify({ 
           customerId: parseInt(customerId, 10),
+          title,
+          description,
           totalValue: parseFloat(totalValue),
           currency,
           acceptedAt: acceptedAt || null,
@@ -114,11 +128,15 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ onSuccess, onCancel, initialData 
 
       if (!response.ok) {
         const data = await response.json();
+        console.error('Quote submission failed:', data);
         throw new Error(data.message || `Failed to ${isEditMode ? 'update' : 'create'} quote`);
       }
 
-      onSuccess();
+      const savedQuote = await response.json();
+      console.log('Quote submission success. Saved quote:', savedQuote);
+      onSuccess(savedQuote);
     } catch (err) {
+      console.error('Quote form error:', err);
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setLoading(false);
@@ -126,59 +144,84 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ onSuccess, onCancel, initialData 
   };
 
   return (
-    <div className="pet-form-container" style={{ padding: '20px', background: '#f9f9f9', border: '1px solid #ddd', marginBottom: '20px' }}>
-      <h3>{isEditMode ? 'Edit Quote' : 'Create New Quote'}</h3>
-      {error && <div style={{ color: 'red', marginBottom: '10px' }}>{error}</div>}
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '10px' }}>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Customer:</label>
-          {loadingCustomers ? (
-            <div>Loading customers...</div>
-          ) : (
-            <select 
-              value={customerId} 
-              onChange={(e) => setCustomerId(e.target.value)}
-              required
-              style={{ width: '100%', maxWidth: '400px' }}
-            >
-              <option value="">Select a customer</option>
-              {customers.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          )}
+    <div className="card" style={{ padding: '20px', maxWidth: '800px', background: '#fff', border: '1px solid #ccd0d4' }}>
+      <h2>{isEditMode ? 'Edit Quote' : 'Step 1: Create Quote Header'}</h2>
+      
+      {!isEditMode && (
+        <div className="notice notice-info inline" style={{ marginBottom: '20px' }}>
+          <p>Create the quote header first. You will be able to add line items and select catalog services on the next screen.</p>
+        </div>
+      )}
+
+      {error && <div className="notice notice-error inline"><p>{error}</p></div>}
+      
+      <div onKeyDown={(e) => e.key === 'Enter' && handleSubmit(e)}>
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>Customer</label>
+          <select 
+            value={customerId} 
+            onChange={(e) => setCustomerId(e.target.value)}
+            style={{ width: '100%', maxWidth: '300px' }}
+            disabled={loading || loadingCustomers}
+          >
+            <option value="">Select Customer</option>
+            {customers.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
         </div>
 
-        <div style={{ marginBottom: '10px' }}>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Total Value:</label>
-          <input 
-            type="number" 
-            step="0.01"
-            value={totalValue} 
-            onChange={(e) => setTotalValue(e.target.value)} 
-            style={{ width: '100%', maxWidth: '400px', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '10px' }}>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Currency:</label>
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>Quote Title</label>
           <input 
             type="text" 
-            value={currency} 
-            onChange={(e) => setCurrency(e.target.value)} 
-            style={{ width: '100%', maxWidth: '400px', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            style={{ width: '100%', maxWidth: '400px' }}
+            disabled={loading}
+            placeholder="e.g. Q123 - Server Upgrade"
           />
         </div>
 
-        <div style={{ marginBottom: '10px' }}>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Accepted At:</label>
-          <input 
-            type="datetime-local" 
-            value={acceptedAt} 
-            onChange={(e) => setAcceptedAt(e.target.value)} 
-            style={{ width: '100%', maxWidth: '400px', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>Description (Optional)</label>
+          <textarea 
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            style={{ width: '100%', maxWidth: '500px', minHeight: '80px' }}
+            disabled={loading}
           />
         </div>
+
+        {/* Total Value is derived from line items, not manually entered */}
+        {/* 
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>Total Value</label>
+          <input 
+            type="number" 
+            value={totalValue}
+            onChange={(e) => setTotalValue(e.target.value)}
+            style={{ width: '100%', maxWidth: '200px' }}
+            disabled={loading}
+            min="0"
+            step="0.01"
+          />
+        </div>
+        */}
+
+        {/* Accepted At removed as per user request - quotes start as drafts */}
+        {/*
+        <div style={{ marginBottom: '15px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>Accepted At (Optional)</label>
+          <input 
+            type="datetime-local" 
+            value={acceptedAt}
+            onChange={(e) => setAcceptedAt(e.target.value)}
+            style={{ width: '100%', maxWidth: '300px' }}
+            disabled={loading}
+          />
+        </div>
+        */}
 
         {activeSchema && (
           <MalleableFieldsRenderer 
@@ -188,23 +231,25 @@ const QuoteForm: React.FC<QuoteFormProps> = ({ onSuccess, onCancel, initialData 
           />
         )}
 
-        <div style={{ marginTop: '20px' }}>
+        <div className="pet-form-actions" style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
           <button 
-            type="submit" 
+            type="button" 
+            className="button button-primary" 
+            onClick={handleSubmit}
             disabled={loading}
-            style={{ marginRight: '10px', padding: '8px 16px', background: '#007cba', color: 'white', border: 'none', cursor: 'pointer' }}
           >
-            {loading ? 'Saving...' : (isEditMode ? 'Update Quote' : 'Create Quote')}
+            {loading ? 'Saving...' : (isEditMode ? 'Update Quote' : 'Start building quote')}
           </button>
           <button 
             type="button" 
-            onClick={onCancel}
-            style={{ padding: '8px 16px', background: '#f0f0f1', border: '1px solid #ccc', cursor: 'pointer' }}
+            className="button" 
+            onClick={onCancel} 
+            disabled={loading}
           >
             Cancel
           </button>
         </div>
-      </form>
+      </div>
     </div>
   );
 };

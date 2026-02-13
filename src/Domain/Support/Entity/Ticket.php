@@ -21,6 +21,11 @@ class Ticket
     private ?\DateTimeImmutable $closedAt;
     private ?\DateTimeImmutable $resolvedAt;
 
+    private ?int $slaSnapshotId;
+    private ?\DateTimeImmutable $responseDueAt;
+    private ?\DateTimeImmutable $resolutionDueAt;
+    private ?\DateTimeImmutable $respondedAt;
+
     public function __construct(
         int $customerId,
         string $subject,
@@ -35,7 +40,11 @@ class Ticket
         ?\DateTimeImmutable $createdAt = null,
         ?\DateTimeImmutable $openedAt = null,
         ?\DateTimeImmutable $closedAt = null,
-        ?\DateTimeImmutable $resolvedAt = null
+        ?\DateTimeImmutable $resolvedAt = null,
+        ?int $slaSnapshotId = null,
+        ?\DateTimeImmutable $responseDueAt = null,
+        ?\DateTimeImmutable $resolutionDueAt = null,
+        ?\DateTimeImmutable $respondedAt = null
     ) {
         $this->id = $id;
         $this->customerId = $customerId;
@@ -51,6 +60,10 @@ class Ticket
         $this->openedAt = $openedAt ?? ($status !== 'new' ? new \DateTimeImmutable() : null);
         $this->closedAt = $closedAt;
         $this->resolvedAt = $resolvedAt;
+        $this->slaSnapshotId = $slaSnapshotId;
+        $this->responseDueAt = $responseDueAt;
+        $this->resolutionDueAt = $resolutionDueAt;
+        $this->respondedAt = $respondedAt;
     }
 
     public function id(): ?int
@@ -121,6 +134,43 @@ class Ticket
     public function resolvedAt(): ?\DateTimeImmutable
     {
         return $this->resolvedAt;
+    }
+
+    public function slaSnapshotId(): ?int
+    {
+        return $this->slaSnapshotId;
+    }
+
+    public function responseDueAt(): ?\DateTimeImmutable
+    {
+        return $this->responseDueAt;
+    }
+
+    public function resolutionDueAt(): ?\DateTimeImmutable
+    {
+        return $this->resolutionDueAt;
+    }
+
+    public function respondedAt(): ?\DateTimeImmutable
+    {
+        return $this->respondedAt;
+    }
+
+    public function assignSla(
+        int $slaSnapshotId,
+        \DateTimeImmutable $responseDueAt,
+        \DateTimeImmutable $resolutionDueAt
+    ): void {
+        $this->slaSnapshotId = $slaSnapshotId;
+        $this->responseDueAt = $responseDueAt;
+        $this->resolutionDueAt = $resolutionDueAt;
+    }
+
+    public function markAsResponded(\DateTimeImmutable $respondedAt): void
+    {
+        if ($this->respondedAt === null) {
+            $this->respondedAt = $respondedAt;
+        }
     }
 
     public function update(

@@ -45,13 +45,44 @@ export interface Task {
 export interface Quote {
   id: number;
   customerId: number;
+  title: string;
+  description?: string;
   state: string;
   version: number;
   totalValue: number;
+  totalInternalCost?: number;
+  adjustedTotalInternalCost?: number;
+  margin?: number;
   currency: string;
   acceptedAt?: string;
-  lines: QuoteLine[];
+  lines?: QuoteLine[]; // Deprecated
+  components?: QuoteComponent[];
+  costAdjustments?: CostAdjustment[];
   malleableData?: Record<string, any>;
+}
+
+export interface CostAdjustment {
+  id: number;
+  description: string;
+  amount: number;
+  reason: string;
+  approvedBy: string;
+  appliedAt: string;
+}
+
+export interface QuoteComponent {
+  id: string;
+  type: string;
+  section: string;
+  description: string;
+  sellValue: number;
+  internalCost: number;
+  items?: {
+    description: string;
+    quantity: number;
+    unitSellPrice: number;
+    sellValue: number;
+  }[];
 }
 
 export interface QuoteLine {
@@ -134,6 +165,9 @@ export interface Ticket {
   openedAt?: string | null;
   resolvedAt: string | null;
   closedAt?: string | null;
+  sla_status?: string;
+  response_due_at?: string;
+  resolution_due_at?: string;
 }
 
 export interface Article {
@@ -195,8 +229,39 @@ export interface SchemaDefinition {
 export interface Sla {
   id: number;
   name: string;
-  target_response_hours: number;
-  target_resolution_hours: number;
+  target_response_minutes: number;
+  target_resolution_minutes: number;
+  calendar_id: number;
+  escalation_rules: EscalationRule[];
+}
+
+export interface EscalationRule {
+  id?: number;
+  percentage: number;
+  action: string;
+  notify_role_id?: number;
+}
+
+export interface Calendar {
+  id: number;
+  name: string;
+  timezone: string;
+  is_default: boolean;
+  working_windows: WorkingWindow[];
+  holidays: Holiday[];
+}
+
+export interface WorkingWindow {
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+}
+
+export interface Holiday {
+  id?: number;
+  name: string;
+  date: string;
+  is_recurring: boolean;
 }
 
 export interface Team {
@@ -268,33 +333,4 @@ export interface KpiDefinition {
 export interface RoleKpi {
   id: number;
   role_id: number;
-  kpi_definition_id: number;
-  weight_percentage: number;
-  target_value: number;
-  measurement_frequency: string;
-  created_at: string;
-  kpi_name?: string; // Enriched on frontend
-  kpi_unit?: string; // Enriched on frontend
-}
-
-export interface PersonKpi {
-  id: number;
-  employee_id: number;
-  kpi_definition_id: number;
-  role_id: number;
-  period_start: string;
-  period_end: string;
-  target_value: number;
-  actual_value: number | null;
-  score: number | null;
-  status: string;
-  created_at: string;
-  kpi_name?: string; // Enriched on frontend
-  kpi_unit?: string; // Enriched on frontend
-}
-
-declare global {
-  interface Window {
-    petSettings: PetSettings;
-  }
 }

@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Commercial\Command;
 
-use Pet\Domain\Commercial\Entity\QuoteLine;
+use Pet\Domain\Commercial\Entity\Component\CatalogComponent;
+use Pet\Domain\Commercial\Entity\Component\QuoteCatalogItem;
 use Pet\Domain\Commercial\Repository\QuoteRepository;
 
 class AddQuoteLineHandler
@@ -23,14 +24,20 @@ class AddQuoteLineHandler
             throw new \DomainException("Quote not found: {$command->quoteId()}");
         }
 
-        $line = new QuoteLine(
+        // Map legacy "Line" to a Catalog Component with a single item
+        $item = new QuoteCatalogItem(
             $command->description(),
             $command->quantity(),
             $command->unitPrice(),
-            $command->lineGroupType()
+            0.00 // Default internal cost to 0 as it's not provided in legacy command
         );
 
-        $quote->addLine($line);
+        $component = new CatalogComponent(
+            [$item],
+            $command->description() // Use line description as component description
+        );
+
+        $quote->addComponent($component);
 
         $this->quoteRepository->save($quote);
     }

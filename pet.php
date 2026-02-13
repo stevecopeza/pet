@@ -1,8 +1,8 @@
 <?php
 /**
- * Plugin Name: PET (Project Estimation Tool)
+ * Plugin Name: PET (Plan. Execute. Track)
  * Description: Domain-driven project estimation and management tool.
- * Version: 1.0.0
+ * Version: 1.0.2
  * Author: Steve Cope
  * Text Domain: pet
  */
@@ -46,6 +46,20 @@ add_action('plugins_loaded', function () {
             \Pet\Infrastructure\Persistence\Migration\Definition\UpdateIdentityCoreFields::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateWorkTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreatePerformanceTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateQuoteComponentTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateCatalogTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateContractBaselineTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddTitleDescriptionToQuotes::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddTypeToCatalogItems::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddWbsTemplateToCatalogItems::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddCatalogItemIdToQuoteCatalogItems::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateCalendarTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateSlaTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddTicketSlaFields::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddSectionToQuoteComponents::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateSlaClockStateTable::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateQuotePaymentScheduleTable::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddSkuAndRoleIdToQuoteCatalogItems::class,
         ]);
 
         // Register UI
@@ -65,8 +79,63 @@ add_action('plugins_loaded', function () {
         
         $ticketCreatedListener = $container->get(\Pet\Application\Activity\Listener\TicketCreatedListener::class);
         $eventBus->subscribe(\Pet\Domain\Support\Event\TicketCreated::class, $ticketCreatedListener);
+        
+        $quoteAcceptedListener = $container->get(\Pet\Application\Commercial\Listener\QuoteAcceptedListener::class);
+        $eventBus->subscribe(\Pet\Domain\Commercial\Event\QuoteAccepted::class, $quoteAcceptedListener);
+
+        $createProjectFromQuoteListener = $container->get(\Pet\Application\Delivery\Listener\CreateProjectFromQuoteListener::class);
+        $eventBus->subscribe(\Pet\Domain\Commercial\Event\QuoteAccepted::class, $createProjectFromQuoteListener);
+
+        $createForecastFromQuoteListener = $container->get(\Pet\Application\Commercial\Listener\CreateForecastFromQuoteListener::class);
+        $eventBus->subscribe(\Pet\Domain\Commercial\Event\QuoteAccepted::class, $createForecastFromQuoteListener);
+
+        // Feed Projection Listener
+        $feedProjectionListener = $container->get(\Pet\Application\Projection\Listener\FeedProjectionListener::class);
+        $eventBus->subscribe(\Pet\Domain\Commercial\Event\QuoteAccepted::class, [$feedProjectionListener, 'onQuoteAccepted']);
+        $eventBus->subscribe(\Pet\Domain\Delivery\Event\ProjectCreated::class, [$feedProjectionListener, 'onProjectCreated']);
+        $eventBus->subscribe(\Pet\Domain\Support\Event\TicketCreated::class, [$feedProjectionListener, 'onTicketCreated']);
+        $eventBus->subscribe(\Pet\Domain\Support\Event\TicketWarningEvent::class, [$feedProjectionListener, 'onTicketWarning']);
+        $eventBus->subscribe(\Pet\Domain\Support\Event\TicketBreachedEvent::class, [$feedProjectionListener, 'onTicketBreached']);
+        $eventBus->subscribe(\Pet\Domain\Support\Event\EscalationTriggeredEvent::class, [$feedProjectionListener, 'onEscalationTriggered']);
+        $eventBus->subscribe(\Pet\Domain\Delivery\Event\MilestoneCompletedEvent::class, [$feedProjectionListener, 'onMilestoneCompleted']);
+        $eventBus->subscribe(\Pet\Domain\Commercial\Event\ChangeOrderApprovedEvent::class, [$feedProjectionListener, 'onChangeOrderApproved']);
 
     } catch (\Exception $e) {
         error_log('PET Plugin Bootstrap Error: ' . $e->getMessage());
+    }
+});
+
+// Register Cron Schedules
+add_filter('cron_schedules', function ($schedules) {
+    $schedules['pet_five_minutes'] = [
+        'interval' => 300,
+        'display' => __('Every 5 Minutes')
+    ];
+    return $schedules;
+});
+
+// Register Cron Event Handler
+add_action('pet_sla_automation_event', function () {
+    try {
+        $container = \Pet\Infrastructure\DependencyInjection\ContainerFactory::create();
+        $job = $container->get(\Pet\Application\Support\Cron\SlaAutomationJob::class);
+        $job->run();
+    } catch (\Throwable $e) {
+        error_log('PET SLA Automation Cron Failed: ' . $e->getMessage());
+    }
+});
+
+// Schedule Cron Event on Activation
+register_activation_hook(__FILE__, function () {
+    if (!wp_next_scheduled('pet_sla_automation_event')) {
+        wp_schedule_event(time(), 'pet_five_minutes', 'pet_sla_automation_event');
+    }
+});
+
+// Clear Cron Event on Deactivation
+register_deactivation_hook(__FILE__, function () {
+    $timestamp = wp_next_scheduled('pet_sla_automation_event');
+    if ($timestamp) {
+        wp_unschedule_event($timestamp, 'pet_sla_automation_event');
     }
 });

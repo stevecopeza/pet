@@ -102,6 +102,22 @@ class Project
         return $this->name;
     }
 
+    public function completeTask(string $taskName): void
+    {
+        foreach ($this->tasks as $index => $task) {
+            if ($task->name() === $taskName) {
+                $this->tasks[$index] = new Task(
+                    $task->name(),
+                    $task->estimatedHours(),
+                    true,
+                    $task->id()
+                );
+                return;
+            }
+        }
+        throw new \DomainException("Task '$taskName' not found.");
+    }
+
     public function sourceQuoteId(): ?int
     {
         return $this->sourceQuoteId;

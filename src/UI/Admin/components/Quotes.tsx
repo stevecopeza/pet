@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Quote } from '../types';
 import { DataTable, Column } from './DataTable';
 import QuoteForm from './QuoteForm';
@@ -70,10 +70,15 @@ const Quotes = () => {
     fetchSchema();
   }, []);
 
-  const handleAddSuccess = () => {
+  const handleAddSuccess = (savedQuote?: Quote) => {
     setShowAddForm(false);
     setEditingQuote(null);
-    fetchQuotes();
+    
+    if (savedQuote && savedQuote.id) {
+      setSelectedQuoteId(savedQuote.id);
+    } else {
+      fetchQuotes();
+    }
   };
 
   const handleEdit = (quote: Quote) => {
@@ -174,7 +179,7 @@ const Quotes = () => {
       header: 'Line Total', 
       key: 'lines',
       render: (_, quote) => {
-        const total = quote.lines.reduce((sum, line) => sum + line.total, 0);
+        const total = (quote.lines || []).reduce((sum, line) => sum + line.total, 0);
         return `$${total.toFixed(2)}`;
       }
     },
@@ -199,78 +204,81 @@ const Quotes = () => {
 
   return (
     <div className="pet-quotes">
-      <div className="pet-header-actions" style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
-        <button 
-          onClick={() => { setEditingQuote(null); setShowAddForm(true); }}
-          className="button button-primary"
-        >
-          Create New Quote
-        </button>
-        {selectedIds.length > 0 && (
-          <button 
-            onClick={handleBulkArchive}
-            className="button button-secondary"
-            style={{ color: '#b32d2e', borderColor: '#b32d2e' }}
-          >
-            Archive Selected ({selectedIds.length})
-          </button>
-        )}
-      </div>
 
-      {showAddForm && (
+      {showAddForm ? (
         <QuoteForm 
           onSuccess={handleAddSuccess} 
           onCancel={() => { setShowAddForm(false); setEditingQuote(null); }}
           initialData={editingQuote || undefined}
         />
-      )}
-
-      {selectedIds.length > 0 && (
-        <div style={{ padding: '10px', background: '#e5f5fa', border: '1px solid #b5e1ef', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <strong>{selectedIds.length} items selected</strong>
-          <button className="button button-link-delete" style={{ color: '#a00', borderColor: '#a00' }} onClick={handleBulkArchive}>Archive Selected</button>
-        </div>
-      )}
-
-      {error && <div className="notice notice-error"><p>{error}</p></div>}
-      
-      {loading ? (
-        <div>Loading quotes...</div>
       ) : (
-        <DataTable 
-          columns={columns} 
-          data={quotes} 
-          emptyMessage="No quotes found." 
-          selection={{
-            selectedIds,
-            onSelectionChange: setSelectedIds
-          }}
-          actions={(quote) => (
-            <div className="pet-actions">
+        <>
+          <div className="pet-header-actions" style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+            <button 
+              onClick={() => { setEditingQuote(null); setShowAddForm(true); }}
+              className="button button-primary"
+            >
+              Start building quote
+            </button>
+            {selectedIds.length > 0 && (
               <button 
-                onClick={() => setSelectedQuoteId(quote.id)}
-                className="button button-small"
-                style={{ marginRight: '5px' }}
+                onClick={handleBulkArchive}
+                className="button button-secondary"
+                style={{ color: '#b32d2e', borderColor: '#b32d2e' }}
               >
-                View
+                Archive Selected ({selectedIds.length})
               </button>
-              <button 
-                onClick={() => handleEdit(quote)}
-                className="button button-small"
-                style={{ marginRight: '5px' }}
-                disabled={quote.state !== 'draft'}
-              >
-                Edit
-              </button>
-              <button 
-                onClick={() => handleArchive(quote.id)}
-                className="button button-small button-link-delete"
-              >
-                Archive
-              </button>
+            )}
+          </div>
+
+          {selectedIds.length > 0 && (
+            <div style={{ padding: '10px', background: '#e5f5fa', border: '1px solid #b5e1ef', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <strong>{selectedIds.length} items selected</strong>
+              <button className="button button-link-delete" style={{ color: '#a00', borderColor: '#a00' }} onClick={handleBulkArchive}>Archive Selected</button>
             </div>
           )}
-        />
+
+          {error && <div className="notice notice-error"><p>{error}</p></div>}
+          
+          {loading ? (
+            <div>Loading quotes...</div>
+          ) : (
+            <DataTable 
+              columns={columns} 
+              data={quotes} 
+              emptyMessage="No quotes found. Create a new quote to get started." 
+              selection={{
+                selectedIds,
+                onSelectionChange: setSelectedIds
+              }}
+              actions={(quote) => (
+                <div className="pet-actions">
+                  <button 
+                    onClick={() => setSelectedQuoteId(quote.id)}
+                    className="button button-small"
+                    style={{ marginRight: '5px' }}
+                  >
+                    View
+                  </button>
+                  <button 
+                    onClick={() => handleEdit(quote)}
+                    className="button button-small"
+                    style={{ marginRight: '5px' }}
+                    disabled={quote.state !== 'draft'}
+                  >
+                    Edit
+                  </button>
+                  <button 
+                    onClick={() => handleArchive(quote.id)}
+                    className="button button-small button-link-delete"
+                  >
+                    Archive
+                  </button>
+                </div>
+              )}
+            />
+          )}
+        </>
       )}
     </div>
   );

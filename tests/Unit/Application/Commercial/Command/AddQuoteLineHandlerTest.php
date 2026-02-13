@@ -33,7 +33,7 @@ class AddQuoteLineHandlerTest extends TestCase
             ->willReturn($quote);
 
         $quote->expects($this->once())
-            ->method('addLine');
+            ->method('addComponent');
 
         $this->quoteRepository->expects($this->once())
             ->method('save')
