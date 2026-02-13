@@ -60,6 +60,7 @@ add_action('plugins_loaded', function () {
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateSlaClockStateTable::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateQuotePaymentScheduleTable::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddSkuAndRoleIdToQuoteCatalogItems::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateWorkOrchestrationTables::class,
         ]);
 
         // Register UI
