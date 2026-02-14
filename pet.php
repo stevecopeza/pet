@@ -119,6 +119,15 @@ add_action('plugins_loaded', function () {
         $eventBus->subscribe(\Pet\Domain\Support\Event\TicketAssigned::class, [$workItemProjector, 'onTicketAssigned']);
         $eventBus->subscribe(\Pet\Domain\Delivery\Event\ProjectTaskCreated::class, [$workItemProjector, 'onProjectTaskCreated']);
 
+        // Register Outbox Dispatch Cron Handler
+        $outboxJob = $container->get(\Pet\Application\Integration\Cron\OutboxDispatchJob::class);
+        add_action('pet_outbox_dispatch_event', function () use ($outboxJob) {
+            try {
+                $outboxJob->run();
+            } catch (\Throwable $e) {
+                error_log('PET Outbox Dispatch Cron Failed: ' . $e->getMessage());
+            }
+        });
     } catch (\Exception $e) {
         error_log('PET Plugin Bootstrap Error: ' . $e->getMessage());
     }
@@ -175,6 +184,9 @@ register_activation_hook(__FILE__, function () {
     if (!wp_next_scheduled('pet_advisory_generation_event')) {
         wp_schedule_event(time(), 'pet_five_minutes', 'pet_advisory_generation_event');
     }
+    if (!wp_next_scheduled('pet_outbox_dispatch_event')) {
+        wp_schedule_event(time(), 'pet_five_minutes', 'pet_outbox_dispatch_event');
+    }
 });
 
 // Clear Cron Event on Deactivation
@@ -190,5 +202,9 @@ register_deactivation_hook(__FILE__, function () {
     $timestamp = wp_next_scheduled('pet_advisory_generation_event');
     if ($timestamp) {
         wp_unschedule_event($timestamp, 'pet_advisory_generation_event');
+    }
+    $timestamp = wp_next_scheduled('pet_outbox_dispatch_event');
+    if ($timestamp) {
+        wp_unschedule_event($timestamp, 'pet_outbox_dispatch_event');
     }
 });

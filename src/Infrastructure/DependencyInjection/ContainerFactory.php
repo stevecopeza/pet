@@ -41,6 +41,10 @@ class ContainerFactory
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlBillingExportRepository($wpdb);
             },
+            \Pet\Infrastructure\Persistence\Repository\SqlOutboxRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlOutboxRepository($wpdb);
+            },
 
             // Repositories
             \Pet\Domain\Identity\Repository\EmployeeRepository::class => function () {
@@ -306,6 +310,8 @@ class ContainerFactory
             \Pet\Domain\Work\Service\SlaClockCalculator::class => \DI\autowire(\Pet\Domain\Work\Service\SlaClockCalculator::class),
             \Pet\Domain\Calendar\Service\BusinessTimeCalculator::class => \DI\autowire(\Pet\Domain\Calendar\Service\BusinessTimeCalculator::class),
             \Pet\Domain\Work\Service\CapacityCalendar::class => \DI\autowire(\Pet\Domain\Work\Service\CapacityCalendar::class),
+            \Pet\Application\Integration\Service\OutboxDispatcherService::class => \DI\autowire(\Pet\Application\Integration\Service\OutboxDispatcherService::class),
+            \Pet\Application\Integration\Cron\OutboxDispatchJob::class => \DI\autowire(\Pet\Application\Integration\Cron\OutboxDispatchJob::class),
 
             \Pet\Application\Identity\Command\CreateCustomerHandler::class => \DI\autowire(\Pet\Application\Identity\Command\CreateCustomerHandler::class),
 

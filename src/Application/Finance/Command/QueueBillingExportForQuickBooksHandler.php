@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace Pet\Application\Finance\Command;
 
 use Pet\Domain\Finance\Repository\BillingExportRepository;
+use Pet\Infrastructure\Persistence\Repository\SqlOutboxRepository;
 
 final class QueueBillingExportForQuickBooksHandler
 {
-    public function __construct(private BillingExportRepository $repository)
+    public function __construct(
+        private BillingExportRepository $repository,
+        private SqlOutboxRepository $outbox
+    )
     {
     }
 
@@ -22,5 +26,6 @@ final class QueueBillingExportForQuickBooksHandler
             throw new \DomainException('Only draft exports can be queued');
         }
         $this->repository->setStatus($export->id(), 'queued');
+        $this->outbox->enqueue($export->id(), 'quickbooks');
     }
 }
