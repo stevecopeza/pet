@@ -32,6 +32,11 @@ class ContainerFactory
                 return new \Pet\Infrastructure\Persistence\Migration\MigrationRunner($wpdb);
             },
 
+            \Pet\Domain\Event\Repository\EventStreamRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlEventStreamRepository($wpdb);
+            },
+
             // Repositories
             \Pet\Domain\Identity\Repository\EmployeeRepository::class => function () {
                 global $wpdb;

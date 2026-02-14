@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityLog } from '../types';
 import Feed from './Feed';
+import EventStreamViewer from './EventStreamViewer';
 import { DataTable, Column } from './DataTable';
 
 const Activity = () => {
@@ -59,6 +60,10 @@ const Activity = () => {
         data={logs} 
         emptyMessage="No activity recorded yet." 
       />
+
+      <h2 style={{ marginTop: '30px' }}>Event Stream</h2>
+      <p>Immutable domain event stream (read-only).</p>
+      <EventStreamViewer />
     </div>
   );
 };
