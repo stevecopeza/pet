@@ -19,6 +19,7 @@ class WorkItem
         private string $sourceId,
         private ?string $assignedUserId,
         private string $departmentId,
+        private ?int $requiredRoleId,
         private ?string $slaSnapshotId,
         private ?int $slaTimeRemainingMinutes,
         private float $priorityScore,
@@ -28,7 +29,10 @@ class WorkItem
         private string $status,
         private int $escalationLevel,
         private DateTimeImmutable $createdAt,
-        private DateTimeImmutable $updatedAt
+        private DateTimeImmutable $updatedAt,
+        private float $revenue = 0.0,
+        private int $clientTier = 1,
+        private float $managerPriorityOverride = 0.0
     ) {
         $this->validateSourceType($sourceType);
         $this->validateStatus($status);
@@ -41,7 +45,8 @@ class WorkItem
         string $departmentId,
         float $priorityScore,
         string $status,
-        DateTimeImmutable $createdAt
+        DateTimeImmutable $createdAt,
+        ?int $requiredRoleId = null
     ): self {
         return new self(
             $id,
@@ -49,6 +54,7 @@ class WorkItem
             $sourceId,
             null,
             $departmentId,
+            $requiredRoleId,
             null,
             null,
             $priorityScore,
@@ -66,6 +72,13 @@ class WorkItem
     public function updatePriorityScore(float $score): void
     {
         $this->priorityScore = $score;
+        $this->updatedAt = new DateTimeImmutable();
+    }
+
+    public function updateScheduling(?DateTimeImmutable $start, ?DateTimeImmutable $due): void
+    {
+        $this->scheduledStartUtc = $start;
+        $this->scheduledDueUtc = $due;
         $this->updatedAt = new DateTimeImmutable();
     }
 
@@ -89,9 +102,28 @@ class WorkItem
         $this->updatedAt = new DateTimeImmutable();
     }
 
+    public function updateCapacityAllocation(float $percent): void
+    {
+        $this->capacityAllocationPercent = $percent;
+        $this->updatedAt = new DateTimeImmutable();
+    }
+
     public function escalate(int $level): void
     {
         $this->escalationLevel = $level;
+        $this->updatedAt = new DateTimeImmutable();
+    }
+
+    public function updateCommercialInfo(float $revenue, int $clientTier): void
+    {
+        $this->revenue = $revenue;
+        $this->clientTier = $clientTier;
+        $this->updatedAt = new DateTimeImmutable();
+    }
+
+    public function setManagerPriorityOverride(float $override): void
+    {
+        $this->managerPriorityOverride = $override;
         $this->updatedAt = new DateTimeImmutable();
     }
 
@@ -101,6 +133,7 @@ class WorkItem
     public function getSourceId(): string { return $this->sourceId; }
     public function getAssignedUserId(): ?string { return $this->assignedUserId; }
     public function getDepartmentId(): string { return $this->departmentId; }
+    public function getRequiredRoleId(): ?int { return $this->requiredRoleId; }
     public function getSlaSnapshotId(): ?string { return $this->slaSnapshotId; }
     public function getSlaTimeRemainingMinutes(): ?int { return $this->slaTimeRemainingMinutes; }
     public function getPriorityScore(): float { return $this->priorityScore; }
@@ -111,6 +144,9 @@ class WorkItem
     public function getEscalationLevel(): int { return $this->escalationLevel; }
     public function getCreatedAt(): DateTimeImmutable { return $this->createdAt; }
     public function getUpdatedAt(): DateTimeImmutable { return $this->updatedAt; }
+    public function getRevenue(): float { return $this->revenue; }
+    public function getClientTier(): int { return $this->clientTier; }
+    public function getManagerPriorityOverride(): float { return $this->managerPriorityOverride; }
 
     // Validation
     private function validateSourceType(string $type): void

@@ -10,22 +10,30 @@ class Task
     private string $name;
     private float $estimatedHours;
     private bool $completed;
+    private ?int $roleId;
 
     public function __construct(
         string $name,
         float $estimatedHours,
         bool $completed = false,
-        ?int $id = null
+        ?int $id = null,
+        ?int $roleId = null
     ) {
         $this->id = $id;
         $this->name = $name;
         $this->estimatedHours = $estimatedHours;
         $this->completed = $completed;
+        $this->roleId = $roleId;
     }
 
     public function id(): ?int
     {
         return $this->id;
+    }
+
+    public function roleId(): ?int
+    {
+        return $this->roleId;
     }
 
     public function estimatedHours(): float

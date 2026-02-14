@@ -14,6 +14,7 @@ class Employee
     private string $status;
     private ?\DateTimeImmutable $hireDate;
     private ?int $managerId;
+    private ?int $calendarId;
     private ?int $malleableSchemaVersion;
     private array $malleableData;
     private array $teamIds;
@@ -29,6 +30,7 @@ class Employee
         string $status = 'active',
         ?\DateTimeImmutable $hireDate = null,
         ?int $managerId = null,
+        ?int $calendarId = null,
         ?int $malleableSchemaVersion = null,
         array $malleableData = [],
         array $teamIds = [],
@@ -100,6 +102,11 @@ class Employee
         return $this->managerId;
     }
 
+    public function calendarId(): ?int
+    {
+        return $this->calendarId;
+    }
+
     public function malleableSchemaVersion(): ?int
     {
         return $this->malleableSchemaVersion;
@@ -131,7 +138,8 @@ class Employee
         string $email, 
         string $status, 
         ?\DateTimeImmutable $hireDate, 
-        ?int $managerId, 
+        ?int $managerId,
+        ?int $calendarId,
         array $malleableData,
         array $teamIds
     ): void {
@@ -141,6 +149,7 @@ class Employee
         $this->status = $status;
         $this->hireDate = $hireDate;
         $this->managerId = $managerId;
+        $this->calendarId = $calendarId;
         $this->malleableData = $malleableData;
         $this->teamIds = $teamIds;
     }

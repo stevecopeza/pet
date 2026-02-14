@@ -1,3 +1,27 @@
+
+export interface WorkItem {
+  id: string;
+  source_type: string;
+  source_id: string;
+  assigned_user_id: string | null;
+  department_id: string;
+  priority_score: number;
+  status: string;
+  sla_time_remaining: number | null;
+  due_date: string | null;
+  manager_override: number;
+  revenue: number;
+  client_tier: number;
+  signals: WorkItemSignal[];
+}
+
+export interface WorkItemSignal {
+  type: string;
+  severity: string;
+  message: string;
+  created_at: string;
+}
+
 export interface DashboardData {
   overview: {
     activeProjects: number;
@@ -198,139 +222,34 @@ export interface Setting {
   updatedAt: string | null;
 }
 
-export interface PetSettings {
-  apiUrl: string;
-  nonce: string;
-  currentPage: string;
-}
-
-export interface Lead {
-  id: number;
-  customerId: number;
-  subject: string;
-  description: string;
-  status: string;
-  source?: string;
-  estimatedValue?: number;
-  malleableData?: Record<string, any>;
+export interface FeedEvent {
+  id: string;
+  eventType: string;
+  sourceEngine: string;
+  sourceEntityId: string;
+  classification: 'critical' | 'operational' | 'informational' | 'strategic';
+  title: string;
+  summary: string;
+  metadata: Record<string, any>;
+  audienceScope: 'global' | 'department' | 'role' | 'user';
+  audienceReferenceId: string | null;
+  pinned: boolean;
+  expiresAt: string | null;
   createdAt: string;
-  updatedAt?: string | null;
-  convertedAt?: string | null;
 }
 
-export interface SchemaDefinition {
-  id: number;
-  entityType: string;
-  version: number;
-  schema: any;
-  status: string;
-}
-
-export interface Sla {
-  id: number;
-  name: string;
-  target_response_minutes: number;
-  target_resolution_minutes: number;
-  calendar_id: number;
-  escalation_rules: EscalationRule[];
-}
-
-export interface EscalationRule {
-  id?: number;
-  percentage: number;
-  action: string;
-  notify_role_id?: number;
-}
-
-export interface Calendar {
-  id: number;
-  name: string;
-  timezone: string;
-  is_default: boolean;
-  working_windows: WorkingWindow[];
-  holidays: Holiday[];
-}
-
-export interface WorkingWindow {
-  day_of_week: number;
-  start_time: string;
-  end_time: string;
-}
-
-export interface Holiday {
-  id?: number;
-  name: string;
-  date: string;
-  is_recurring: boolean;
-}
-
-export interface Team {
-  id: number;
-  name: string;
-  description: string;
-  leadId: number | null;
-  members: number[];
-}
-
-export interface Skill {
-  id: number;
-  capability_id: number;
-  name: string;
-  description: string;
-  status: string;
-}
-
-export interface Role {
-  id: number;
-  name: string;
-  level: string;
-  description: string;
-  success_criteria: string;
-  status: string;
-  version: number;
-  required_skills?: Record<number, { min_proficiency_level: number; importance_weight: number }>;
-}
-
-export interface Assignment {
-  id: number;
-  employee_id: number;
-  role_id: number;
-  start_date: string;
-  end_date: string | null;
-  allocation_pct: number;
-  status: string;
-}
-
-export interface Certification {
-  id: number;
-  name: string;
-  issuing_body: string;
-  expiry_months: number;
-  status: string;
-}
-
-export interface PersonCertification {
-  id: number;
-  employee_id: number;
-  certification_id: number;
-  obtained_date: string;
-  expiry_date: string | null;
-  evidence_url: string | null;
-  status: string;
-  certification_name?: string;
-  issuing_body?: string;
-}
-
-export interface KpiDefinition {
-  id: number;
-  name: string;
-  description: string;
-  default_frequency: string;
-  unit: string;
-  created_at: string;
-}
-
-export interface RoleKpi {
-  id: number;
-  role_id: number;
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  priorityLevel: 'low' | 'normal' | 'high' | 'critical';
+  pinned: boolean;
+  acknowledgementRequired: boolean;
+  gpsRequired: boolean;
+  acknowledgementDeadline: string | null;
+  audienceScope: 'global' | 'department' | 'role';
+  audienceReferenceId: string | null;
+  authorUserId: string;
+  expiresAt: string | null;
+  createdAt: string;
 }

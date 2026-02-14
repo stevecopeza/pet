@@ -37,7 +37,10 @@ class CreateProjectFromQuoteListener
                         $soldHours += $task->durationHours();
                         $projectTasks[] = new \Pet\Domain\Delivery\Entity\Task(
                             $task->title(),
-                            $task->durationHours()
+                            $task->durationHours(),
+                            false,
+                            null,
+                            $task->roleId()
                         );
                     }
                 }
@@ -47,6 +50,7 @@ class CreateProjectFromQuoteListener
                 $implementationValue += $component->sellValue();
                 foreach ($component->items() as $item) {
                     $wbsSnapshot = $item->wbsSnapshot();
+                    $roleId = $item->roleId();
                     
                     if (!empty($wbsSnapshot)) {
                         // Use WBS Template Snapshot
@@ -64,7 +68,10 @@ class CreateProjectFromQuoteListener
                             $soldHours += $totalHours;
                             $projectTasks[] = new \Pet\Domain\Delivery\Entity\Task(
                                 ($wbsTask['description'] ?? 'Task') . ' (' . $item->description() . ')',
-                                $totalHours
+                                $totalHours,
+                                false,
+                                null,
+                                $roleId
                             );
                         }
                     } else {
@@ -74,7 +81,10 @@ class CreateProjectFromQuoteListener
                         $soldHours += $hours;
                         $projectTasks[] = new \Pet\Domain\Delivery\Entity\Task(
                             $item->description(),
-                            $hours
+                            $hours,
+                            false,
+                            null,
+                            $roleId
                         );
                     }
                 }

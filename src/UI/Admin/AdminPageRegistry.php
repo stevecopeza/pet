@@ -108,6 +108,7 @@ class AdminPageRegistry
                 'apiUrl' => rest_url('pet/v1'),
                 'nonce' => wp_create_nonce('wp_rest'),
                 'currentPage' => $currentPage,
+                'currentUserId' => get_current_user_id(),
             ]);
 
             foreach ($cssFiles as $cssFile) {

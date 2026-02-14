@@ -5,16 +5,19 @@ declare(strict_types=1);
 namespace Pet\UI\Rest\Controller;
 
 use Pet\Application\System\Service\DemoPreFlightCheck;
+use Pet\Application\System\Service\DemoInstaller;
 use WP_REST_Request;
 use WP_REST_Response;
 
 class SystemController implements RestController
 {
     private DemoPreFlightCheck $preFlightCheck;
+    private DemoInstaller $demoInstaller;
 
-    public function __construct(DemoPreFlightCheck $preFlightCheck)
+    public function __construct(DemoPreFlightCheck $preFlightCheck, DemoInstaller $demoInstaller)
     {
         $this->preFlightCheck = $preFlightCheck;
+        $this->demoInstaller = $demoInstaller;
     }
 
     public function registerRoutes(): void
@@ -22,6 +25,13 @@ class SystemController implements RestController
         register_rest_route('pet/v1', '/system/pre-demo-check', [
             'methods' => 'GET',
             'callback' => [$this, 'runPreFlightCheck'],
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            },
+        ]);
+        register_rest_route('pet/v1', '/system/run-demo', [
+            'methods' => 'POST',
+            'callback' => [$this, 'runDemoInstaller'],
             'permission_callback' => function () {
                 return current_user_can('manage_options');
             },
@@ -44,5 +54,11 @@ class SystemController implements RestController
         }
 
         return new WP_REST_Response($result, $status);
+    }
+
+    public function runDemoInstaller(WP_REST_Request $request): WP_REST_Response
+    {
+        $result = $this->demoInstaller->run();
+        return new WP_REST_Response($result, 201);
     }
 }

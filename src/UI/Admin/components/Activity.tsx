@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityLog } from '../types';
+import Feed from './Feed';
 import { DataTable, Column } from './DataTable';
 
 const Activity = () => {
@@ -49,8 +50,9 @@ const Activity = () => {
 
   return (
     <div className="pet-activity">
-      <h2>Activity Feed</h2>
-      <p>Recent system activity and events.</p>
+      <Feed />
+      <h2 style={{ marginTop: '30px' }}>Activity Log</h2>
+      <p>Recent system activity.</p>
       
       <DataTable 
         columns={columns} 

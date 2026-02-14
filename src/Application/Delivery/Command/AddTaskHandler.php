@@ -6,14 +6,18 @@ namespace Pet\Application\Delivery\Command;
 
 use Pet\Domain\Delivery\Entity\Task;
 use Pet\Domain\Delivery\Repository\ProjectRepository;
+use Pet\Domain\Event\EventBus;
+use Pet\Domain\Delivery\Event\ProjectTaskCreated;
 
 class AddTaskHandler
 {
     private ProjectRepository $projectRepository;
+    private EventBus $eventBus;
 
-    public function __construct(ProjectRepository $projectRepository)
+    public function __construct(ProjectRepository $projectRepository, EventBus $eventBus)
     {
         $this->projectRepository = $projectRepository;
+        $this->eventBus = $eventBus;
     }
 
     public function handle(AddTaskCommand $command): void
@@ -31,5 +35,7 @@ class AddTaskHandler
         $project->addTask($task);
 
         $this->projectRepository->save($project);
+
+        $this->eventBus->dispatch(new ProjectTaskCreated($project, $task));
     }
 }

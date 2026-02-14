@@ -10,6 +10,7 @@ import Knowledge from './components/Knowledge';
 import Activity from './components/Activity';
 import Settings from './components/Settings';
 import Roles from './components/Roles';
+import WorkItems from './components/WorkItems';
 
 const App = () => {
   const currentPage = window.petSettings?.currentPage || 'pet-dashboard';
@@ -36,6 +37,8 @@ const App = () => {
     switch (currentPage) {
       case 'pet-dashboard':
         return <Dashboard />;
+      case 'pet-work':
+        return <WorkItems />;
       case 'pet-delivery':
         return <Projects />;
       case 'pet-quotes-sales':

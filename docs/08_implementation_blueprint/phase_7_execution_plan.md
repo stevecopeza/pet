@@ -3,24 +3,26 @@
 ## Command Surface (Feed) – Implementation Plan
 
 ### Phase 1: Feed Domain Finalization
-- Complete audience targeting with role-based filtering once employee roles are exposed
-- Add pagination and pinned-first ordering to feed queries
-- Enforce idempotency for reactions and acknowledgements; confirm unique constraints exist
-- Validate request payloads on POST routes (reactionType enumeration, audience scopes)
+- [x] Complete audience targeting with role/team filtering (uses employee.teamIds and active role assignments)
+- [ ] Add pagination and pinned-first ordering to feed queries
+- [x] Enforce idempotency for reactions and acknowledgements; confirm unique constraints exist
+- [ ] Validate request payloads on POST routes (reactionType enumeration, audience scopes) — basic validation present; tighten enums
 - Acceptance: role/team filters applied correctly; pagination stable with pins first; duplicate Ack/React returns 200; unit tests pass
 
 ### Phase 2: Operational Feed UI
-- Build Admin UI panel to consume GET /pet/v1/feed and GET /pet/v1/announcements
-- Display classification badges, pin state, expiry; provide actions for Ack and React
-- Acceptance: UI loads lists, reflects pinned ordering; Ack/React update state; empty/error states handled
+- [x] Build Admin UI panel to consume GET /pet/v1/feed and GET /pet/v1/announcements
+- [x] Display classification badges, scope badges, pin state, expiry; provide actions for Ack and React
+- Acceptance: UI loads lists, reflects pinned state; Ack/React update state; empty/error states handled
 
 ### Phase 3: E2E Tests
-- Playwright specs: load feed lists; create announcement then Ack; React to feed event; expiry filtering
+- [x] Playwright specs: load feed lists; create announcement then Ack; React to feed event
+- [x] Audience targeting: role-scoped visible when assigned, hidden when not; department-scoped visible to members, hidden when not; ack dedup enforced
+- [ ] Expiry filtering
 - Ensure inputs have accessible labels or IDs; selects use selectOption
 - Acceptance: E2E passes consistently in Chromium; stable selectors, minimal flakiness
 
 ### Phase 4: Demo Engine
-- Implement RpmDemoInstaller to seed events and announcements (strategic/operational/critical; pinned/ackRequired/gpsRequired)
+- Implement Demo Installer to seed events and announcements (strategic/operational/critical; pinned/ackRequired/gpsRequired)
 - Provide Admin-triggered action to run/refresh demo data idempotently
 - Acceptance: installer produces visible feed data; re-run does not duplicate
 
@@ -92,25 +94,27 @@ We will execute in the following order to respect dependencies:
 *Docs Location:* `docs/29_command_surface/`
 
 **Step 1: Feed Architecture**
--   [ ] Create `FeedEvent` entity (Immutable, expirable).
--   [ ] Create `Announcement` entity (Supports `acknowledgement_required`, `gps_required`).
--   [ ] Create `FeedReaction` entity (Ack, Concern, Suggestion, Win).
+-   [x] Create `FeedEvent` entity (Immutable, expirable).
+-   [x] Create `Announcement` entity (Supports `acknowledgement_required`, `gps_required`).
+-   [x] Create `FeedReaction` entity (Ack, Concern, Suggestion, Win).
 -   [ ] Implement `FeedProjectionService`:
     -   Listen to *all* domain events.
     -   Apply "Relevance Filter" (Is this noise or signal?).
     -   Persist critical events to `FeedEvent` table.
 
 **Step 2: Feed API & UI**
--   [ ] Endpoint: `GET /pet/v1/feed` (Filters: Scope, Classification).
--   [ ] Endpoint: `POST /pet/v1/announcements` (Admin only).
--   [ ] Endpoint: `POST /pet/v1/feed/{id}/react` (Handle reactions).
--   [ ] UI Component: `OperationalFeed` widget (Twitter-style stream).
+-   [x] Endpoint: `GET /pet/v1/feed` (relevant for current user).
+-   [x] Endpoint: `GET /pet/v1/announcements` (relevant for current user).
+-   [x] Endpoint: `POST /pet/v1/announcements` (Admin only).
+-   [x] Endpoint: `POST /pet/v1/announcements/{id}/ack` (Ack dedup)
+-   [x] Endpoint: `POST /pet/v1/feed/{id}/react` (Handle reactions; idempotent)
+-   [x] UI Component: Operational Feed (Admin page)
 
 ### Phase 7.3: Demo Engine (RPM Resources)
 *Docs Location:* `docs/30_demo_engine/`
 
 **Step 1: Installer Logic**
--   [ ] Create `RpmDemoInstaller` service.
+-   [ ] Create `DemoInstaller` service.
 -   [ ] Implement `teardown()`: Wipe all data safely (for reset).
 -   [ ] Implement `seed_foundation()` using `PET_RPM_Demo_Installer_Schema_v1_0.json`:
     -   Organisation: "RPM Resources (Pty) Ltd".

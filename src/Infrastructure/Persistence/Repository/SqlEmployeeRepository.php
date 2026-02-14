@@ -36,7 +36,7 @@ class SqlEmployeeRepository implements EmployeeRepository
             'archived_at' => $employee->archivedAt() ? $employee->archivedAt()->format('Y-m-d H:i:s') : null,
         ];
 
-        $format = ['%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s'];
+        $format = ['%d', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%s', '%s', '%s'];
 
         if ($employee->id()) {
             $this->wpdb->update(
@@ -102,6 +102,7 @@ class SqlEmployeeRepository implements EmployeeRepository
             isset($row->status) ? $row->status : 'active',
             !empty($row->hire_date) ? new \DateTimeImmutable($row->hire_date) : null,
             !empty($row->manager_id) ? (int) $row->manager_id : null,
+            !empty($row->calendar_id) ? (int) $row->calendar_id : null,
             isset($row->malleable_schema_version) ? (int) $row->malleable_schema_version : null,
             isset($row->malleable_data) ? (json_decode($row->malleable_data, true) ?: []) : [],
             $teamIds,

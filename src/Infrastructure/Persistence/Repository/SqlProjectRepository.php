@@ -147,7 +147,8 @@ class SqlProjectRepository implements ProjectRepository
                 $row->name,
                 (float) $row->estimated_hours,
                 (bool) $row->is_completed,
-                (int) $row->id
+                (int) $row->id,
+                isset($row->role_id) ? (int)$row->role_id : null
             );
         }, $results);
     }
@@ -169,8 +170,9 @@ class SqlProjectRepository implements ProjectRepository
                 'name' => $task->name(),
                 'estimated_hours' => $task->estimatedHours(),
                 'is_completed' => $task->isCompleted() ? 1 : 0,
+                'role_id' => $task->roleId(),
             ];
-            $format = ['%d', '%s', '%f', '%d'];
+            $format = ['%d', '%s', '%f', '%d', '%d'];
 
             if ($task->id()) {
                 $currentIds[] = $task->id();
@@ -187,8 +189,13 @@ class SqlProjectRepository implements ProjectRepository
                     $data,
                     $format
                 );
-                // Note: We don't update the task object with ID here as it's passed by value/reference issue
-                // But for standard aggregate saving, this is acceptable if we reload or don't rely on immediate ID availability
+                
+                // Update Task ID via Reflection since Task is immutable
+                $newId = $this->wpdb->insert_id;
+                $refObject = new \ReflectionObject($task);
+                $refProperty = $refObject->getProperty('id');
+                $refProperty->setAccessible(true);
+                $refProperty->setValue($task, (int)$newId);
             }
         }
 

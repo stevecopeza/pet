@@ -17,9 +17,21 @@ No module writes directly to FeedEvent table.
 
 ## Audience Resolution
 
-Rules: - SLA events → assigned user + department head - Project
-milestone → project team - Commercial wins → global - Advisory signals →
-management roles
+Scopes:
+- FeedEvent supports audienceScope: global | department | role | user
+- Announcement supports audienceScope: global | department | role
+
+Resolution for current user:
+- department → user must be a member of the referenced team (employee.teamIds)
+- role → user must have an active assignment to the referenced role (AssignmentRepository)
+- user → user id must match audienceReferenceId
+- global → visible to all authorized users
+
+Guidance:
+- SLA events → assigned user and relevant department(s)
+- Project milestones → project team (mapped into department/role/user where applicable)
+- Commercial wins → global
+- Advisory signals → management roles
 
 ## Acknowledgement Escalation
 
@@ -32,3 +44,8 @@ upward after configurable interval
 -   Operational events retained 90 days
 -   Strategic announcements retained indefinitely
 -   SLA breach events archived after 180 days
+
+## Idempotency & Deduplication
+
+- Announcements acknowledgements are idempotent: a repeat ack returns 200 with a message indicating prior acknowledgement.
+- Feed reactions are idempotent per (feed_event_id, user_id): a repeat react returns 200 with the existing reaction payload.

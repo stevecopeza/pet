@@ -110,7 +110,8 @@ class Project
                     $task->name(),
                     $task->estimatedHours(),
                     true,
-                    $task->id()
+                    $task->id(),
+                    $task->roleId()
                 );
                 return;
             }

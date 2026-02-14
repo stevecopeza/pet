@@ -172,6 +172,33 @@ const Settings = () => {
             <h3>Note</h3>
             <p>These settings are stored in the database and affect plugin behavior globally.</p>
           </div>
+
+          <div style={{ marginTop: '20px', padding: '15px', background: '#fff', border: '1px solid #ccd0d4' }}>
+            <h3>Demo Installer</h3>
+            <p>Seed announcements and feed events for demo purposes.</p>
+            <button
+              className="button button-primary"
+              onClick={async () => {
+                try {
+                  const res = await fetch(`${window.petSettings.apiUrl}/system/run-demo`, {
+                    method: 'POST',
+                    headers: {
+                      'X-WP-Nonce': window.petSettings.nonce,
+                    },
+                  });
+                  if (!res.ok) {
+                    throw new Error('Failed to run demo installer');
+                  }
+                  const json = await res.json();
+                  alert(`Demo data created: ${json.announcements} announcements, ${json.events} events`);
+                } catch (err) {
+                  alert(err instanceof Error ? err.message : 'Failed to run demo installer');
+                }
+              }}
+            >
+              Run Demo Installer
+            </button>
+          </div>
         </>
       )}
 

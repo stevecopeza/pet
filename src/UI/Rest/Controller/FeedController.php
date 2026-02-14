@@ -12,6 +12,7 @@ use Pet\Domain\Feed\Entity\Announcement;
 use Pet\Domain\Feed\Entity\AnnouncementAcknowledgement;
 use Pet\Domain\Feed\Entity\FeedReaction;
 use Pet\Domain\Identity\Repository\EmployeeRepository;
+use Pet\Domain\Work\Repository\AssignmentRepository;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
@@ -26,19 +27,22 @@ class FeedController implements RestController
     private AnnouncementRepository $announcementRepository;
     private AnnouncementAcknowledgementRepository $ackRepository;
     private FeedReactionRepository $reactionRepository;
+    private AssignmentRepository $assignmentRepository;
 
     public function __construct(
         EmployeeRepository $employeeRepository,
         FeedEventRepository $feedEventRepository,
         AnnouncementRepository $announcementRepository,
         AnnouncementAcknowledgementRepository $ackRepository,
-        FeedReactionRepository $reactionRepository
+        FeedReactionRepository $reactionRepository,
+        AssignmentRepository $assignmentRepository
     ) {
         $this->employeeRepository = $employeeRepository;
         $this->feedEventRepository = $feedEventRepository;
         $this->announcementRepository = $announcementRepository;
         $this->ackRepository = $ackRepository;
         $this->reactionRepository = $reactionRepository;
+        $this->assignmentRepository = $assignmentRepository;
     }
 
     public function registerRoutes(): void
@@ -93,6 +97,14 @@ class FeedController implements RestController
         $userId = (string)$wpUserId;
         $departmentIds = $employee ? array_map('strval', $employee->teamIds()) : [];
         $roleIds = [];
+        if ($employee && $employee->id() !== null) {
+            $assignments = $this->assignmentRepository->findByEmployeeId((int)$employee->id());
+            foreach ($assignments as $assignment) {
+                if ($assignment->status() === 'active' && ($assignment->endDate() === null || $assignment->endDate() > new DateTimeImmutable())) {
+                    $roleIds[] = (string)$assignment->roleId();
+                }
+            }
+        }
 
         $events = $this->feedEventRepository->findRelevantForUser($userId, $departmentIds, $roleIds, 50);
         $data = array_map([$this, 'serializeFeedEvent'], $events);
@@ -106,6 +118,14 @@ class FeedController implements RestController
         $userId = (string)$wpUserId;
         $departmentIds = $employee ? array_map('strval', $employee->teamIds()) : [];
         $roleIds = [];
+        if ($employee && $employee->id() !== null) {
+            $assignments = $this->assignmentRepository->findByEmployeeId((int)$employee->id());
+            foreach ($assignments as $assignment) {
+                if ($assignment->status() === 'active' && ($assignment->endDate() === null || $assignment->endDate() > new DateTimeImmutable())) {
+                    $roleIds[] = (string)$assignment->roleId();
+                }
+            }
+        }
 
         $announcements = $this->announcementRepository->findRelevantForUser($userId, $departmentIds, $roleIds);
         $data = array_map([$this, 'serializeAnnouncement'], $announcements);
