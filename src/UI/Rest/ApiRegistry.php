@@ -58,6 +58,7 @@ class ApiRegistry
             \Pet\UI\Rest\Controller\WorkItemController::class,
             \Pet\UI\Rest\Controller\FeedController::class,
             \Pet\UI\Rest\Controller\EventStreamController::class,
+            \Pet\UI\Rest\Controller\BillingController::class,
         ];
 
         foreach ($controllers as $controllerClass) {

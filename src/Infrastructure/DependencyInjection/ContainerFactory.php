@@ -37,6 +37,11 @@ class ContainerFactory
                 return new \Pet\Infrastructure\Persistence\Repository\SqlEventStreamRepository($wpdb);
             },
 
+            \Pet\Domain\Finance\Repository\BillingExportRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlBillingExportRepository($wpdb);
+            },
+
             // Repositories
             \Pet\Domain\Identity\Repository\EmployeeRepository::class => function () {
                 global $wpdb;
@@ -303,6 +308,10 @@ class ContainerFactory
             \Pet\Domain\Work\Service\CapacityCalendar::class => \DI\autowire(\Pet\Domain\Work\Service\CapacityCalendar::class),
 
             \Pet\Application\Identity\Command\CreateCustomerHandler::class => \DI\autowire(\Pet\Application\Identity\Command\CreateCustomerHandler::class),
+
+            \Pet\Application\Finance\Command\CreateBillingExportHandler::class => \DI\autowire(\Pet\Application\Finance\Command\CreateBillingExportHandler::class),
+            \Pet\Application\Finance\Command\AddBillingExportItemHandler::class => \DI\autowire(\Pet\Application\Finance\Command\AddBillingExportItemHandler::class),
+            \Pet\Application\Finance\Command\QueueBillingExportForQuickBooksHandler::class => \DI\autowire(\Pet\Application\Finance\Command\QueueBillingExportForQuickBooksHandler::class),
             \Pet\Application\Identity\Command\UpdateCustomerHandler::class => \DI\autowire(\Pet\Application\Identity\Command\UpdateCustomerHandler::class),
             \Pet\Application\Identity\Command\ArchiveCustomerHandler::class => \DI\autowire(\Pet\Application\Identity\Command\ArchiveCustomerHandler::class),
             \Pet\Application\Identity\Command\CreateContactHandler::class => \DI\autowire(\Pet\Application\Identity\Command\CreateContactHandler::class),

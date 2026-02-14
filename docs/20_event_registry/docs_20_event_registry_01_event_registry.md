@@ -7,6 +7,7 @@ Authoritative list of all valid PET domain events.
 - Event names are canonical
 - Payloads are immutable
 - No undocumented events allowed
+ - Outbox payloads wrap domain events with idempotency and retry metadata
 
 ## Events
 
@@ -50,5 +51,14 @@ Authoritative list of all valid PET domain events.
 - Trigger: Quote acceptance (converted to project)
 - Payload: project_id, source_quote_id
 
-**Authority**: Normative
+## Outbox Event Contracts
 
+- Destination: quickbooks
+- Outbox row: id, event_id(FK), destination, status(pending|sent|failed|dead), attempt_count, next_attempt_at, last_error, created_at, updated_at
+- Payload envelope includes event_uuid, aggregate_type/id/version, event_type, occurred_at, schema_version, idempotency_key, and data block (customer_id, period window, items with source, description, quantity, unit_price, amount, qb_item_ref, total_amount)
+- Idempotency: key = aggregate_type + aggregate_id + aggregate_version; duplicates ignored; event_uuid unique
+- Retry: exponential backoff (1m, 5m, 30m, 2h); after 6 failures → dead
+- Success events: BillingExportSentToQuickBooks, QuickBooksInvoiceSnapshotRecorded
+- Failure events: BillingExportDispatchFailed, OutboxDispatchFailedTerminal
+
+**Authority**: Normative

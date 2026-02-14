@@ -11,6 +11,7 @@ import Activity from './components/Activity';
 import Settings from './components/Settings';
 import Roles from './components/Roles';
 import WorkItems from './components/WorkItems';
+import Finance from './components/Finance';
 
 const App = () => {
   const currentPage = window.petSettings?.currentPage || 'pet-dashboard';
@@ -29,6 +30,7 @@ const App = () => {
       case 'pet-roles': return 'Roles & Capabilities';
       case 'pet-activity': return 'Activity';
       case 'pet-settings': return 'Settings';
+      case 'pet-finance': return 'Finance';
       default: return 'PET';
     }
   };
@@ -59,6 +61,8 @@ const App = () => {
         return <Activity />;
       case 'pet-settings':
         return <Settings />;
+      case 'pet-finance':
+        return <Finance />;
       default:
         return (
           <div className="pet-card" style={{ padding: '40px', textAlign: 'center', color: '#666' }}>
