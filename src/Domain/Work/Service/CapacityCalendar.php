@@ -129,4 +129,68 @@ class CapacityCalendar
 
         return ($assignedMinutes / $availableMinutes) * 100.0;
     }
+
+    public function getUserDailyUtilization(
+        int $employeeId,
+        DateTimeImmutable $start,
+        DateTimeImmutable $end
+    ): array {
+        $calendar = null;
+        $employee = $this->employeeRepository->findById($employeeId);
+        if ($employee && $employee->calendarId()) {
+            $calendar = $this->calendarRepository->findById($employee->calendarId());
+        }
+        if (!$calendar) {
+            $calendar = $this->calendarRepository->findDefault();
+        }
+        if (!$calendar) {
+            return [];
+        }
+        $snapshot = $calendar->createSnapshot();
+        $items = $this->workItemRepository->findByAssignedUser((string)$employee->wpUserId());
+        $out = [];
+        $cursor = new DateTimeImmutable($start->format('Y-m-d'));
+        $windowEnd = new DateTimeImmutable($end->format('Y-m-d'));
+        while ($cursor <= $windowEnd) {
+            $dayStart = new DateTimeImmutable($cursor->format('Y-m-d') . ' 00:00:00');
+            $dayEnd = new DateTimeImmutable($cursor->format('Y-m-d') . ' 23:59:59');
+            $capMinutes = $this->timeCalculator->calculateBusinessMinutes($dayStart, $dayEnd, $snapshot);
+            if ($this->leaveRequests->isApprovedOnDate($employeeId, $cursor)) {
+                $capMinutes = 0.0;
+            } else {
+                $override = $this->capacityOverrides->findForDate($employeeId, $cursor);
+                if ($override) {
+                    $capMinutes = $capMinutes * max(0, min(100, $override->capacityPct())) / 100.0;
+                }
+            }
+            $schedMinutes = 0.0;
+            foreach ($items as $item) {
+                if ($item->getStatus() === 'completed') {
+                    continue;
+                }
+                $itemStart = $item->getScheduledStartUtc();
+                $itemDue = $item->getScheduledDueUtc();
+                if (!$itemStart || !$itemDue) {
+                    continue;
+                }
+                $overlapStart = ($dayStart > $itemStart) ? $dayStart : $itemStart;
+                $overlapEnd = ($dayEnd < $itemDue) ? $dayEnd : $itemDue;
+                if ($overlapEnd > $overlapStart) {
+                    $minutes = $this->timeCalculator->calculateBusinessMinutes($overlapStart, $overlapEnd, $snapshot);
+                    $allocation = $item->getCapacityAllocationPercent();
+                    $allocation = $allocation > 0 ? ($allocation / 100.0) : 0.0;
+                    $schedMinutes += ($minutes * $allocation);
+                }
+            }
+            $util = ($capMinutes > 0.0) ? (($schedMinutes / $capMinutes) * 100.0) : 0.0;
+            $out[] = [
+                'date' => $cursor->format('Y-m-d'),
+                'effective_capacity_minutes' => round($capMinutes, 2),
+                'scheduled_minutes' => round($schedMinutes, 2),
+                'utilization_pct' => round($util, 2),
+            ];
+            $cursor = $cursor->modify('+1 day');
+        }
+        return $out;
+    }
 }

@@ -17,7 +17,8 @@ class WorkController implements RestController
 
     public function __construct(
         private WorkItemRepository $workItemRepository,
-        private AdvisorySignalRepository $signalRepository
+        private AdvisorySignalRepository $signalRepository,
+        private \Pet\Domain\Work\Service\CapacityCalendar $capacityCalendar
     ) {}
 
     public function registerRoutes(): void
@@ -36,6 +37,15 @@ class WorkController implements RestController
             [
                 'methods' => WP_REST_Server::READABLE,
                 'callback' => [$this, 'getDepartmentQueue'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+        ]);
+
+        // Daily Utilization
+        register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/utilization', [
+            [
+                'methods' => WP_REST_Server::READABLE,
+                'callback' => [$this, 'getUtilization'],
                 'permission_callback' => [$this, 'checkPermission'],
             ],
         ]);
@@ -58,6 +68,25 @@ class WorkController implements RestController
         $departmentId = $request->get_param('id');
         $items = $this->workItemRepository->findByDepartmentUnassigned($departmentId);
         return new WP_REST_Response($this->mapItems($items));
+    }
+
+    public function getUtilization(WP_REST_Request $request): WP_REST_Response
+    {
+        $employeeId = (int)$request->get_param('employeeId');
+        $start = new \DateTimeImmutable((string)$request->get_param('startDate'));
+        $end = new \DateTimeImmutable((string)$request->get_param('endDate'));
+        $rows = $this->capacityCalendar->getUserDailyUtilization($employeeId, $start, $end);
+        // Map minutes to hours for output
+        $data = array_map(function ($r) {
+            return [
+                'employee_id' => (int)get_current_user_id(),
+                'date' => $r['date'],
+                'effective_capacity_hours' => round($r['effective_capacity_minutes'] / 60.0, 2),
+                'scheduled_hours' => round($r['scheduled_minutes'] / 60.0, 2),
+                'utilization_pct' => $r['utilization_pct'],
+            ];
+        }, $rows);
+        return new WP_REST_Response($data, 200);
     }
 
     private function mapItems(array $items): array
