@@ -18,7 +18,7 @@ class WorkController implements RestController
     public function __construct(
         private WorkItemRepository $workItemRepository,
         private AdvisorySignalRepository $signalRepository,
-        private \Pet\Domain\Work\Service\CapacityCalendar $capacityCalendar
+        private ?\Pet\Domain\Work\Service\CapacityCalendar $capacityCalendar = null
     ) {}
 
     public function registerRoutes(): void
@@ -75,6 +75,9 @@ class WorkController implements RestController
         $employeeId = (int)$request->get_param('employeeId');
         $start = new \DateTimeImmutable((string)$request->get_param('startDate'));
         $end = new \DateTimeImmutable((string)$request->get_param('endDate'));
+        if (!$this->capacityCalendar) {
+            return new WP_REST_Response([], 200);
+        }
         $rows = $this->capacityCalendar->getUserDailyUtilization($employeeId, $start, $end);
         // Map minutes to hours for output
         $data = array_map(function ($r) {

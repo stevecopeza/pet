@@ -17,8 +17,8 @@ class CapacityCalendar
         private WorkItemRepository $workItemRepository,
         private EmployeeRepository $employeeRepository,
         private BusinessTimeCalculator $timeCalculator,
-        private \Pet\Domain\Work\Repository\LeaveRequestRepository $leaveRequests,
-        private \Pet\Domain\Work\Repository\CapacityOverrideRepository $capacityOverrides
+        private ?\Pet\Domain\Work\Repository\LeaveRequestRepository $leaveRequests = null,
+        private ?\Pet\Domain\Work\Repository\CapacityOverrideRepository $capacityOverrides = null
     ) {}
 
     public function getUserUtilization(
@@ -67,10 +67,10 @@ class CapacityCalendar
                 $employee = $this->employeeRepository->findByWpUserId((int)$userId);
                 if ($employee) {
                     $dateOnly = new DateTimeImmutable($cursor->format('Y-m-d'));
-                    if ($this->leaveRequests->isApprovedOnDate($employee->id(), $dateOnly)) {
+                    if ($this->leaveRequests && $this->leaveRequests->isApprovedOnDate($employee->id(), $dateOnly)) {
                         $dayMinutes = 0.0;
                     } else {
-                        $override = $this->capacityOverrides->findForDate($employee->id(), $dateOnly);
+                        $override = $this->capacityOverrides ? $this->capacityOverrides->findForDate($employee->id(), $dateOnly) : null;
                         if ($override) {
                             $dayMinutes = $dayMinutes * max(0, min(100, $override->capacityPct())) / 100.0;
                         }
@@ -155,10 +155,10 @@ class CapacityCalendar
             $dayStart = new DateTimeImmutable($cursor->format('Y-m-d') . ' 00:00:00');
             $dayEnd = new DateTimeImmutable($cursor->format('Y-m-d') . ' 23:59:59');
             $capMinutes = $this->timeCalculator->calculateBusinessMinutes($dayStart, $dayEnd, $snapshot);
-            if ($this->leaveRequests->isApprovedOnDate($employeeId, $cursor)) {
+            if ($this->leaveRequests && $this->leaveRequests->isApprovedOnDate($employeeId, $cursor)) {
                 $capMinutes = 0.0;
             } else {
-                $override = $this->capacityOverrides->findForDate($employeeId, $cursor);
+                $override = $this->capacityOverrides ? $this->capacityOverrides->findForDate($employeeId, $cursor) : null;
                 if ($override) {
                     $capMinutes = $capMinutes * max(0, min(100, $override->capacityPct())) / 100.0;
                 }
