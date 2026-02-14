@@ -77,6 +77,7 @@ class LeaveControllerTest extends TestCase
 
     public function testSubmitInvokesHandlerAndReturnsId(): void
     {
+        $this->types->method('findById')->willReturn(new LeaveType(2, 'Annual', true));
         $this->requests->method('save')->willReturnCallback(function ($req) {
             $req->setId(42);
         });
