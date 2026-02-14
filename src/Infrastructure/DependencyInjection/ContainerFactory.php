@@ -375,6 +375,7 @@ class ContainerFactory
             \Pet\UI\Rest\Controller\PersonKpiController::class => \DI\autowire(),
             \Pet\UI\Rest\Controller\WorkController::class => \DI\autowire(\Pet\UI\Rest\Controller\WorkController::class),
             \Pet\UI\Rest\Controller\WorkItemController::class => \DI\autowire(),
+            \Pet\UI\Rest\Controller\LeaveController::class => \DI\autowire(),
         ];
     }
 }

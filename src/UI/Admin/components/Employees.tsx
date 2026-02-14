@@ -13,6 +13,11 @@ const Employees = () => {
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
   const [activeSchema, setActiveSchema] = useState<any | null>(null);
+  const [utilization, setUtilization] = useState<{ date: string; effective_capacity_hours: number; scheduled_hours: number; utilization_pct: number; }[]>([]);
+  const [utilLoading, setUtilLoading] = useState(false);
+  const [utilError, setUtilError] = useState<string | null>(null);
+  const [overrideDate, setOverrideDate] = useState<string>(() => new Date().toISOString().slice(0,10));
+  const [overridePct, setOverridePct] = useState<number>(100);
 
   const fetchSchema = async () => {
     try {
@@ -62,12 +67,49 @@ const Employees = () => {
     }
   };
 
+  const fetchUtilization = async (employeeId: number) => {
+    try {
+      setUtilLoading(true);
+      setUtilError(null);
+      const today = new Date();
+      const start = new Date(today);
+      start.setDate(today.getDate() - 6);
+      const startStr = start.toISOString().slice(0,10);
+      const endStr = today.toISOString().slice(0,10);
+      // @ts-ignore
+      const apiUrl = window.petSettings?.apiUrl;
+      // @ts-ignore
+      const nonce = window.petSettings?.nonce;
+      const response = await fetch(`${apiUrl}/work/utilization?employeeId=${employeeId}&startDate=${startStr}&endDate=${endStr}`, {
+        headers: { 'X-WP-Nonce': nonce }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch utilization');
+      }
+      const data = await response.json();
+      setUtilization(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setUtilError(err instanceof Error ? err.message : 'Failed to load utilization');
+    } finally {
+      setUtilLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'people') {
       fetchEmployees();
       fetchSchema();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    const eid = editingEmployee?.id || (typeof selectedIds[0] === 'number' ? Number(selectedIds[0]) : null);
+    if (activeTab === 'people' && eid) {
+      fetchUtilization(eid);
+    } else {
+      setUtilization([]);
+    }
+  }, [activeTab, editingEmployee, selectedIds]);
 
   const handleFormSuccess = () => {
     setShowAddForm(false);
@@ -284,6 +326,83 @@ const Employees = () => {
                 </div>
               )}
             />
+
+            {(editingEmployee || (selectedIds.length === 1 && typeof selectedIds[0] === 'number')) && (
+              <div className="pet-card" style={{ marginTop: '20px', padding: '15px', border: '1px solid #eee', borderRadius: '6px' }}>
+                <h3 style={{ marginTop: 0 }}>Capacity & Utilization</h3>
+                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                  <div style={{ flex: '1 1 320px', minWidth: '280px' }}>
+                    <h4 style={{ marginTop: 0 }}>Set Capacity Override</h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: '120px 1fr', gap: '10px', alignItems: 'center' }}>
+                      <label>Date</label>
+                      <input type="date" value={overrideDate} onChange={(e) => setOverrideDate(e.target.value)} />
+                      <label>Capacity %</label>
+                      <input type="number" min={0} max={100} value={overridePct} onChange={(e) => setOverridePct(Number(e.target.value))} />
+                    </div>
+                    <div style={{ marginTop: '10px' }}>
+                      <button
+                        className="button button-primary"
+                        onClick={async () => {
+                          const employeeId = editingEmployee?.id || Number(selectedIds[0]);
+                          // @ts-ignore
+                          const apiUrl = window.petSettings?.apiUrl;
+                          // @ts-ignore
+                          const nonce = window.petSettings?.nonce;
+                          const res = await fetch(`${apiUrl}/leave/capacity-override`, {
+                            method: 'POST',
+                            headers: {
+                              'X-WP-Nonce': nonce,
+                              'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                              employeeId,
+                              date: overrideDate,
+                              capacityPct: overridePct,
+                              reason: 'Admin override',
+                            })
+                          });
+                          if (res.ok) {
+                            fetchUtilization(employeeId);
+                            alert('Capacity override saved');
+                          } else {
+                            alert('Failed to save override');
+                          }
+                        }}
+                      >
+                        Save Override
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ flex: '2 1 480px', minWidth: '320px' }}>
+                    <h4 style={{ marginTop: 0 }}>Last 7 Days Utilization</h4>
+                    {utilLoading ? <div>Loading utilization...</div> :
+                     utilError ? <div style={{ color: 'red' }}>Error: {utilError}</div> :
+                     utilization.length === 0 ? <div>No data</div> :
+                     <table className="widefat striped">
+                       <thead>
+                         <tr>
+                           <th>Date</th>
+                           <th>Capacity (h)</th>
+                           <th>Scheduled (h)</th>
+                           <th>Utilization (%)</th>
+                         </tr>
+                       </thead>
+                       <tbody>
+                         {utilization.map((row) => (
+                           <tr key={row.date}>
+                             <td>{row.date}</td>
+                             <td>{row.effective_capacity_hours.toFixed(2)}</td>
+                             <td>{row.scheduled_hours.toFixed(2)}</td>
+                             <td>{row.utilization_pct.toFixed(2)}</td>
+                           </tr>
+                         ))}
+                       </tbody>
+                     </table>
+                    }
+                  </div>
+                </div>
+              </div>
+            )}
           </>
           }
         </div>
