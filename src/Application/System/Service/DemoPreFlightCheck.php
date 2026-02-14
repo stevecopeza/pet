@@ -30,6 +30,7 @@ class DemoPreFlightCheck
             'event_registry' => $this->checkEventRegistry(),
             'projection_handlers' => $this->checkProjectionHandlers(),
             'quote_validation' => $this->checkQuoteValidation(),
+            'leave_capacity' => $this->checkLeaveCapacitySchema(),
         ];
 
         $overall = 'PASS';
@@ -47,8 +48,8 @@ class DemoPreFlightCheck
 
     private function checkSlaAutomation(): string
     {
-        // 1. Cron hook registered
-        if (!wp_next_scheduled('pet_sla_automation_event')) {
+        // 1. Cron hook registered (guard for non-WP test environments)
+        if (function_exists('wp_next_scheduled') && !wp_next_scheduled('pet_sla_automation_event')) {
             // Note: In some dev environments cron might not be scheduled until init.
             // But we expect it to be registered.
             // For now, let's assume if the class exists and migration exists, it's mostly ok, 
@@ -155,6 +156,46 @@ class DemoPreFlightCheck
         $required = ['sku', 'role_id', 'type'];
         foreach ($required as $col) {
             if (!in_array($col, $columns)) {
+                return 'FAIL';
+            }
+        }
+
+        return 'PASS';
+    }
+
+    private function checkLeaveCapacitySchema(): string
+    {
+        global $wpdb;
+        $leaveTypes = $wpdb->prefix . 'pet_leave_types';
+        $leaveRequests = $wpdb->prefix . 'pet_leave_requests';
+        $overrides = $wpdb->prefix . 'pet_capacity_overrides';
+
+        if ($wpdb->get_var("SHOW TABLES LIKE '$leaveTypes'") !== $leaveTypes) {
+            return 'FAIL';
+        }
+        if ($wpdb->get_var("SHOW TABLES LIKE '$leaveRequests'") !== $leaveRequests) {
+            return 'FAIL';
+        }
+        if ($wpdb->get_var("SHOW TABLES LIKE '$overrides'") !== $overrides) {
+            return 'FAIL';
+        }
+
+        $requestsCols = $wpdb->get_col("DESCRIBE $leaveRequests", 0);
+        $requiredRequestCols = [
+            'id','uuid','employee_id','leave_type_id','start_date','end_date','status',
+            'submitted_at','decided_by_employee_id','decided_at','decision_reason','notes',
+            'created_at','updated_at'
+        ];
+        foreach ($requiredRequestCols as $col) {
+            if (!in_array($col, $requestsCols)) {
+                return 'FAIL';
+            }
+        }
+
+        $overrideCols = $wpdb->get_col("DESCRIBE $overrides", 0);
+        $requiredOverrideCols = ['id','employee_id','effective_date','capacity_pct','reason','created_at'];
+        foreach ($requiredOverrideCols as $col) {
+            if (!in_array($col, $overrideCols)) {
                 return 'FAIL';
             }
         }
