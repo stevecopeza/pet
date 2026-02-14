@@ -100,6 +100,24 @@ class ContainerFactory
                 return new \Pet\Infrastructure\Persistence\Repository\SqlSlaClockStateRepository($wpdb);
             },
 
+            // Feed Repositories
+            \Pet\Domain\Feed\Repository\FeedEventRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlFeedEventRepository($wpdb);
+            },
+            \Pet\Domain\Feed\Repository\AnnouncementRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlAnnouncementRepository($wpdb);
+            },
+            \Pet\Domain\Feed\Repository\AnnouncementAcknowledgementRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlAnnouncementAcknowledgementRepository($wpdb);
+            },
+            \Pet\Domain\Feed\Repository\FeedReactionRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlFeedReactionRepository($wpdb);
+            },
+
             \Pet\Domain\Knowledge\Repository\ArticleRepository::class => function () {
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlArticleRepository($wpdb);
@@ -174,6 +192,38 @@ class ContainerFactory
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlPerformanceReviewRepository($wpdb);
             },
+            
+            \Pet\Domain\Work\Repository\WorkItemRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlWorkItemRepository($wpdb);
+            },
+            
+            \Pet\Domain\Work\Repository\DepartmentQueueRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlDepartmentQueueRepository($wpdb);
+            },
+            
+            \Pet\Domain\Advisory\Repository\AdvisorySignalRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlAdvisorySignalRepository($wpdb);
+            },
+
+            // Feed Domain Repositories
+            \Pet\Domain\Feed\Repository\FeedEventRepository::class => function () {
+                return new \Pet\Infrastructure\Persistence\Repository\SqlFeedEventRepository();
+            },
+            \Pet\Domain\Feed\Repository\AnnouncementRepository::class => function () {
+                return new \Pet\Infrastructure\Persistence\Repository\SqlAnnouncementRepository();
+            },
+            \Pet\Domain\Feed\Repository\FeedReactionRepository::class => function () {
+                return new \Pet\Infrastructure\Persistence\Repository\SqlFeedReactionRepository();
+            },
+
+            // Work Domain Services
+
+            \Pet\Domain\Work\Service\DepartmentResolver::class => function () {
+                return new \Pet\Domain\Work\Service\DepartmentResolver();
+            },
 
             // Calendar & SLA Repositories
             \Pet\Domain\Calendar\Repository\CalendarRepository::class => function () {
@@ -237,6 +287,15 @@ class ContainerFactory
             \Pet\Application\Work\Command\UpdatePersonKpiHandler::class => \DI\autowire(\Pet\Application\Work\Command\UpdatePersonKpiHandler::class),
             \Pet\Application\Work\Command\CreatePerformanceReviewHandler::class => \DI\autowire(\Pet\Application\Work\Command\CreatePerformanceReviewHandler::class),
             \Pet\Application\Work\Command\UpdatePerformanceReviewHandler::class => \DI\autowire(\Pet\Application\Work\Command\UpdatePerformanceReviewHandler::class),
+            \Pet\Application\Work\Command\AssignWorkItemHandler::class => \DI\autowire(\Pet\Application\Work\Command\AssignWorkItemHandler::class),
+            \Pet\Application\Work\Command\OverrideWorkItemPriorityHandler::class => \DI\autowire(\Pet\Application\Work\Command\OverrideWorkItemPriorityHandler::class),
+            
+            // Projectors
+            \Pet\Application\Work\Projection\WorkItemProjector::class => \DI\autowire(\Pet\Application\Work\Projection\WorkItemProjector::class),
+            \Pet\Application\Work\Cron\WorkItemPriorityUpdateJob::class => \DI\autowire(\Pet\Application\Work\Cron\WorkItemPriorityUpdateJob::class),
+            \Pet\Domain\Work\Service\SlaClockCalculator::class => \DI\autowire(\Pet\Domain\Work\Service\SlaClockCalculator::class),
+            \Pet\Domain\Calendar\Service\BusinessTimeCalculator::class => \DI\autowire(\Pet\Domain\Calendar\Service\BusinessTimeCalculator::class),
+            \Pet\Domain\Work\Service\CapacityCalendar::class => \DI\autowire(\Pet\Domain\Work\Service\CapacityCalendar::class),
 
             \Pet\Application\Identity\Command\CreateCustomerHandler::class => \DI\autowire(\Pet\Application\Identity\Command\CreateCustomerHandler::class),
             \Pet\Application\Identity\Command\UpdateCustomerHandler::class => \DI\autowire(\Pet\Application\Identity\Command\UpdateCustomerHandler::class),
@@ -269,6 +328,7 @@ class ContainerFactory
             \Pet\UI\Rest\Controller\SlaController::class => \DI\autowire(),
             \Pet\UI\Rest\Controller\RoleController::class => \DI\autowire(),
             \Pet\UI\Rest\Controller\AssignmentController::class => \DI\autowire(),
+            \Pet\UI\Rest\Controller\FeedController::class => \DI\autowire(),
             \Pet\UI\Rest\Controller\SkillController::class => \DI\autowire(),
             \Pet\UI\Rest\Controller\CapabilityController::class => \DI\autowire(),
             \Pet\UI\Rest\Controller\EmployeeSkillController::class => \DI\autowire(),
@@ -277,6 +337,8 @@ class ContainerFactory
             \Pet\UI\Rest\Controller\KpiDefinitionController::class => \DI\autowire(),
             \Pet\UI\Rest\Controller\RoleKpiController::class => \DI\autowire(),
             \Pet\UI\Rest\Controller\PersonKpiController::class => \DI\autowire(),
+            \Pet\UI\Rest\Controller\WorkController::class => \DI\autowire(\Pet\UI\Rest\Controller\WorkController::class),
+            \Pet\UI\Rest\Controller\WorkItemController::class => \DI\autowire(),
         ];
     }
 }

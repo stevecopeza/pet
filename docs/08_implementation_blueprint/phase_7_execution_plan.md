@@ -1,5 +1,41 @@
 # PET Phase 7 Execution Plan: Work Orchestration, Command Surface & Demo Engine
 
+## Command Surface (Feed) – Implementation Plan
+
+### Phase 1: Feed Domain Finalization
+- Complete audience targeting with role-based filtering once employee roles are exposed
+- Add pagination and pinned-first ordering to feed queries
+- Enforce idempotency for reactions and acknowledgements; confirm unique constraints exist
+- Validate request payloads on POST routes (reactionType enumeration, audience scopes)
+- Acceptance: role/team filters applied correctly; pagination stable with pins first; duplicate Ack/React returns 200; unit tests pass
+
+### Phase 2: Operational Feed UI
+- Build Admin UI panel to consume GET /pet/v1/feed and GET /pet/v1/announcements
+- Display classification badges, pin state, expiry; provide actions for Ack and React
+- Acceptance: UI loads lists, reflects pinned ordering; Ack/React update state; empty/error states handled
+
+### Phase 3: E2E Tests
+- Playwright specs: load feed lists; create announcement then Ack; React to feed event; expiry filtering
+- Ensure inputs have accessible labels or IDs; selects use selectOption
+- Acceptance: E2E passes consistently in Chromium; stable selectors, minimal flakiness
+
+### Phase 4: Demo Engine
+- Implement RpmDemoInstaller to seed events and announcements (strategic/operational/critical; pinned/ackRequired/gpsRequired)
+- Provide Admin-triggered action to run/refresh demo data idempotently
+- Acceptance: installer produces visible feed data; re-run does not duplicate
+
+### Phase 5: Observability & Performance
+- Add logging around feed queries and POST actions
+- Add composite indexes: (audience_scope, audience_reference_id) and (pinned_flag, created_at)
+- Stress test findRelevantForUser with realistic department/role arrays
+- Acceptance: queries use intended indexes; no slow queries
+
+### Phase 6: Hardening
+- Permissions: validate current_user_can policy; restrict creation endpoints to admin/managers if needed
+- Input validation: strict enums, formats, non-empty titles, safe metadata
+- Security: no secret logging; sanitize text fields
+- Backward compatibility and immutability preserved
+- Acceptance: invalid payloads return 400 with clear messages; no immutability violations
 **Objective:** Transform PET from a data-recording system into an active operational platform by implementing the "Work Surface" (My Work), the "Command Surface" (Feed), and the "Demo Engine" (RPM Resources) to showcase the full capability.
 
 ## 1. Sequence of Execution
@@ -26,14 +62,14 @@ We will execute in the following order to respect dependencies:
 *Docs Location:* `docs/28_work_orchestration/`
 
 **Step 1: Data Model & Projections (Phases 1 & 2)**
--   [ ] Create `WorkItem` entity (Projection).
--   [ ] Create `DepartmentQueue` entity.
--   [ ] Implement `WorkItemProjector`:
+-   [x] Create `WorkItem` entity (Projection).
+-   [x] Create `DepartmentQueue` entity.
+-   [x] Implement `WorkItemProjector`:
     -   Listen to `TaskAssigned`, `TicketAssigned`, `TicketEscalated`.
     -   Map source entities to `WorkItem` format.
 
 **Step 2: Priority Engine (Phase 3)**
--   [ ] Implement `PriorityScoringService` based on the deterministic formula:
+-   [x] Implement `PriorityScoringService` based on the deterministic formula:
     -   `SLA_COMPONENT` (Max 500)
     -   `DEADLINE_COMPONENT` (Max 250)
     -   `ESCALATION_COMPONENT` (Max 150)
@@ -41,16 +77,16 @@ We will execute in the following order to respect dependencies:
     -   `ROLE_WEIGHT_COMPONENT` (Max 50)
     -   `WAITING_PENALTY` (Max -400)
     -   `MANAGER_OVERRIDE` (Max ±300)
--   [ ] Implement `SlaClockCalculator` for real-time score updates.
+-   [x] Implement `SlaClockCalculator` for real-time score updates.
 
 **Step 3: Capacity & Metrics (Phases 4 & 5)**
--   [ ] Integrate `CapacityCalendar` for over-allocation detection.
--   [ ] Implement `AdvisorySignal` generation (Context switching, SLA risk).
+-   [x] Integrate `CapacityCalendar` for over-allocation detection.
+-   [x] Implement `AdvisorySignal` generation (Context switching, SLA risk).
 
 **Step 4: API & UI**
--   [ ] Endpoint: `GET /pet/v1/work/my-items` (Sorted by Priority Score).
--   [ ] Endpoint: `GET /pet/v1/work/department-queue/{dept_id}`.
--   [ ] UI Component: `MyWorkTable` (Columns: ID, Type, Priority, SLA Clock, Action).
+-   [x] Endpoint: `GET /pet/v1/work/my-items` (Sorted by Priority Score).
+-   [x] Endpoint: `GET /pet/v1/work/department-queue/{dept_id}`.
+-   [x] UI Component: `MyWorkTable` (Columns: ID, Type, Priority, SLA Clock, Action).
 
 ### Phase 7.2: Command Surface (Operational Feed)
 *Docs Location:* `docs/29_command_surface/`

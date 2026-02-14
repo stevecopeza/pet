@@ -61,6 +61,14 @@ add_action('plugins_loaded', function () {
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateQuotePaymentScheduleTable::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddSkuAndRoleIdToQuoteCatalogItems::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateWorkOrchestrationTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateAdvisoryTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\UpdateWorkItemsTableAddRevenueAndTier::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddManagerPriorityOverrideToWorkItems::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddCalendarIdToEmployees::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddRequiredRoleIdToWorkItems::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddRoleIdToTasks::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateFeedTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddFeedIndexes::class,
         ]);
 
         // Register UI
@@ -101,6 +109,12 @@ add_action('plugins_loaded', function () {
         $eventBus->subscribe(\Pet\Domain\Delivery\Event\MilestoneCompletedEvent::class, [$feedProjectionListener, 'onMilestoneCompleted']);
         $eventBus->subscribe(\Pet\Domain\Commercial\Event\ChangeOrderApprovedEvent::class, [$feedProjectionListener, 'onChangeOrderApproved']);
 
+        // Work Item Projector Listener
+        $workItemProjector = $container->get(\Pet\Application\Work\Projection\WorkItemProjector::class);
+        $eventBus->subscribe(\Pet\Domain\Support\Event\TicketCreated::class, [$workItemProjector, 'onTicketCreated']);
+        $eventBus->subscribe(\Pet\Domain\Support\Event\TicketAssigned::class, [$workItemProjector, 'onTicketAssigned']);
+        $eventBus->subscribe(\Pet\Domain\Delivery\Event\ProjectTaskCreated::class, [$workItemProjector, 'onProjectTaskCreated']);
+
     } catch (\Exception $e) {
         error_log('PET Plugin Bootstrap Error: ' . $e->getMessage());
     }
@@ -126,10 +140,36 @@ add_action('pet_sla_automation_event', function () {
     }
 });
 
+add_action('pet_work_item_priority_update', function () {
+    try {
+        $container = \Pet\Infrastructure\DependencyInjection\ContainerFactory::create();
+        $job = $container->get(\Pet\Application\Work\Cron\WorkItemPriorityUpdateJob::class);
+        $job->run();
+    } catch (\Throwable $e) {
+        error_log('PET Work Item Priority Update Cron Failed: ' . $e->getMessage());
+    }
+});
+
+add_action('pet_advisory_generation_event', function () {
+    try {
+        $container = \Pet\Infrastructure\DependencyInjection\ContainerFactory::create();
+        $job = $container->get(\Pet\Application\Advisory\Cron\AdvisoryGenerationJob::class);
+        $job->run();
+    } catch (\Throwable $e) {
+        error_log('PET Advisory Generation Cron Failed: ' . $e->getMessage());
+    }
+});
+
 // Schedule Cron Event on Activation
 register_activation_hook(__FILE__, function () {
     if (!wp_next_scheduled('pet_sla_automation_event')) {
         wp_schedule_event(time(), 'pet_five_minutes', 'pet_sla_automation_event');
+    }
+    if (!wp_next_scheduled('pet_work_item_priority_update')) {
+        wp_schedule_event(time(), 'pet_five_minutes', 'pet_work_item_priority_update');
+    }
+    if (!wp_next_scheduled('pet_advisory_generation_event')) {
+        wp_schedule_event(time(), 'pet_five_minutes', 'pet_advisory_generation_event');
     }
 });
 
@@ -138,5 +178,13 @@ register_deactivation_hook(__FILE__, function () {
     $timestamp = wp_next_scheduled('pet_sla_automation_event');
     if ($timestamp) {
         wp_unschedule_event($timestamp, 'pet_sla_automation_event');
+    }
+    $timestamp = wp_next_scheduled('pet_work_item_priority_update');
+    if ($timestamp) {
+        wp_unschedule_event($timestamp, 'pet_work_item_priority_update');
+    }
+    $timestamp = wp_next_scheduled('pet_advisory_generation_event');
+    if ($timestamp) {
+        wp_unschedule_event($timestamp, 'pet_advisory_generation_event');
     }
 });
