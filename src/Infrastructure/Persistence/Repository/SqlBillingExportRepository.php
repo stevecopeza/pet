@@ -144,4 +144,15 @@ class SqlBillingExportRepository implements BillingExportRepository
             ['id' => $exportId]
         );
     }
+
+    public function sumItemsTotal(int $exportId): float
+    {
+        $table = $this->wpdb->prefix . 'pet_billing_export_items';
+        $row = $this->wpdb->get_row(
+            $this->wpdb->prepare("SELECT SUM(amount) AS total FROM $table WHERE export_id = %d", $exportId),
+            ARRAY_A
+        );
+        $total = $row && $row['total'] !== null ? (float)$row['total'] : 0.0;
+        return round($total, 2);
+    }
 }

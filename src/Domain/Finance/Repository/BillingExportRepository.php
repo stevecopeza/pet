@@ -15,4 +15,5 @@ interface BillingExportRepository
     public function addItem(BillingExportItem $item): void;
     public function findItems(int $exportId): array;
     public function setStatus(int $exportId, string $status): void;
+    public function sumItemsTotal(int $exportId): float;
 }

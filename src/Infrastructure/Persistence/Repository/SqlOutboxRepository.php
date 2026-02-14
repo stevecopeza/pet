@@ -76,5 +76,15 @@ final class SqlOutboxRepository
             'updated_at' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
         ], ['id' => $id]);
     }
-}
 
+    public function findByEventIdAndDestination(int $eventId, string $destination): array
+    {
+        $table = $this->wpdb->prefix . 'pet_outbox';
+        $sql = "SELECT id, event_id, destination, status, attempt_count, next_attempt_at, last_error, created_at, updated_at
+                FROM $table
+                WHERE event_id = %d AND destination = %s
+                ORDER BY id ASC";
+        $prepared = $this->wpdb->prepare($sql, [$eventId, $destination]);
+        return $this->wpdb->get_results($prepared, ARRAY_A);
+    }
+}

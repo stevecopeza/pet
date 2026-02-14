@@ -154,6 +154,8 @@ const Finance: React.FC = () => {
             />
           </div>
 
+          <DispatchLog exportId={selectedExport.id} />
+
           {actionError && <div style={{ color: 'red', marginTop: '10px' }}>Error: {actionError}</div>}
         </div>
       )}
@@ -249,6 +251,65 @@ const AddItemForm: React.FC<AddItemFormProps> = ({ exportId, onItemAdded }) => {
         </button>
         {error && <span style={{ color: 'red', marginLeft: '10px' }}>Error: {error}</span>}
       </div>
+    </div>
+  );
+};
+
+const DispatchLog: React.FC<{ exportId: number }> = ({ exportId }) => {
+  const [rows, setRows] = useState<Array<{
+    id: number;
+    status: string;
+    attemptCount: number;
+    nextAttemptAt: string | null;
+    lastError: string | null;
+    updatedAt: string;
+  }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    const run = async () => {
+      setLoading(true);
+      setErr(null);
+      try {
+        const res = await fetch(`${window.petSettings.apiUrl}/billing/exports/${exportId}/dispatch-log`, {
+          headers: { 'X-WP-Nonce': window.petSettings.nonce },
+        });
+        if (!res.ok) throw new Error('Failed to load dispatch log');
+        const data = await res.json();
+        setRows(data);
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
+  }, [exportId]);
+
+  return (
+    <div className="pet-card" style={{ marginTop: '15px' }}>
+      <h4 style={{ marginTop: 0 }}>Dispatch Log</h4>
+      {loading ? (
+        <div>Loading...</div>
+      ) : err ? (
+        <div style={{ color: 'red' }}>Error: {err}</div>
+      ) : rows.length === 0 ? (
+        <div>No dispatch attempts yet.</div>
+      ) : (
+        <DataTable
+          columns={[
+            { key: 'id', header: 'ID', render: (v) => String(v) },
+            { key: 'status', header: 'Status' },
+            { key: 'attemptCount', header: 'Attempts', render: (v) => String(v) },
+            { key: 'nextAttemptAt', header: 'Next Attempt' },
+            { key: 'lastError', header: 'Last Error' },
+            { key: 'updatedAt', header: 'Updated' },
+          ]}
+          data={rows}
+          emptyMessage="No attempts recorded."
+        />
+      )}
     </div>
   );
 };

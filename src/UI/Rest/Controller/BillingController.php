@@ -11,6 +11,7 @@ use Pet\Application\Finance\Command\AddBillingExportItemHandler;
 use Pet\Application\Finance\Command\QueueBillingExportForQuickBooksCommand;
 use Pet\Application\Finance\Command\QueueBillingExportForQuickBooksHandler;
 use Pet\Domain\Finance\Repository\BillingExportRepository;
+use Pet\Infrastructure\Persistence\Repository\SqlOutboxRepository;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
@@ -24,7 +25,8 @@ final class BillingController implements RestController
         private BillingExportRepository $repository,
         private CreateBillingExportHandler $createHandler,
         private AddBillingExportItemHandler $addItemHandler,
-        private QueueBillingExportForQuickBooksHandler $queueHandler
+        private QueueBillingExportForQuickBooksHandler $queueHandler,
+        private SqlOutboxRepository $outbox
     ) {
     }
 
@@ -60,6 +62,22 @@ final class BillingController implements RestController
             [
                 'methods' => WP_REST_Server::CREATABLE,
                 'callback' => [$this, 'queueExport'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+        ]);
+
+        register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/exports/(?P<id>\\d+)/totals', [
+            [
+                'methods' => WP_REST_Server::READABLE,
+                'callback' => [$this, 'totals'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+        ]);
+
+        register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/exports/(?P<id>\\d+)/dispatch-log', [
+            [
+                'methods' => WP_REST_Server::READABLE,
+                'callback' => [$this, 'dispatchLog'],
                 'permission_callback' => [$this, 'checkPermission'],
             ],
         ]);
@@ -145,5 +163,29 @@ final class BillingController implements RestController
             ];
         }, $items);
         return new WP_REST_Response($mapped, 200);
+    }
+
+    public function totals(WP_REST_Request $request): WP_REST_Response
+    {
+        $exportId = (int)$request->get_param('id');
+        $total = $this->repository->sumItemsTotal($exportId);
+        return new WP_REST_Response(['totalAmount' => $total], 200);
+    }
+
+    public function dispatchLog(WP_REST_Request $request): WP_REST_Response
+    {
+        $exportId = (int)$request->get_param('id');
+        $rows = $this->outbox->findByEventIdAndDestination($exportId, 'quickbooks');
+        return new WP_REST_Response(array_map(function ($r) {
+            return [
+                'id' => (int)$r['id'],
+                'status' => $r['status'],
+                'attemptCount' => (int)$r['attempt_count'],
+                'nextAttemptAt' => $r['next_attempt_at'],
+                'lastError' => $r['last_error'],
+                'createdAt' => $r['created_at'],
+                'updatedAt' => $r['updated_at'],
+            ];
+        }, $rows), 200);
     }
 }
