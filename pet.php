@@ -68,6 +68,9 @@ add_action('plugins_loaded', function () {
             \Pet\Infrastructure\Persistence\Migration\Definition\AddRequiredRoleIdToWorkItems::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddRoleIdToTasks::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateEventBackboneTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateExternalIntegrationTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateBillingExportTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateQuickBooksShadowTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateFeedTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddFeedIndexes::class,
         ]);
