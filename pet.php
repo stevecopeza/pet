@@ -73,6 +73,7 @@ add_action('plugins_loaded', function () {
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateQuickBooksShadowTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateFeedTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddFeedIndexes::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateLeaveCapacityTables::class,
         ]);
 
         // Register UI

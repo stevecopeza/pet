@@ -166,6 +166,18 @@ class ContainerFactory
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlRoleRepository($wpdb);
             },
+            \Pet\Domain\Work\Repository\LeaveTypeRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlLeaveTypeRepository($wpdb);
+            },
+            \Pet\Domain\Work\Repository\LeaveRequestRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlLeaveRequestRepository($wpdb);
+            },
+            \Pet\Domain\Work\Repository\CapacityOverrideRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlCapacityOverrideRepository($wpdb);
+            },
             \Pet\Domain\Work\Repository\SkillRepository::class => function () {
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlSkillRepository($wpdb);

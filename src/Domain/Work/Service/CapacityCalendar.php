@@ -16,7 +16,9 @@ class CapacityCalendar
         private CalendarRepository $calendarRepository,
         private WorkItemRepository $workItemRepository,
         private EmployeeRepository $employeeRepository,
-        private BusinessTimeCalculator $timeCalculator
+        private BusinessTimeCalculator $timeCalculator,
+        private \Pet\Domain\Work\Repository\LeaveRequestRepository $leaveRequests,
+        private \Pet\Domain\Work\Repository\CapacityOverrideRepository $capacityOverrides
     ) {}
 
     public function getUserUtilization(
@@ -53,7 +55,31 @@ class CapacityCalendar
         }
 
         $snapshot = $calendar->createSnapshot();
-        $availableMinutes = $this->timeCalculator->calculateBusinessMinutes($start, $end, $snapshot);
+        $availableMinutes = 0.0;
+        $cursor = new DateTimeImmutable($start->format('Y-m-d') . ' 00:00:00');
+        $windowEnd = new DateTimeImmutable($end->format('Y-m-d') . ' 23:59:59');
+        while ($cursor <= $windowEnd) {
+            $dayStart = new DateTimeImmutable($cursor->format('Y-m-d') . ' 00:00:00');
+            $dayEnd = new DateTimeImmutable($cursor->format('Y-m-d') . ' 23:59:59');
+            $dayMinutes = $this->timeCalculator->calculateBusinessMinutes($dayStart, $dayEnd, $snapshot);
+            // Apply precedence: Approved Leave → 0; Override → scale; Holiday handled by snapshot=0
+            if (is_numeric($userId)) {
+                $employee = $this->employeeRepository->findByWpUserId((int)$userId);
+                if ($employee) {
+                    $dateOnly = new DateTimeImmutable($cursor->format('Y-m-d'));
+                    if ($this->leaveRequests->isApprovedOnDate($employee->id(), $dateOnly)) {
+                        $dayMinutes = 0.0;
+                    } else {
+                        $override = $this->capacityOverrides->findForDate($employee->id(), $dateOnly);
+                        if ($override) {
+                            $dayMinutes = $dayMinutes * max(0, min(100, $override->capacityPct())) / 100.0;
+                        }
+                    }
+                }
+            }
+            $availableMinutes += $dayMinutes;
+            $cursor = $cursor->modify('+1 day');
+        }
 
         if ($availableMinutes === 0) {
             // If no time is available in the window, but we want to check utilization...
