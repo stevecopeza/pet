@@ -6,12 +6,14 @@ namespace Pet\Application\Integration\Service;
 
 use Pet\Infrastructure\Persistence\Repository\SqlOutboxRepository;
 use Pet\Domain\Finance\Repository\BillingExportRepository;
+use Pet\Infrastructure\Persistence\Repository\SqlQbInvoiceRepository;
 
 final class OutboxDispatcherService
 {
     public function __construct(
         private SqlOutboxRepository $outbox,
-        private BillingExportRepository $exports
+        private BillingExportRepository $exports,
+        private SqlQbInvoiceRepository $qbInvoices
     ) {
     }
 
@@ -30,6 +32,7 @@ final class OutboxDispatcherService
                 $items = $this->exports->findItems($exportId);
                 $payload = $this->buildEnvelope($exportId, $items);
                 $this->simulateQuickBooksSend($payload);
+                $this->qbInvoices->recordInvoiceSnapshot($export->customerId(), $payload);
                 $this->outbox->markSent($outboxId);
                 $this->exports->setStatus($exportId, 'processed');
             } catch (\Throwable $e) {
@@ -96,4 +99,3 @@ final class OutboxDispatcherService
         return $now->modify($spec);
     }
 }
-

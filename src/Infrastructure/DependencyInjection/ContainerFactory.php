@@ -45,6 +45,10 @@ class ContainerFactory
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlOutboxRepository($wpdb);
             },
+            \Pet\Infrastructure\Persistence\Repository\SqlQbInvoiceRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlQbInvoiceRepository($wpdb);
+            },
 
             // Repositories
             \Pet\Domain\Identity\Repository\EmployeeRepository::class => function () {
