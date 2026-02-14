@@ -18,6 +18,12 @@ const Employees = () => {
   const [utilError, setUtilError] = useState<string | null>(null);
   const [overrideDate, setOverrideDate] = useState<string>(() => new Date().toISOString().slice(0,10));
   const [overridePct, setOverridePct] = useState<number>(100);
+  const [leaveTypes, setLeaveTypes] = useState<{ id: number; name: string; paid: boolean }[]>([]);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [lvStart, setLvStart] = useState<string>(() => new Date().toISOString().slice(0,10));
+  const [lvEnd, setLvEnd] = useState<string>(() => new Date(Date.now() + 86400000).toISOString().slice(0,10));
+  const [lvTypeId, setLvTypeId] = useState<number>(0);
+  const [lvNotes, setLvNotes] = useState<string>('');
 
   const fetchSchema = async () => {
     try {
@@ -95,10 +101,46 @@ const Employees = () => {
     }
   };
 
+  const fetchLeaveTypes = async () => {
+    try {
+      // @ts-ignore
+      const apiUrl = window.petSettings?.apiUrl;
+      // @ts-ignore
+      const nonce = window.petSettings?.nonce;
+      const res = await fetch(`${apiUrl}/leave/types`, { headers: { 'X-WP-Nonce': nonce } });
+      if (res.ok) {
+        const data = await res.json();
+        setLeaveTypes(Array.isArray(data) ? data : []);
+        if (Array.isArray(data) && data.length > 0) {
+          setLvTypeId(Number(data[0].id));
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch leave types', e);
+    }
+  };
+
+  const fetchLeaveRequests = async (employeeId: number) => {
+    try {
+      // @ts-ignore
+      const apiUrl = window.petSettings?.apiUrl;
+      // @ts-ignore
+      const nonce = window.petSettings?.nonce;
+      const res = await fetch(`${apiUrl}/leave/requests?employeeId=${employeeId}`, { headers: { 'X-WP-Nonce': nonce } });
+      if (res.ok) {
+        const data = await res.json();
+        setRequests(Array.isArray(data) ? data : []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch leave requests', e);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'people') {
       fetchEmployees();
       fetchSchema();
+      fetchLeaveTypes();
     }
   }, [activeTab]);
 
@@ -106,8 +148,10 @@ const Employees = () => {
     const eid = editingEmployee?.id || (typeof selectedIds[0] === 'number' ? Number(selectedIds[0]) : null);
     if (activeTab === 'people' && eid) {
       fetchUtilization(eid);
+      fetchLeaveRequests(eid);
     } else {
       setUtilization([]);
+      setRequests([]);
     }
   }, [activeTab, editingEmployee, selectedIds]);
 
@@ -400,6 +444,151 @@ const Employees = () => {
                      </table>
                     }
                   </div>
+                </div>
+              </div>
+            )}
+
+            {(editingEmployee || (selectedIds.length === 1 && typeof selectedIds[0] === 'number')) && (
+              <div className="pet-card" style={{ marginTop: '20px', padding: '15px', border: '1px solid #eee', borderRadius: '6px' }}>
+                <h3 style={{ marginTop: 0 }}>Leave Requests</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr 1fr', gap: '10px', alignItems: 'center' }}>
+                  <label>Leave Type</label>
+                  <select value={lvTypeId} onChange={(e) => setLvTypeId(Number(e.target.value))}>
+                    {leaveTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                  <label>Notes</label>
+                  <input type="text" value={lvNotes} onChange={(e) => setLvNotes(e.target.value)} placeholder="Optional notes" />
+                  <label>Start</label>
+                  <input type="date" value={lvStart} onChange={(e) => setLvStart(e.target.value)} />
+                  <label>End</label>
+                  <input type="date" value={lvEnd} onChange={(e) => setLvEnd(e.target.value)} />
+                </div>
+                <div style={{ marginTop: '10px' }}>
+                  <button
+                    className="button button-primary"
+                    onClick={async () => {
+                      const employeeId = editingEmployee?.id || Number(selectedIds[0]);
+                      // @ts-ignore
+                      const apiUrl = window.petSettings?.apiUrl;
+                      // @ts-ignore
+                      const nonce = window.petSettings?.nonce;
+                      const res = await fetch(`${apiUrl}/leave/requests`, {
+                        method: 'POST',
+                        headers: { 'X-WP-Nonce': nonce, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          employeeId,
+                          leaveTypeId: lvTypeId,
+                          startDate: lvStart,
+                          endDate: lvEnd,
+                          notes: lvNotes || null,
+                        })
+                      });
+                      if (res.ok) {
+                        fetchLeaveRequests(employeeId);
+                        setLvNotes('');
+                        alert('Leave request submitted');
+                      } else {
+                        alert('Failed to submit leave request');
+                      }
+                    }}
+                  >
+                    Submit Leave Request
+                  </button>
+                </div>
+                <div style={{ marginTop: '15px' }}>
+                  <table className="widefat striped">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Type</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Status</th>
+                        <th>Decided At</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {requests.length === 0 ? (
+                        <tr><td colSpan={7}>No leave requests</td></tr>
+                      ) : requests.map((r) => (
+                        <tr key={r.id}>
+                          <td>{r.id}</td>
+                          <td>{leaveTypes.find(t => t.id === r.leaveTypeId)?.name || r.leaveTypeId}</td>
+                          <td>{r.startDate}</td>
+                          <td>{r.endDate}</td>
+                          <td>{r.status}</td>
+                          <td>{r.decidedAt || '-'}</td>
+                          <td style={{ textAlign: 'right' }}>
+                            <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+                              {r.status === 'submitted' && (
+                                <>
+                                  <button
+                                    className="button button-small"
+                                    onClick={async () => {
+                                      // @ts-ignore
+                                      const apiUrl = window.petSettings?.apiUrl;
+                                      // @ts-ignore
+                                      const nonce = window.petSettings?.nonce;
+                                      await fetch(`${apiUrl}/leave/requests/${r.id}/decide`, {
+                                        method: 'POST',
+                                        headers: { 'X-WP-Nonce': nonce, 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ decidedByEmployeeId: 0, decision: 'approved' })
+                                      });
+                                      const employeeId = editingEmployee?.id || Number(selectedIds[0]);
+                                      fetchLeaveRequests(employeeId);
+                                      fetchUtilization(employeeId);
+                                    }}
+                                  >
+                                    Approve
+                                  </button>
+                                  <button
+                                    className="button button-small"
+                                    onClick={async () => {
+                                      // @ts-ignore
+                                      const apiUrl = window.petSettings?.apiUrl;
+                                      // @ts-ignore
+                                      const nonce = window.petSettings?.nonce;
+                                      await fetch(`${apiUrl}/leave/requests/${r.id}/decide`, {
+                                        method: 'POST',
+                                        headers: { 'X-WP-Nonce': nonce, 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ decidedByEmployeeId: 0, decision: 'rejected', reason: 'Not approved' })
+                                      });
+                                      const employeeId = editingEmployee?.id || Number(selectedIds[0]);
+                                      fetchLeaveRequests(employeeId);
+                                    }}
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                              {(r.status === 'approved' || r.status === 'rejected') && (
+                                <button
+                                  className="button button-small"
+                                  onClick={async () => {
+                                    // @ts-ignore
+                                    const apiUrl = window.petSettings?.apiUrl;
+                                    // @ts-ignore
+                                    const nonce = window.petSettings?.nonce;
+                                    await fetch(`${apiUrl}/leave/requests/${r.id}/decide`, {
+                                      method: 'POST',
+                                      headers: { 'X-WP-Nonce': nonce, 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ decidedByEmployeeId: 0, decision: 'cancelled' })
+                                    });
+                                    const employeeId = editingEmployee?.id || Number(selectedIds[0]);
+                                    fetchLeaveRequests(employeeId);
+                                    fetchUtilization(employeeId);
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             )}
