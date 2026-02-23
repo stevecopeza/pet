@@ -45,6 +45,7 @@ class Employee
         $this->status = $status;
         $this->hireDate = $hireDate;
         $this->managerId = $managerId;
+        $this->calendarId = $calendarId;
         $this->malleableSchemaVersion = $malleableSchemaVersion;
         $this->malleableData = $malleableData;
         $this->teamIds = $teamIds;

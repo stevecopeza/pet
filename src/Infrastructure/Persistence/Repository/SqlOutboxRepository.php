@@ -6,9 +6,9 @@ namespace Pet\Infrastructure\Persistence\Repository;
 
 final class SqlOutboxRepository
 {
-    private $wpdb;
+    private \wpdb $wpdb;
 
-    public function __construct($wpdb)
+    public function __construct(\wpdb $wpdb)
     {
         $this->wpdb = $wpdb;
     }

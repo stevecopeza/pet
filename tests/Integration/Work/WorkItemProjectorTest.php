@@ -6,16 +6,21 @@ use PHPUnit\Framework\TestCase;
 use Pet\Application\Work\Projection\WorkItemProjector;
 use Pet\Domain\Work\Repository\WorkItemRepository;
 use Pet\Domain\Work\Repository\DepartmentQueueRepository;
-use Pet\Infrastructure\Persistence\Repository\SqlWorkItemRepository;
-use Pet\Infrastructure\Persistence\Repository\SqlDepartmentQueueRepository;
 use Pet\Domain\Work\Service\DepartmentResolver;
 use Pet\Domain\Work\Service\PriorityScoringService;
+use Pet\Domain\Work\Service\SlaClockCalculator;
+use Pet\Domain\Advisory\Repository\AdvisorySignalRepository;
 use Pet\Domain\Support\Event\TicketCreated;
 use Pet\Domain\Support\Entity\Ticket;
 use Pet\Domain\Delivery\Event\ProjectTaskCreated;
 use Pet\Domain\Delivery\Entity\Project;
 use Pet\Domain\Delivery\Entity\Task;
 use Pet\Domain\Support\Event\TicketAssigned;
+use Pet\Domain\Identity\Repository\CustomerRepository;
+use Pet\Infrastructure\Persistence\Repository\SqlWorkItemRepository;
+use Pet\Infrastructure\Persistence\Repository\SqlDepartmentQueueRepository;
+use Pet\Infrastructure\Persistence\Repository\SqlAdvisorySignalRepository;
+use Pet\Infrastructure\Persistence\Repository\SqlCustomerRepository;
 
 class WorkItemProjectorTest extends TestCase
 {
@@ -24,6 +29,9 @@ class WorkItemProjectorTest extends TestCase
     private $departmentQueueRepository;
     private $departmentResolver;
     private $priorityScoringService;
+    private $advisorySignalRepository;
+    private $slaClockCalculator;
+    private $customerRepository;
     private $projector;
 
     protected function setUp(): void
@@ -38,20 +46,23 @@ class WorkItemProjectorTest extends TestCase
 
         $this->workItemRepository = new SqlWorkItemRepository($this->wpdb);
         $this->departmentQueueRepository = new SqlDepartmentQueueRepository($this->wpdb);
-        
-        // Use real services or mocks? 
-        // Real logic for DepartmentResolver is simple, safe to use real.
+
         $this->departmentResolver = new DepartmentResolver();
-        
-        // PriorityScoringService also has logic we might want to test, or mock if complex.
-        // It relies on DateTime, which is fine.
         $this->priorityScoringService = new PriorityScoringService();
-        
+        $this->advisorySignalRepository = new SqlAdvisorySignalRepository($this->wpdb);
+        $this->slaClockCalculator = new SlaClockCalculator(
+            $this->workItemRepository,
+            $this->priorityScoringService,
+            $this->advisorySignalRepository
+        );
+        $this->customerRepository = new SqlCustomerRepository($this->wpdb);
+
         $this->projector = new WorkItemProjector(
             $this->workItemRepository,
             $this->departmentQueueRepository,
             $this->departmentResolver,
-            $this->priorityScoringService
+            $this->slaClockCalculator,
+            $this->customerRepository
         );
     }
 
@@ -109,45 +120,28 @@ class WorkItemProjectorTest extends TestCase
         $this->projector->onTicketCreated($event);
     }
 
-    public function testOnProjectTaskCreatedPersistsWorkItemAndQueueEntry()
+    public function testOnProjectTaskCreatedDoesNotCreateWorkItem()
     {
-        // 1. Arrange
-        $projectId = 101;
-        $taskId = 202;
-        
+        $projectId = 1;
+        $taskId = 10;
         $project = new Project(
             customerId: 1,
             name: 'Test Project',
-            soldHours: 10.0,
+            soldHours: 0.0,
+            sourceQuoteId: null,
             id: $projectId
         );
-        
         $task = new Task(
-            name: 'Test Task',
-            estimatedHours: 5.0,
-            completed: false,
-            id: $taskId
+            'Test Task',
+            1.0,
+            false,
+            $taskId
         );
-        
+
         $event = new ProjectTaskCreated($project, $task);
 
-        $this->wpdb->method('prepare')->willReturnArgument(0);
-        
-        // Expect at least 2 inserts (WorkItem + Queue)
-        $this->wpdb->expects($this->atLeast(2))
-            ->method('insert')
-            ->withConsecutive(
-                [
-                    $this->stringContains('pet_work_items'),
-                    $this->callback(function($data) use ($taskId) {
-                        return $data['source_type'] === 'project_task' 
-                            && $data['source_id'] === (string)$taskId
-                            && $data['department_id'] === DepartmentResolver::DEPT_DELIVERY;
-                    })
-                ]
-            );
+        $this->wpdb->expects($this->never())->method('insert');
 
-        // 2. Act
         $this->projector->onProjectTaskCreated($event);
     }
 

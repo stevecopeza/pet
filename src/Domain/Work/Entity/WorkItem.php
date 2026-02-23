@@ -151,7 +151,7 @@ class WorkItem
     // Validation
     private function validateSourceType(string $type): void
     {
-        $allowed = ['project_task', 'ticket', 'escalation', 'admin'];
+        $allowed = ['ticket', 'escalation', 'admin'];
         if (!in_array($type, $allowed)) {
             throw new InvalidArgumentException("Invalid source type: $type");
         }

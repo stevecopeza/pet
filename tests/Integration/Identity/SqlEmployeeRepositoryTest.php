@@ -22,7 +22,20 @@ class SqlEmployeeRepositoryTest extends TestCase
 
     public function testSaveNewEmployeeWithTeams()
     {
-        $employee = new Employee(1, 'Jane', 'Doe', 'jane@example.com', null, 'active', null, null, null, [], [50, 51]);
+        $employee = new Employee(
+            1,
+            'Jane',
+            'Doe',
+            'jane@example.com',
+            null,
+            'active',
+            null,
+            null,
+            null,
+            null,
+            [],
+            [50, 51]
+        );
 
         // Mock prepare to return a string
         $this->wpdb->method('prepare')->willReturnArgument(0);
@@ -73,7 +86,20 @@ class SqlEmployeeRepositoryTest extends TestCase
         // New teams: [51]
         // Result: Remove 50, Add 51
         
-        $employee = new Employee(1, 'Jane', 'Doe', 'jane@example.com', 101, 'active', null, null, null, [], [51]);
+        $employee = new Employee(
+            1,
+            'Jane',
+            'Doe',
+            'jane@example.com',
+            101,
+            'active',
+            null,
+            null,
+            null,
+            null,
+            [],
+            [51]
+        );
 
         // Mock prepare to return a string
         $this->wpdb->method('prepare')->willReturnArgument(0);

@@ -45,15 +45,30 @@ class SqlRoleRepository implements RoleRepository
             );
             $roleId = $role->id();
         } else {
-            $this->wpdb->insert(
+            $insertResult = $this->wpdb->insert(
                 $this->tableName,
                 $data,
                 $format
             );
-            $roleId = $this->wpdb->insert_id;
+            $roleId = (int)$this->wpdb->insert_id;
+
+            if ($insertResult === false || $roleId <= 0) {
+                $error = $this->wpdb->last_error ?: 'unknown error';
+                throw new \RuntimeException('SqlRoleRepository failed to insert role: ' . $error);
+            }
         }
 
         $this->updateRoleSkills($roleId, $role->requiredSkills());
+
+        // Set generated ID back on the entity to satisfy handlers expecting int return
+        if (!$role->id() && $roleId) {
+            $ref = new \ReflectionObject($role);
+            if ($ref->hasProperty('id')) {
+                $prop = $ref->getProperty('id');
+                $prop->setAccessible(true);
+                $prop->setValue($role, (int)$roleId);
+            }
+        }
     }
 
     private function updateRoleSkills(int $roleId, array $skills): void

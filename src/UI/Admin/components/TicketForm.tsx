@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import MalleableFieldsRenderer from './MalleableFieldsRenderer';
-import { Customer, SchemaDefinition, Ticket, Site, Sla } from '../types';
+import { Customer, SchemaDefinition, Ticket, Site, Sla, Contact, Team, Employee } from '../types';
 
 interface TicketFormProps {
   initialData?: Ticket;
@@ -20,6 +20,22 @@ const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSuccess, onCance
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [sites, setSites] = useState<Site[]>([]);
   const [slas, setSlas] = useState<Sla[]>([]);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [category, setCategory] = useState<string>(initialData?.category || '');
+  const [subcategory, setSubcategory] = useState<string>(initialData?.subcategory || '');
+  const [source, setSource] = useState<string>(initialData?.intake_source || 'portal');
+  const [contactId, setContactId] = useState<string>(initialData?.contactId ? String(initialData.contactId) : '');
+  const [assignment, setAssignment] = useState<string>(() => {
+    if (initialData?.queueId) {
+      return `queue:${initialData.queueId}`;
+    }
+    if (initialData?.ownerUserId) {
+      return `user:${initialData.ownerUserId}`;
+    }
+    return '';
+  });
   // @ts-ignore
   const [malleableData, setMalleableData] = useState<Record<string, any>>(initialData?.malleableData || {});
   const [activeSchema, setActiveSchema] = useState<SchemaDefinition | null>(null);
@@ -28,6 +44,20 @@ const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSuccess, onCance
   const [loadingSites, setLoadingSites] = useState(false);
   const [loadingSlas, setLoadingSlas] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const flattenTeams = (nodes: Team[]): Team[] => {
+    const flat: Team[] = [];
+    const walk = (items: Team[]) => {
+      items.forEach((item) => {
+        flat.push(item);
+        if (item.children && item.children.length > 0) {
+          walk(item.children);
+        }
+      });
+    };
+    walk(nodes);
+    return flat;
+  };
 
   useEffect(() => {
     const fetchCustomers = async () => {
@@ -96,9 +126,37 @@ const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSuccess, onCance
       }
     };
 
+    const fetchContactsTeamsEmployees = async () => {
+      try {
+        // @ts-ignore
+        const apiUrl = window.petSettings.apiUrl;
+        // @ts-ignore
+        const nonce = window.petSettings.nonce;
+
+        const [contactsRes, teamsRes, employeesRes] = await Promise.all([
+          fetch(`${apiUrl}/contacts`, { headers: { 'X-WP-Nonce': nonce } }),
+          fetch(`${apiUrl}/teams`, { headers: { 'X-WP-Nonce': nonce } }),
+          fetch(`${apiUrl}/employees`, { headers: { 'X-WP-Nonce': nonce } }),
+        ]);
+
+        if (contactsRes.ok) {
+          setContacts(await contactsRes.json());
+        }
+        if (teamsRes.ok) {
+          setTeams(await teamsRes.json());
+        }
+        if (employeesRes.ok) {
+          setEmployees(await employeesRes.json());
+        }
+      } catch (err) {
+        console.error('Failed to fetch contacts/teams/employees', err);
+      }
+    };
+
     fetchCustomers();
     fetchSlas();
     fetchSchema();
+    fetchContactsTeamsEmployees();
   }, [isEditMode]);
 
   useEffect(() => {
@@ -154,6 +212,11 @@ const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSuccess, onCance
       return;
     }
 
+    if (!source) {
+      setError('Source is required');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -167,13 +230,25 @@ const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSuccess, onCance
         ? `${apiUrl}/tickets/${initialData!.id}`
         : `${apiUrl}/tickets`;
 
+      const trimmedCategory = category.trim();
+      const trimmedSubcategory = subcategory.trim();
+
       const body: any = { 
         customerId: parseInt(customerId, 10),
         subject,
         description,
         priority,
+        source,
         malleableData
       };
+
+      if (trimmedCategory !== '') {
+        body.category = trimmedCategory;
+      }
+
+      if (trimmedSubcategory !== '') {
+        body.subcategory = trimmedSubcategory;
+      }
 
       if (siteId) {
         body.siteId = parseInt(siteId, 10);
@@ -181,6 +256,14 @@ const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSuccess, onCance
 
       if (slaId) {
         body.slaId = parseInt(slaId, 10);
+      }
+
+      if (contactId) {
+        body.contactId = parseInt(contactId, 10);
+      }
+
+      if (assignment) {
+        body.assignment = assignment;
       }
 
       if (isEditMode) {
@@ -280,6 +363,92 @@ const TicketForm: React.FC<TicketFormProps> = ({ initialData, onSuccess, onCance
             required 
             style={{ width: '100%', maxWidth: '400px' }}
           />
+        </div>
+
+        <div style={{ marginBottom: '10px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>Category:</label>
+          <input
+            type="text"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            style={{ width: '100%', maxWidth: '400px' }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '10px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>Subcategory:</label>
+          <input
+            type="text"
+            value={subcategory}
+            onChange={(e) => setSubcategory(e.target.value)}
+            style={{ width: '100%', maxWidth: '400px' }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '10px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>Source:</label>
+          <select
+            value={source}
+            onChange={(e) => setSource(e.target.value)}
+            required
+            style={{ width: '100%', maxWidth: '400px' }}
+          >
+            <option value="portal">Portal</option>
+            <option value="email">Email</option>
+            <option value="phone">Phone</option>
+            <option value="api">API</option>
+            <option value="monitoring">Monitoring</option>
+          </select>
+        </div>
+
+        <div style={{ marginBottom: '10px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>Contact (Optional):</label>
+          <select
+            value={contactId}
+            onChange={(e) => setContactId(e.target.value)}
+            style={{ width: '100%', maxWidth: '400px' }}
+          >
+            <option value="">Select contact</option>
+            {contacts
+              .filter((c) => {
+                if (!customerId) return true;
+                return (c.affiliations || []).some((a) => a.customerId === Number(customerId));
+              })
+              .map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.firstName} {c.lastName} ({c.email})
+                </option>
+              ))}
+          </select>
+        </div>
+
+        <div style={{ marginBottom: '10px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>Assignment:</label>
+          <select
+            value={assignment}
+            onChange={(e) => setAssignment(e.target.value)}
+            style={{ width: '100%', maxWidth: '400px' }}
+          >
+            <option value="">Unassigned</option>
+            <optgroup label="Queues">
+              {flattenTeams(teams)
+                .filter((t) => t.status === 'active')
+                .map((t) => (
+                  <option key={`queue-${t.id}`} value={`queue:${t.id}`}>
+                    {t.name}
+                  </option>
+                ))}
+            </optgroup>
+            <optgroup label="People">
+              {employees
+                .filter((e) => e.status !== 'archived')
+                .map((e) => (
+                  <option key={`user-${e.wpUserId}`} value={`user:${e.wpUserId}`}>
+                    {e.firstName} {e.lastName}
+                  </option>
+                ))}
+            </optgroup>
+          </select>
         </div>
 
         <div style={{ marginBottom: '10px' }}>

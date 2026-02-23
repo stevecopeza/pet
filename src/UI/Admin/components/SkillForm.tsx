@@ -6,14 +6,20 @@ interface Capability {
 }
 
 interface SkillFormProps {
+    skill?: {
+        id: number;
+        name: string;
+        description: string;
+        capability_id: number;
+    } | null;
     onSuccess: () => void;
     onCancel: () => void;
 }
 
-const SkillForm: React.FC<SkillFormProps> = ({ onSuccess, onCancel }) => {
-    const [name, setName] = useState('');
-    const [capabilityId, setCapabilityId] = useState<number | ''>('');
-    const [description, setDescription] = useState('');
+const SkillForm: React.FC<SkillFormProps> = ({ skill, onSuccess, onCancel }) => {
+    const [name, setName] = useState(skill?.name || '');
+    const [capabilityId, setCapabilityId] = useState<number | ''>(skill?.capability_id || '');
+    const [description, setDescription] = useState(skill?.description || '');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [capabilities, setCapabilities] = useState<Capability[]>([]);
@@ -48,12 +54,19 @@ const SkillForm: React.FC<SkillFormProps> = ({ onSuccess, onCancel }) => {
 
         try {
             // @ts-ignore
-            const response = await fetch(`${window.petSettings.apiUrl}/skills`, {
-                method: 'POST',
+            const baseUrl = window.petSettings.apiUrl;
+            // @ts-ignore
+            const nonce = window.petSettings.nonce;
+
+            const url = skill ? `${baseUrl}/skills/${skill.id}` : `${baseUrl}/skills`;
+            const method = skill ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method,
                 headers: {
                     'Content-Type': 'application/json',
                     // @ts-ignore
-                    'X-WP-Nonce': window.petSettings.nonce,
+                    'X-WP-Nonce': nonce,
                 },
                 body: JSON.stringify({
                     name,
@@ -77,7 +90,7 @@ const SkillForm: React.FC<SkillFormProps> = ({ onSuccess, onCancel }) => {
 
     return (
         <form onSubmit={handleSubmit} className="pet-form" style={{ maxWidth: '500px', background: '#fff', padding: '20px', border: '1px solid #ccd0d4', boxShadow: '0 1px 1px rgba(0,0,0,.04)' }}>
-            <h3 style={{ marginTop: 0 }}>Define New Skill</h3>
+            <h3 style={{ marginTop: 0 }}>{skill ? 'Edit Skill' : 'Define New Skill'}</h3>
             
             {error && <div className="notice notice-error"><p>{error}</p></div>}
             
@@ -120,7 +133,7 @@ const SkillForm: React.FC<SkillFormProps> = ({ onSuccess, onCancel }) => {
 
             <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
                 <button type="submit" className="button button-primary" disabled={loading}>
-                    {loading ? 'Creating...' : 'Create Skill'}
+                    {loading ? 'Saving...' : (skill ? 'Save Skill' : 'Create Skill')}
                 </button>
                 <button type="button" className="button" onClick={onCancel} disabled={loading}>
                     Cancel

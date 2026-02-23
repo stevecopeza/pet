@@ -15,7 +15,7 @@ interface TimeEntryRepository
     /** @return TimeEntry[] */
     public function findByEmployeeId(int $employeeId): array;
     /** @return TimeEntry[] */
-    public function findByTaskId(int $taskId): array;
+    public function findByTicketId(int $ticketId): array;
     public function delete(int $id): void;
 
     public function sumBillableHours(): float;

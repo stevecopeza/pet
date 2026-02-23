@@ -17,6 +17,7 @@ class PreFlightLeaveCapacitySchemaTest extends TestCase
     {
         $this->wpdb = $this->createMock(\wpdb::class);
         $this->wpdb->prefix = 'wp_';
+        $this->wpdb->method('get_charset_collate')->willReturn('DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
         $GLOBALS['wpdb'] = $this->wpdb;
     }
 
@@ -54,22 +55,63 @@ class PreFlightLeaveCapacitySchemaTest extends TestCase
         $preFlight = new DemoPreFlightCheck($eventBus, $slaRepo);
 
         $result = $preFlight->run();
-        $this->assertEquals('PASS', $result['leave_capacity']);
+        $leaveCheck = null;
+        foreach ($result['checks'] as $check) {
+            if (($check['key'] ?? '') === 'db.leave_schema') {
+                $leaveCheck = $check;
+                break;
+            }
+        }
+        $this->assertNotNull($leaveCheck);
+        $this->assertEquals('PASS', $leaveCheck['status']);
     }
 
     public function testLeaveCapacitySchemaFailOnMissingColumn(): void
     {
         $this->wpdb->method('get_var')->willReturnCallback(function ($sql) {
-            return 'wp_pet_leave_types'; // simulate only leave_types present for simplicity
+            if (strpos($sql, "SHOW TABLES LIKE 'wp_pet_leave_types'") !== false) {
+                return 'wp_pet_leave_types';
+            }
+            if (strpos($sql, "SHOW TABLES LIKE 'wp_pet_leave_requests'") !== false) {
+                return 'wp_pet_leave_requests';
+            }
+            if (strpos($sql, "SHOW TABLES LIKE 'wp_pet_capacity_overrides'") !== false) {
+                return 'wp_pet_capacity_overrides';
+            }
+            return null;
         });
-        $this->wpdb->method('get_col')->willReturn([]);
+        $this->wpdb->method('get_col')->willReturnCallback(function ($sql, $column = 0) {
+            if (strpos($sql, 'DESCRIBE wp_pet_leave_requests') !== false) {
+                return [
+                    'id','uuid','employee_id','leave_type_id','start_date','end_date','status',
+                    'submitted_at','decided_by_employee_id','decided_at','decision_reason','notes',
+                    // Intentionally omit created_at to simulate missing column
+                    'updated_at'
+                ];
+            }
+            if (strpos($sql, 'DESCRIBE wp_pet_capacity_overrides') !== false) {
+                return ['id','employee_id','effective_date','capacity_pct','reason','created_at'];
+            }
+            return [];
+        });
 
         $eventBus = new InMemoryEventBus();
         $slaRepo = $this->createMock(SlaClockStateRepository::class);
         $preFlight = new DemoPreFlightCheck($eventBus, $slaRepo);
 
         $result = $preFlight->run();
-        $this->assertEquals('FAIL', $result['leave_capacity']);
+        $schemaCheck = null;
+        foreach ($result['checks'] as $check) {
+            if (in_array($check['key'] ?? '', [
+                'db.columns_present.leave_requests',
+                'db.columns_present.capacity_overrides',
+            ], true)) {
+                $schemaCheck = $check;
+                break;
+            }
+        }
+        $this->assertNotNull($schemaCheck);
+        $this->assertEquals('FAIL', $schemaCheck['status']);
         $this->assertEquals('FAIL', $result['overall']);
     }
 }

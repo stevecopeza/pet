@@ -23,6 +23,20 @@ class SqlBaselineRepository implements BaselineRepository
 
     public function save(Baseline $baseline): void
     {
+        $baselineId = $baseline->id();
+        if ($baselineId === null) {
+            $existingId = (int)$this->wpdb->get_var(
+                $this->wpdb->prepare(
+                    "SELECT id FROM {$this->baselinesTable} WHERE contract_id = %d LIMIT 1",
+                    $baseline->contractId()
+                )
+            );
+            if ($existingId > 0) {
+                $this->setId($baseline, $existingId);
+                $baselineId = $existingId;
+            }
+        }
+
         $data = [
             'contract_id' => $baseline->contractId(),
             'total_value' => $baseline->totalValue(),
@@ -33,7 +47,6 @@ class SqlBaselineRepository implements BaselineRepository
         $format = ['%d', '%f', '%f', '%s'];
 
         if ($baseline->id()) {
-            // Baselines are generally immutable, but if we need to update (e.g. initial save logic flow)
             $this->wpdb->update(
                 $this->baselinesTable,
                 $data,
@@ -48,33 +61,15 @@ class SqlBaselineRepository implements BaselineRepository
                 $data,
                 $format
             );
-            $baselineId = $this->wpdb->insert_id;
-            $this->setId($baseline, (int)$baselineId);
+            $baselineId = (int)$this->wpdb->insert_id;
+            $this->setId($baseline, $baselineId);
         }
 
-        // Save components
-        // We assume baseline components are immutable and inserted once.
-        // If updating, we might need to delete old ones, but for now we assume insert-only for new baselines.
-        if (!$baseline->id()) { // Only insert components if it's a new baseline or we explicitly handle updates
-             // Logic: If we just inserted (id was null), save components.
-             // If we updated (id existed), we assume components didn't change (immutability).
-             // However, to be safe, let's just save if we have an ID now.
-        }
-        
-        // Actually, let's always save components if they don't exist?
-        // Simpler: Delete all for this baseline and re-insert?
-        // Or just insert.
-        // Since this is called from QuoteAcceptedListener which creates a NEW Baseline, insert is fine.
-        
         if ($baselineId) {
-             // Check if components exist? No, assume new for now.
-             // But to be safe against duplicates if save is called twice:
-             // $this->wpdb->delete($this->componentsTable, ['baseline_id' => $baselineId]);
-             // For now, let's just insert.
-             
-             foreach ($baseline->components() as $component) {
-                 $this->saveComponent((int)$baselineId, $component);
-             }
+            $this->wpdb->delete($this->componentsTable, ['baseline_id' => $baselineId]);
+            foreach ($baseline->components() as $component) {
+                $this->saveComponent($baselineId, $component);
+            }
         }
     }
 
@@ -84,7 +79,7 @@ class SqlBaselineRepository implements BaselineRepository
             $this->componentsTable,
             [
                 'baseline_id' => $baselineId,
-                'component_type' => get_class($component),
+                'component_type' => $component->type(),
                 'description' => $component->description(),
                 'sell_value' => $component->sellValue(),
                 'internal_cost' => $component->internalCost(),

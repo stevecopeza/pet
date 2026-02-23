@@ -38,11 +38,19 @@ class SqlProficiencyLevelRepository implements ProficiencyLevelRepository
                 ['%d']
             );
         } else {
-            $this->wpdb->insert(
-                $this->tableName,
-                $data,
-                $format
+            $sql = "
+                INSERT INTO {$this->tableName} (level_number, name, definition, created_at)
+                VALUES (%d, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE name = VALUES(name), definition = VALUES(definition)
+            ";
+            $prepared = $this->wpdb->prepare(
+                $sql,
+                $level->levelNumber(),
+                $level->name(),
+                $level->definition(),
+                $level->createdAt()->format('Y-m-d H:i:s')
             );
+            $this->wpdb->query($prepared);
         }
     }
 

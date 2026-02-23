@@ -53,7 +53,6 @@ class UpdateEmployeeHandler
             }
         }
 
-        // Create updated employee instance (immutability pattern)
         $updatedEmployee = new Employee(
             $command->wpUserId(),
             $command->firstName(),
@@ -63,6 +62,7 @@ class UpdateEmployeeHandler
             $command->status(),
             $command->hireDate(),
             $command->managerId(),
+            $employee->calendarId(),
             $schemaVersion,
             $malleableData,
             $command->teamIds(),

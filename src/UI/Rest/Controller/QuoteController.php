@@ -27,7 +27,26 @@ use Pet\Application\Commercial\Command\RemoveCostAdjustmentHandler;
 use Pet\Application\Commercial\Command\SetPaymentScheduleCommand;
 use Pet\Application\Commercial\Command\SetPaymentScheduleHandler;
 use Pet\Domain\Commercial\Repository\QuoteRepository;
+use Pet\Domain\Commercial\Repository\QuoteSectionRepository;
+use Pet\Application\Commercial\Command\AddQuoteSectionCommand;
+use Pet\Application\Commercial\Command\AddQuoteSectionHandler;
+use Pet\Application\Commercial\Command\CreateQuoteBlockCommand;
+use Pet\Application\Commercial\Command\CreateQuoteBlockHandler;
+use Pet\Application\Commercial\Command\UpdateQuoteBlockCommand;
+use Pet\Application\Commercial\Command\UpdateQuoteBlockHandler;
+use Pet\Application\Commercial\Command\DeleteQuoteBlockCommand;
+use Pet\Application\Commercial\Command\DeleteQuoteBlockHandler;
+use Pet\Application\Commercial\Command\UpdateQuoteSectionCommand;
+use Pet\Application\Commercial\Command\UpdateQuoteSectionHandler;
+use Pet\Application\Commercial\Command\CloneQuoteSectionCommand;
+use Pet\Application\Commercial\Command\CloneQuoteSectionHandler;
+use Pet\Application\Commercial\Command\DeleteQuoteSectionCommand;
+use Pet\Application\Commercial\Command\DeleteQuoteSectionHandler;
+use Pet\Domain\Commercial\Repository\QuoteBlockRepository;
 use Pet\Domain\Commercial\Entity\Component\CatalogComponent;
+use Pet\Domain\Commercial\Entity\Component\OnceOffServiceComponent;
+use Pet\Domain\Commercial\Entity\Component\Phase;
+use Pet\Domain\Commercial\Entity\Component\SimpleUnit;
 use Pet\Domain\Commercial\Entity\CostAdjustment;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -51,6 +70,15 @@ class QuoteController implements RestController
     private AddCostAdjustmentHandler $addCostAdjustmentHandler;
     private RemoveCostAdjustmentHandler $removeCostAdjustmentHandler;
     private SetPaymentScheduleHandler $setPaymentScheduleHandler;
+    private QuoteSectionRepository $quoteSectionRepository;
+    private AddQuoteSectionHandler $addQuoteSectionHandler;
+    private UpdateQuoteSectionHandler $updateQuoteSectionHandler;
+    private CloneQuoteSectionHandler $cloneQuoteSectionHandler;
+    private DeleteQuoteSectionHandler $deleteQuoteSectionHandler;
+    private QuoteBlockRepository $quoteBlockRepository;
+    private CreateQuoteBlockHandler $createQuoteBlockHandler;
+    private UpdateQuoteBlockHandler $updateQuoteBlockHandler;
+    private DeleteQuoteBlockHandler $deleteQuoteBlockHandler;
 
     public function __construct(
         QuoteRepository $quoteRepository,
@@ -64,7 +92,16 @@ class QuoteController implements RestController
         AcceptQuoteHandler $acceptQuoteHandler,
         AddCostAdjustmentHandler $addCostAdjustmentHandler,
         RemoveCostAdjustmentHandler $removeCostAdjustmentHandler,
-        SetPaymentScheduleHandler $setPaymentScheduleHandler
+        SetPaymentScheduleHandler $setPaymentScheduleHandler,
+        QuoteSectionRepository $quoteSectionRepository,
+        AddQuoteSectionHandler $addQuoteSectionHandler,
+        UpdateQuoteSectionHandler $updateQuoteSectionHandler,
+        CloneQuoteSectionHandler $cloneQuoteSectionHandler,
+        DeleteQuoteSectionHandler $deleteQuoteSectionHandler,
+        QuoteBlockRepository $quoteBlockRepository,
+        CreateQuoteBlockHandler $createQuoteBlockHandler,
+        UpdateQuoteBlockHandler $updateQuoteBlockHandler,
+        DeleteQuoteBlockHandler $deleteQuoteBlockHandler
     ) {
         $this->quoteRepository = $quoteRepository;
         $this->createQuoteHandler = $createQuoteHandler;
@@ -78,6 +115,15 @@ class QuoteController implements RestController
         $this->addCostAdjustmentHandler = $addCostAdjustmentHandler;
         $this->removeCostAdjustmentHandler = $removeCostAdjustmentHandler;
         $this->setPaymentScheduleHandler = $setPaymentScheduleHandler;
+        $this->quoteSectionRepository = $quoteSectionRepository;
+        $this->addQuoteSectionHandler = $addQuoteSectionHandler;
+        $this->updateQuoteSectionHandler = $updateQuoteSectionHandler;
+        $this->cloneQuoteSectionHandler = $cloneQuoteSectionHandler;
+        $this->deleteQuoteSectionHandler = $deleteQuoteSectionHandler;
+        $this->quoteBlockRepository = $quoteBlockRepository;
+        $this->createQuoteBlockHandler = $createQuoteBlockHandler;
+        $this->updateQuoteBlockHandler = $updateQuoteBlockHandler;
+        $this->deleteQuoteBlockHandler = $deleteQuoteBlockHandler;
     }
 
     public function registerRoutes(): void
@@ -177,6 +223,56 @@ class QuoteController implements RestController
             ],
         ]);
 
+        register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/(?P<id>\d+)/sections', [
+            [
+                'methods' => WP_REST_Server::CREATABLE,
+                'callback' => [$this, 'addSection'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+        ]);
+
+        register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/(?P<id>\d+)/sections/(?P<sectionId>\d+)', [
+            [
+                'methods' => WP_REST_Server::EDITABLE,
+                'callback' => [$this, 'updateSection'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+            [
+                'methods' => WP_REST_Server::DELETABLE,
+                'callback' => [$this, 'deleteSection'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+        ]);
+
+        register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/(?P<id>\d+)/sections/(?P<sectionId>\d+)/clone', [
+            [
+                'methods' => WP_REST_Server::CREATABLE,
+                'callback' => [$this, 'cloneSection'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+        ]);
+
+        register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/(?P<id>\d+)/sections/(?P<sectionId>[^/]+)/blocks', [
+            [
+                'methods' => WP_REST_Server::CREATABLE,
+                'callback' => [$this, 'addBlockToSection'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+        ]);
+
+        register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/(?P<id>\d+)/blocks/(?P<blockId>\d+)', [
+            [
+                'methods' => WP_REST_Server::EDITABLE,
+                'callback' => [$this, 'updateBlock'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+            [
+                'methods' => WP_REST_Server::DELETABLE,
+                'callback' => [$this, 'deleteBlock'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+        ]);
+
         register_rest_route(self::NAMESPACE, '/session', [
             [
                 'methods' => WP_REST_Server::READABLE,
@@ -228,6 +324,9 @@ class QuoteController implements RestController
 
     private function serializeQuote($quote): array
     {
+        $sections = $this->quoteSectionRepository->findByQuoteId($quote->id());
+        $blocks = $this->quoteBlockRepository->findByQuoteId($quote->id());
+
         return [
             'id' => $quote->id(),
             'customerId' => $quote->customerId(),
@@ -261,6 +360,45 @@ class QuoteController implements RestController
                             'sellValue' => $item->sellValue(),
                         ];
                     }, $component->items());
+                } elseif ($component instanceof OnceOffServiceComponent) {
+                    $data['topology'] = $component->topology();
+
+                    if ($component->topology() === OnceOffServiceComponent::TOPOLOGY_SIMPLE) {
+                        $data['units'] = array_map(function (SimpleUnit $unit) {
+                            return [
+                                'id' => $unit->id(),
+                                'title' => $unit->title(),
+                                'description' => $unit->description(),
+                                'quantity' => $unit->quantity(),
+                                'unitSellPrice' => $unit->unitSellPrice(),
+                                'unitInternalCost' => $unit->unitInternalCost(),
+                                'sellValue' => $unit->sellValue(),
+                                'internalCost' => $unit->internalCost(),
+                            ];
+                        }, $component->units());
+                    } else {
+                        $data['phases'] = array_map(function (Phase $phase) {
+                            return [
+                                'id' => $phase->id(),
+                                'name' => $phase->name(),
+                                'description' => $phase->description(),
+                                'units' => array_map(function (SimpleUnit $unit) {
+                                    return [
+                                        'id' => $unit->id(),
+                                        'title' => $unit->title(),
+                                        'description' => $unit->description(),
+                                        'quantity' => $unit->quantity(),
+                                        'unitSellPrice' => $unit->unitSellPrice(),
+                                        'unitInternalCost' => $unit->unitInternalCost(),
+                                        'sellValue' => $unit->sellValue(),
+                                        'internalCost' => $unit->internalCost(),
+                                    ];
+                                }, $phase->units()),
+                                'sellValue' => $phase->sellValue(),
+                                'internalCost' => $phase->internalCost(),
+                            ];
+                        }, $component->phases());
+                    }
                 }
 
                 return $data;
@@ -284,7 +422,224 @@ class QuoteController implements RestController
                     'isPaid' => $milestone->isPaid(),
                 ];
             }, $quote->paymentSchedule()),
+            'sections' => array_map(function ($section) {
+                return [
+                    'id' => $section->id(),
+                    'quoteId' => $section->quoteId(),
+                    'name' => $section->name(),
+                    'orderIndex' => $section->orderIndex(),
+                    'showTotalValue' => $section->showTotalValue(),
+                    'showItemCount' => $section->showItemCount(),
+                    'showTotalHours' => $section->showTotalHours(),
+                ];
+            }, $sections),
+            'blocks' => array_map(function ($block) {
+                return [
+                    'id' => $block->id(),
+                    'quoteId' => null,
+                    'sectionId' => $block->sectionId(),
+                    'type' => $block->type(),
+                    'orderIndex' => $block->position(),
+                    'componentId' => $block->componentId(),
+                    'priced' => $block->isPriced(),
+                    'payload' => $block->payload(),
+                ];
+            }, $blocks),
         ];
+    }
+
+    public function addBlockToSection(WP_REST_Request $request): WP_REST_Response
+    {
+        $quoteId = (int) $request->get_param('id');
+        $rawSectionId = $request->get_param('sectionId');
+        $sectionId = null;
+
+        if ($rawSectionId !== null && $rawSectionId !== '' && $rawSectionId !== 'null') {
+            $sectionId = (int) $rawSectionId;
+        }
+        $params = $request->get_json_params();
+
+        try {
+            $type = isset($params['type']) && is_string($params['type']) ? $params['type'] : '';
+            if ($type === '') {
+                return new WP_REST_Response(['error' => 'Block type is required'], 400);
+            }
+
+            $payload = isset($params['payload']) && is_array($params['payload']) ? $params['payload'] : [];
+
+            $command = new CreateQuoteBlockCommand($quoteId, $sectionId, $type, $payload);
+            $this->createQuoteBlockHandler->handle($command);
+
+            $quote = $this->quoteRepository->findById($quoteId);
+
+            if (!$quote) {
+                return new WP_REST_Response(['error' => 'Quote not found'], 404);
+            }
+
+            return new WP_REST_Response($this->serializeQuote($quote), 201);
+        } catch (\Exception $e) {
+            return new WP_REST_Response(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    public function addSection(WP_REST_Request $request): WP_REST_Response
+    {
+        $id = (int) $request->get_param('id');
+        $params = $request->get_json_params();
+
+        try {
+            $name = isset($params['name']) && is_string($params['name']) && $params['name'] !== ''
+                ? $params['name']
+                : 'New Section';
+
+            $command = new AddQuoteSectionCommand($id, $name);
+            $this->addQuoteSectionHandler->handle($command);
+
+            $quote = $this->quoteRepository->findById($id);
+
+            if (!$quote) {
+                return new WP_REST_Response(['error' => 'Quote not found'], 404);
+            }
+
+            return new WP_REST_Response($this->serializeQuote($quote), 201);
+        } catch (\Exception $e) {
+            return new WP_REST_Response(['error' => $e->getMessage()], 400);
+        }
+    }
+
+    public function updateSection(WP_REST_Request $request): WP_REST_Response
+    {
+        $quoteId = (int) $request->get_param('id');
+        $sectionId = (int) $request->get_param('sectionId');
+        $params = $request->get_json_params();
+
+        $name = isset($params['name']) && is_string($params['name']) && $params['name'] !== ''
+            ? $params['name']
+            : 'Section';
+
+        $showTotalValue = isset($params['showTotalValue']) ? (bool) $params['showTotalValue'] : true;
+        $showItemCount = isset($params['showItemCount']) ? (bool) $params['showItemCount'] : false;
+        $showTotalHours = isset($params['showTotalHours']) ? (bool) $params['showTotalHours'] : false;
+
+        try {
+            $command = new UpdateQuoteSectionCommand(
+                $quoteId,
+                $sectionId,
+                $name,
+                $showTotalValue,
+                $showItemCount,
+                $showTotalHours
+            );
+
+            $this->updateQuoteSectionHandler->handle($command);
+
+            $quote = $this->quoteRepository->findById($quoteId);
+
+            if (!$quote) {
+                return new WP_REST_Response(['error' => 'Quote not found'], 404);
+            }
+
+            return new WP_REST_Response($this->serializeQuote($quote), 200);
+        } catch (\DomainException $e) {
+            return new WP_REST_Response(['error' => $e->getMessage()], 400);
+        } catch (\Throwable $e) {
+            return new WP_REST_Response(['error' => 'Failed to update section'], 500);
+        }
+    }
+
+    public function deleteSection(WP_REST_Request $request): WP_REST_Response
+    {
+        $quoteId = (int) $request->get_param('id');
+        $sectionId = (int) $request->get_param('sectionId');
+
+        try {
+            $command = new DeleteQuoteSectionCommand($quoteId, $sectionId);
+            $this->deleteQuoteSectionHandler->handle($command);
+
+            $quote = $this->quoteRepository->findById($quoteId);
+
+            if (!$quote) {
+                return new WP_REST_Response(['error' => 'Quote not found'], 404);
+            }
+
+            return new WP_REST_Response($this->serializeQuote($quote), 200);
+        } catch (\DomainException $e) {
+            return new WP_REST_Response(['error' => $e->getMessage()], 400);
+        } catch (\Throwable $e) {
+            return new WP_REST_Response(['error' => 'Failed to delete section'], 500);
+        }
+    }
+
+    public function cloneSection(WP_REST_Request $request): WP_REST_Response
+    {
+        $quoteId = (int) $request->get_param('id');
+        $sectionId = (int) $request->get_param('sectionId');
+
+        try {
+            $command = new CloneQuoteSectionCommand($quoteId, $sectionId);
+            $this->cloneQuoteSectionHandler->handle($command);
+
+            $quote = $this->quoteRepository->findById($quoteId);
+
+            if (!$quote) {
+                return new WP_REST_Response(['error' => 'Quote not found'], 404);
+            }
+
+            return new WP_REST_Response($this->serializeQuote($quote), 201);
+        } catch (\DomainException $e) {
+            return new WP_REST_Response(['error' => $e->getMessage()], 400);
+        } catch (\Throwable $e) {
+            return new WP_REST_Response(['error' => 'Failed to clone section'], 500);
+        }
+    }
+
+    public function updateBlock(WP_REST_Request $request): WP_REST_Response
+    {
+        $quoteId = (int) $request->get_param('id');
+        $blockId = (int) $request->get_param('blockId');
+        $params = $request->get_json_params();
+
+        $payload = isset($params['payload']) && is_array($params['payload']) ? $params['payload'] : [];
+
+        try {
+            $command = new UpdateQuoteBlockCommand($quoteId, $blockId, $payload);
+            $this->updateQuoteBlockHandler->handle($command);
+
+            $quote = $this->quoteRepository->findById($quoteId);
+
+            if (!$quote) {
+                return new WP_REST_Response(['error' => 'Quote not found'], 404);
+            }
+
+            return new WP_REST_Response($this->serializeQuote($quote), 200);
+        } catch (\DomainException $e) {
+            return new WP_REST_Response(['error' => $e->getMessage()], 400);
+        } catch (\Throwable $e) {
+            return new WP_REST_Response(['error' => 'Failed to update block'], 500);
+        }
+    }
+
+    public function deleteBlock(WP_REST_Request $request): WP_REST_Response
+    {
+        $quoteId = (int) $request->get_param('id');
+        $blockId = (int) $request->get_param('blockId');
+
+        try {
+            $command = new DeleteQuoteBlockCommand($quoteId, $blockId);
+            $this->deleteQuoteBlockHandler->handle($command);
+
+            $quote = $this->quoteRepository->findById($quoteId);
+
+            if (!$quote) {
+                return new WP_REST_Response(['error' => 'Quote not found'], 404);
+            }
+
+            return new WP_REST_Response($this->serializeQuote($quote), 200);
+        } catch (\DomainException $e) {
+            return new WP_REST_Response(['error' => $e->getMessage()], 400);
+        } catch (\Throwable $e) {
+            return new WP_REST_Response(['error' => 'Failed to delete block'], 500);
+        }
     }
 
     public function createQuote(WP_REST_Request $request): WP_REST_Response

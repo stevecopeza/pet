@@ -30,6 +30,7 @@ class SqlEmployeeRepository implements EmployeeRepository
             'status' => $employee->status(),
             'hire_date' => $employee->hireDate() ? $employee->hireDate()->format('Y-m-d') : null,
             'manager_id' => $employee->managerId(),
+            'calendar_id' => $employee->calendarId(),
             'malleable_schema_version' => $employee->malleableSchemaVersion(),
             'malleable_data' => !empty($employee->malleableData()) ? json_encode($employee->malleableData()) : null,
             'created_at' => $employee->createdAt()->format('Y-m-d H:i:s'),

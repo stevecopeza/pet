@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import MalleableFieldsRenderer from './MalleableFieldsRenderer';
 import EmployeeSkills from './EmployeeSkills';
+import EmployeeRoles from './EmployeeRoles';
 import EmployeeCertifications from './EmployeeCertifications';
 import PersonKpis from './PersonKpis';
 import EmployeeReviews from './EmployeeReviews';
@@ -14,7 +15,7 @@ interface EmployeeFormProps {
 
 const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSuccess, onCancel, initialData }) => {
   const isEditMode = !!initialData;
-  const [activeTab, setActiveTab] = useState<'details' | 'skills' | 'certifications' | 'kpis' | 'reviews'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'roles' | 'skills' | 'certifications' | 'kpis' | 'reviews'>('details');
   const [wpUserId, setWpUserId] = useState(initialData?.wpUserId?.toString() || '');
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -243,6 +244,13 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSuccess, onCancel, initia
           </button>
           <button 
             type="button"
+            className={`nav-tab ${activeTab === 'roles' ? 'nav-tab-active' : ''}`}
+            onClick={() => setActiveTab('roles')}
+          >
+            Roles
+          </button>
+          <button 
+            type="button"
             className={`nav-tab ${activeTab === 'skills' ? 'nav-tab-active' : ''}`}
             onClick={() => setActiveTab('skills')}
           >
@@ -272,7 +280,9 @@ const EmployeeForm: React.FC<EmployeeFormProps> = ({ onSuccess, onCancel, initia
         </div>
       )}
 
-      {activeTab === 'skills' && initialData ? (
+      {activeTab === 'roles' && initialData ? (
+        <EmployeeRoles employee={initialData} />
+      ) : activeTab === 'skills' && initialData ? (
         <EmployeeSkills employee={initialData} />
       ) : activeTab === 'certifications' && initialData ? (
         <EmployeeCertifications employee={initialData} />

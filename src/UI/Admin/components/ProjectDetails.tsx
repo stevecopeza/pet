@@ -163,18 +163,7 @@ const ProjectDetails: React.FC<ProjectDetailsProps> = ({ projectId, onBack }) =>
         </form>
       </div>
 
-      {selectedTaskForLog && (
-        <LogTimeModal
-          project={project}
-          task={selectedTaskForLog}
-          onSuccess={() => {
-            setSelectedTaskForLog(null);
-            alert('Time logged successfully!');
-            // Ideally we'd refresh project details if it showed used hours, but for now it's fine.
-          }}
-          onClose={() => setSelectedTaskForLog(null)}
-        />
-      )}
+      {selectedTaskForLog && null}
     </div>
   );
 };

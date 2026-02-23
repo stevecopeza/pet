@@ -6,6 +6,8 @@ namespace Pet\UI\Rest\Controller;
 
 use Pet\Application\Work\Command\CreateKpiDefinitionCommand;
 use Pet\Application\Work\Command\CreateKpiDefinitionHandler;
+use Pet\Application\Work\Command\UpdateKpiDefinitionCommand;
+use Pet\Application\Work\Command\UpdateKpiDefinitionHandler;
 use Pet\Domain\Work\Repository\KpiDefinitionRepository;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -18,13 +20,16 @@ class KpiDefinitionController implements RestController
 
     private KpiDefinitionRepository $kpiDefinitionRepository;
     private CreateKpiDefinitionHandler $createKpiDefinitionHandler;
+    private UpdateKpiDefinitionHandler $updateKpiDefinitionHandler;
 
     public function __construct(
         KpiDefinitionRepository $kpiDefinitionRepository,
-        CreateKpiDefinitionHandler $createKpiDefinitionHandler
+        CreateKpiDefinitionHandler $createKpiDefinitionHandler,
+        UpdateKpiDefinitionHandler $updateKpiDefinitionHandler
     ) {
         $this->kpiDefinitionRepository = $kpiDefinitionRepository;
         $this->createKpiDefinitionHandler = $createKpiDefinitionHandler;
+        $this->updateKpiDefinitionHandler = $updateKpiDefinitionHandler;
     }
 
     public function registerRoutes(): void
@@ -38,6 +43,14 @@ class KpiDefinitionController implements RestController
             [
                 'methods' => WP_REST_Server::CREATABLE,
                 'callback' => [$this, 'createKpiDefinition'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+        ]);
+
+        register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/(?P<id>\d+)', [
+            [
+                'methods' => WP_REST_Server::EDITABLE,
+                'callback' => [$this, 'updateKpiDefinition'],
                 'permission_callback' => [$this, 'checkPermission'],
             ],
         ]);
@@ -79,6 +92,33 @@ class KpiDefinitionController implements RestController
         try {
             $this->createKpiDefinitionHandler->handle($command);
             return new WP_REST_Response(['message' => 'KPI Definition created successfully'], 201);
+        } catch (\Exception $e) {
+            return new WP_REST_Response(['message' => $e->getMessage()], 500);
+        }
+    }
+
+    public function updateKpiDefinition(WP_REST_Request $request): WP_REST_Response
+    {
+        $id = (int) $request->get_param('id');
+        $params = $request->get_json_params();
+
+        if (empty($params['name']) || empty($params['description'])) {
+            return new WP_REST_Response(['message' => 'Missing required fields'], 400);
+        }
+
+        $command = new UpdateKpiDefinitionCommand(
+            $id,
+            $params['name'],
+            $params['description'],
+            $params['default_frequency'] ?? 'monthly',
+            $params['unit'] ?? '%'
+        );
+
+        try {
+            $this->updateKpiDefinitionHandler->handle($command);
+            return new WP_REST_Response(['message' => 'KPI Definition updated successfully'], 200);
+        } catch (\RuntimeException $e) {
+            return new WP_REST_Response(['message' => $e->getMessage()], 404);
         } catch (\Exception $e) {
             return new WP_REST_Response(['message' => $e->getMessage()], 500);
         }

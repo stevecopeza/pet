@@ -37,26 +37,12 @@ class CreateDeliveryTables implements Migration
             KEY state (state)
         ) $charsetCollate;";
 
-        // Tasks Table
-        $tasksTable = $this->wpdb->prefix . 'pet_tasks';
-        $sqlTasks = "CREATE TABLE IF NOT EXISTS $tasksTable (
-            id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
-            project_id bigint(20) UNSIGNED NOT NULL,
-            name varchar(255) NOT NULL,
-            estimated_hours decimal(10, 2) NOT NULL DEFAULT 0.00,
-            is_completed tinyint(1) NOT NULL DEFAULT 0,
-            created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
-            PRIMARY KEY (id),
-            KEY project_id (project_id)
-        ) $charsetCollate;";
-
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sqlProjects);
-        dbDelta($sqlTasks);
     }
 
     public function getDescription(): string
     {
-        return 'Create delivery tables: projects and tasks.';
+        return 'Create delivery tables: projects.';
     }
 }

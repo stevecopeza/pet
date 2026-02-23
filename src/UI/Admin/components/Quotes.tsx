@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Quote } from '../types';
+import { Quote, Customer } from '../types';
 import { DataTable, Column } from './DataTable';
 import QuoteForm from './QuoteForm';
-import QuoteDetails from './QuoteDetails';
+import QuoteDetails, { computeQuoteTotals } from './QuoteDetails';
 
 const Quotes = () => {
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -13,6 +13,7 @@ const Quotes = () => {
   const [selectedQuoteId, setSelectedQuoteId] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
   const [activeSchema, setActiveSchema] = useState<any | null>(null);
+  const [customers, setCustomers] = useState<Customer[]>([]);
 
   const fetchSchema = async () => {
     try {
@@ -57,6 +58,7 @@ const Quotes = () => {
       }
 
       const data = await response.json();
+      console.log('Quotes fetch response:', data);
       setQuotes(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -65,9 +67,34 @@ const Quotes = () => {
     }
   };
 
+  const fetchCustomers = async () => {
+    try {
+      // @ts-ignore
+      const apiUrl = window.petSettings?.apiUrl;
+      // @ts-ignore
+      const nonce = window.petSettings?.nonce;
+
+      const response = await fetch(`${apiUrl}/customers`, {
+        headers: {
+          'X-WP-Nonce': nonce,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch customers');
+      }
+
+      const data = await response.json();
+      setCustomers(data);
+    } catch (err) {
+      console.error('Failed to fetch customers for quotes list', err);
+    }
+  };
+
   useEffect(() => {
     fetchQuotes();
     fetchSchema();
+    fetchCustomers();
   }, []);
 
   const handleAddSuccess = (savedQuote?: Quote) => {
@@ -138,6 +165,11 @@ const Quotes = () => {
     fetchQuotes();
   };
 
+  const handleBackFromDetails = () => {
+    setSelectedQuoteId(null);
+    fetchQuotes();
+  };
+
   const columns: Column<Quote>[] = [
     { 
       header: 'ID', 
@@ -161,27 +193,48 @@ const Quotes = () => {
         </button>
       )
     },
-    { header: 'Customer ID', key: 'customerId' },
+    { 
+      header: 'Customer', 
+      key: 'customerId',
+      render: (_: any, item: Quote) => {
+        const match = customers.find((c) => c.id === item.customerId);
+        if (match) {
+          return match.name;
+        }
+        return item.customerId ? `Customer #${item.customerId}` : '-';
+      }
+    },
+    { header: 'Project / Quote Title', key: 'title' },
     { header: 'State', key: 'state' },
     { header: 'Version', key: 'version' },
     { header: 'Currency', key: 'currency' },
     { 
       header: 'Total Value', 
       key: 'totalValue',
-      render: (val: any) => val ? `$${Number(val).toFixed(2)}` : '-'
+      render: (val: any, item: Quote) => {
+        const hasBlocks = Array.isArray((item as any).blocks) && (item as any).blocks.length > 0;
+        const hasSections = Array.isArray((item as any).sections) && (item as any).sections.length > 0;
+
+        if (hasBlocks || hasSections) {
+          try {
+            const { quoteTotal } = computeQuoteTotals(item);
+            return `$${quoteTotal.toFixed(2)}`;
+          } catch (e) {
+            // Fallback to stored value if computation fails
+          }
+        }
+
+        if (typeof val === 'number' && val > 0) {
+          return `$${Number(val).toFixed(2)}`;
+        }
+
+        return '-';
+      }
     },
     { 
       header: 'Accepted At', 
       key: 'acceptedAt',
       render: (val: any) => val ? new Date(val).toLocaleDateString() : '-'
-    },
-    { 
-      header: 'Line Total', 
-      key: 'lines',
-      render: (_, quote) => {
-        const total = (quote.lines || []).reduce((sum, line) => sum + line.total, 0);
-        return `$${total.toFixed(2)}`;
-      }
     },
     ...(activeSchema?.fields || activeSchema?.schema || []).map((field: any) => ({
       key: field.key as keyof Quote,
@@ -197,7 +250,7 @@ const Quotes = () => {
     return (
       <QuoteDetails 
         quoteId={selectedQuoteId} 
-        onBack={() => setSelectedQuoteId(null)} 
+        onBack={handleBackFromDetails} 
       />
     );
   }

@@ -174,7 +174,18 @@ All KPI derivations reference immutable time events.
 
 ---
 
+## See also: Ticket Backbone
+
+The Ticket Backbone enforcement rules ensure that time entries are anchored to Tickets (not just tasks) and that ticket_id is present at submission/lock boundaries while preserving immutability.
+
+Related documents:
+
+- `00_foundations/01_Ticket_Backbone_Principles_and_Invariants_v1.md`
+- `04_time/05_Time_Entry_Ticket_Enforcement_v1.md`
+- `05_data_model/02_Ticket_Data_Model_and_Migrations_v1.md`
+
+---
+
 **Authority**: Normative
 
 This document defines how PET accounts for time and resources.
-

@@ -51,12 +51,12 @@ class TimeEntryController implements RestController
     public function getTimeEntries(WP_REST_Request $request): WP_REST_Response
     {
         $employeeId = $request->get_param('employee_id');
-        $taskId = $request->get_param('task_id');
+        $ticketId = $request->get_param('ticket_id');
         
         if ($employeeId) {
             $entries = $this->timeEntryRepository->findByEmployeeId((int) $employeeId);
-        } elseif ($taskId) {
-            $entries = $this->timeEntryRepository->findByTaskId((int) $taskId);
+        } elseif ($ticketId) {
+            $entries = $this->timeEntryRepository->findByTicketId((int) $ticketId);
         } else {
             $entries = $this->timeEntryRepository->findAll();
         }
@@ -65,7 +65,7 @@ class TimeEntryController implements RestController
             return [
                 'id' => $entry->id(),
                 'employeeId' => $entry->employeeId(),
-                'taskId' => $entry->taskId(),
+                'ticketId' => $entry->ticketId(),
                 'start' => $entry->start()->format('Y-m-d H:i:s'),
                 'end' => $entry->end()->format('Y-m-d H:i:s'),
                 'duration' => $entry->durationMinutes(),
@@ -88,7 +88,7 @@ class TimeEntryController implements RestController
         try {
             $command = new LogTimeCommand(
                 (int) $params['employeeId'],
-                (int) $params['taskId'],
+                (int) $params['ticketId'],
                 new \DateTimeImmutable($params['start']),
                 new \DateTimeImmutable($params['end']),
                 (bool) $params['isBillable'],

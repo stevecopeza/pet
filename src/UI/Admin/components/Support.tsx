@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Ticket } from '../types';
+import { Ticket, Employee } from '../types';
 import { DataTable, Column } from './DataTable';
 import TicketForm from './TicketForm';
 import TicketDetails from './TicketDetails';
@@ -12,15 +12,84 @@ const Support = () => {
   const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [modeFilter, setModeFilter] = useState<string>('');
+  const [assignmentFilter, setAssignmentFilter] = useState<string>('all');
+  const [customerFilter, setCustomerFilter] = useState<string>('');
+  const [employees, setEmployees] = useState<Employee[]>([]);
+
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        // @ts-ignore
+        const apiUrl = window.petSettings?.apiUrl;
+        // @ts-ignore
+        const nonce = window.petSettings?.nonce;
+
+        if (!apiUrl || !nonce) {
+          return;
+        }
+
+        const response = await fetch(`${apiUrl}/employees`, {
+          headers: {
+            'X-WP-Nonce': nonce,
+          },
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        setEmployees(data);
+      } catch (err) {
+        console.error('Failed to fetch employees for Support list', err);
+      }
+    };
+
+    fetchEmployees();
+  }, []);
 
   const fetchTickets = async () => {
     try {
       setLoading(true);
       // @ts-ignore
-      const response = await fetch(`${window.petSettings.apiUrl}/tickets`, {
+      const apiUrl = window.petSettings?.apiUrl;
+      // @ts-ignore
+      const nonce = window.petSettings?.nonce;
+
+      if (!apiUrl || !nonce) {
+        setError('API settings missing');
+        setTickets([]);
+        return;
+      }
+
+      const params = new URLSearchParams();
+      if (statusFilter) {
+        params.append('status', statusFilter);
+      }
+      if (modeFilter) {
+        params.append('ticket_mode', modeFilter);
+      }
+      if (customerFilter) {
+        params.append('customer_id', customerFilter);
+      }
+      if (assignmentFilter === 'unassigned') {
+        params.append('unassigned', '1');
+      }
+      if (assignmentFilter === 'mine') {
+        // @ts-ignore
+        const currentUserId = window.petSettings?.currentUserId;
+        if (currentUserId) {
+          params.append('assigned_user_id', String(currentUserId));
+        }
+      }
+
+      const query = params.toString();
+      const response = await fetch(`${apiUrl}/tickets${query ? `?${query}` : ''}`, {
         headers: {
           // @ts-ignore
-          'X-WP-Nonce': window.petSettings.nonce,
+          'X-WP-Nonce': nonce,
         },
       });
 
@@ -28,7 +97,12 @@ const Support = () => {
         throw new Error('Failed to fetch tickets');
       }
 
-      const data = await response.json();
+      let data: Ticket[] = await response.json();
+
+      if (assignmentFilter === 'assigned') {
+        data = data.filter((t) => t.assignedUserId);
+      }
+
       setTickets(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -39,7 +113,7 @@ const Support = () => {
 
   useEffect(() => {
     fetchTickets();
-  }, []);
+  }, [statusFilter, modeFilter, assignmentFilter, customerFilter]);
 
   const handleFormSuccess = () => {
     setShowAddForm(false);
@@ -115,14 +189,46 @@ const Support = () => {
         }}
         style={{ fontWeight: 'bold' }}
       >
-        {val}
+        {String(val)}
       </a>
     ) },
+    { 
+      key: 'malleableData', 
+      header: 'Source', 
+      render: (_val, item) => {
+        const data = item.malleableData || {};
+        if (data.source === 'quote') {
+          const quoteId = data.quote_id;
+          const phaseName = data.quote_phase_name;
+          if (quoteId && phaseName) {
+            return `Quote #${quoteId} – ${phaseName}`;
+          }
+          if (quoteId) {
+            return `Quote #${quoteId}`;
+          }
+        }
+        return '-';
+      } 
+    },
     { key: 'customerId', header: 'Customer ID' },
-    { key: 'priority', header: 'Priority', render: (val) => <span className={`pet-priority-badge priority-${val}`}>{val}</span> },
-    { key: 'status', header: 'Status', render: (val) => <span className={`pet-status-badge status-${val}`}>{val}</span> },
+    { key: 'ticketMode', header: 'Mode' },
+    { 
+      key: 'assignedUserId', 
+      header: 'Assigned To',
+      render: (val) => {
+        if (!val) {
+          return '-';
+        }
+        const match = employees.find(e => String(e.wpUserId) === String(val));
+        if (match) {
+          return `${match.firstName} ${match.lastName}`;
+        }
+        return String(val);
+      }
+    },
+    { key: 'priority', header: 'Priority', render: (val) => <span className={`pet-priority-badge priority-${val}`}>{String(val)}</span> },
+    { key: 'status', header: 'Status', render: (val) => <span className={`pet-status-badge status-${val}`}>{String(val)}</span> },
     { key: 'createdAt', header: 'Created' },
-    { key: 'archivedAt', header: 'Archived', render: (val) => val ? 'Yes' : '-' },
   ];
 
   if (selectedTicket) {
@@ -149,6 +255,60 @@ const Support = () => {
             Create New Ticket
           </button>
         )}
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '15px' }}>
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px' }}>Status</label>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+            <option value="">All</option>
+            <option value="active">Active</option>
+            <option value="new">New</option>
+            <option value="open">Open</option>
+            <option value="pending">Pending</option>
+            <option value="resolved">Resolved</option>
+            <option value="closed">Closed</option>
+          </select>
+        </div>
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px' }}>Mode</label>
+          <select value={modeFilter} onChange={(e) => setModeFilter(e.target.value)}>
+            <option value="">All</option>
+            <option value="support">Support</option>
+            <option value="execution">Execution</option>
+          </select>
+        </div>
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px' }}>Assignment</label>
+          <select value={assignmentFilter} onChange={(e) => setAssignmentFilter(e.target.value)}>
+            <option value="all">All</option>
+            <option value="unassigned">Unassigned</option>
+            <option value="assigned">Assigned (any)</option>
+            <option value="mine">Assigned to me</option>
+          </select>
+        </div>
+        <div>
+          <label style={{ display: 'block', marginBottom: '4px' }}>Customer ID</label>
+          <input
+            type="number"
+            value={customerFilter}
+            onChange={(e) => setCustomerFilter(e.target.value)}
+            style={{ width: '120px' }}
+          />
+        </div>
+        <div style={{ alignSelf: 'flex-end' }}>
+          <button
+            className="button"
+            onClick={() => {
+              setStatusFilter('');
+              setModeFilter('');
+              setAssignmentFilter('all');
+              setCustomerFilter('');
+            }}
+          >
+            Clear filters
+          </button>
+        </div>
       </div>
 
       {showAddForm && (
@@ -195,6 +355,14 @@ const Support = () => {
             >
               Archive
             </button>
+          </div>
+        )}
+        rowDetails={(item: Ticket) => (
+          <div>
+            <strong>Malleable data</strong>
+            <pre style={{ marginTop: '8px', whiteSpace: 'pre-wrap' }}>
+              {item.malleableData ? JSON.stringify(item.malleableData, null, 2) : 'None'}
+            </pre>
           </div>
         )}
       />

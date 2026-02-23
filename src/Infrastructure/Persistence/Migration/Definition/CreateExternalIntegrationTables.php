@@ -18,7 +18,7 @@ class CreateExternalIntegrationTables implements Migration
         if ($wpdb->get_var("SHOW TABLES LIKE '$mappings'") !== $mappings) {
             $sql = "CREATE TABLE $mappings (
                 id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-                system varchar(32) NOT NULL,
+                `system` varchar(32) NOT NULL,
                 entity_type varchar(64) NOT NULL,
                 pet_entity_id bigint(20) NOT NULL,
                 external_id varchar(128) NOT NULL,
@@ -26,8 +26,8 @@ class CreateExternalIntegrationTables implements Migration
                 created_at datetime NOT NULL,
                 updated_at datetime NOT NULL,
                 PRIMARY KEY (id),
-                UNIQUE KEY uniq_pet_entity (system, entity_type, pet_entity_id),
-                UNIQUE KEY uniq_external (system, entity_type, external_id)
+                UNIQUE KEY uniq_pet_entity (`system`, entity_type, pet_entity_id),
+                UNIQUE KEY uniq_external (`system`, entity_type, external_id)
             ) $charsetCollate;";
             dbDelta($sql);
         }
@@ -37,16 +37,16 @@ class CreateExternalIntegrationTables implements Migration
             $sql = "CREATE TABLE $runs (
                 id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
                 uuid char(36) NOT NULL,
-                system varchar(32) NOT NULL,
+                `system` varchar(32) NOT NULL,
                 direction varchar(16) NOT NULL,
                 status varchar(16) NOT NULL,
                 started_at datetime NOT NULL,
                 finished_at datetime DEFAULT NULL,
-                summary_json longtext DEFAULT NULL,
-                last_error text DEFAULT NULL,
+                summary_json longtext NULL,
+                last_error text NULL,
                 PRIMARY KEY (id),
                 UNIQUE KEY uuid (uuid),
-                KEY system (system),
+                KEY system (`system`),
                 KEY status (status),
                 KEY direction (direction),
                 KEY started_at (started_at)

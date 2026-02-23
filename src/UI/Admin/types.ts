@@ -81,8 +81,17 @@ export interface Quote {
   acceptedAt?: string;
   lines?: QuoteLine[]; // Deprecated
   components?: QuoteComponent[];
+  sections?: QuoteSection[];
+  blocks?: QuoteBlock[];
   costAdjustments?: CostAdjustment[];
   malleableData?: Record<string, any>;
+  paymentSchedule?: Array<{
+    id: number;
+    title: string;
+    amount: number;
+    dueDate: string | null;
+    isPaid: boolean;
+  }>;
 }
 
 export interface CostAdjustment {
@@ -101,12 +110,61 @@ export interface QuoteComponent {
   description: string;
   sellValue: number;
   internalCost: number;
+  topology?: string;
   items?: {
     description: string;
     quantity: number;
     unitSellPrice: number;
     sellValue: number;
   }[];
+  units?: {
+    id: number | null;
+    title: string;
+    description?: string | null;
+    quantity: number;
+    unitSellPrice: number;
+    unitInternalCost: number;
+    sellValue: number;
+    internalCost: number;
+  }[];
+  phases?: {
+    id: number | null;
+    name: string;
+    description?: string | null;
+    units: {
+      id: number | null;
+      title: string;
+      description?: string | null;
+      quantity: number;
+      unitSellPrice: number;
+      unitInternalCost: number;
+      sellValue: number;
+      internalCost: number;
+    }[];
+    sellValue: number;
+    internalCost: number;
+  }[];
+}
+
+export interface QuoteSection {
+  id: number;
+  quoteId: number;
+  name: string;
+  orderIndex: number;
+  showTotalValue: boolean;
+  showItemCount: boolean;
+  showTotalHours: boolean;
+}
+
+export interface QuoteBlock {
+  id: number;
+  quoteId: number | null;
+  sectionId: number | null;
+  type: string;
+  orderIndex: number;
+  componentId: number | null;
+  priced: boolean;
+  payload: Record<string, any>;
 }
 
 export interface QuoteLine {
@@ -121,7 +179,7 @@ export interface QuoteLine {
 export interface TimeEntry {
   id: number;
   employeeId: number;
-  taskId: number;
+  ticketId: number;
   start: string;
   end: string;
   duration: number;
@@ -131,6 +189,34 @@ export interface TimeEntry {
   malleableData?: Record<string, any>;
   createdAt?: string;
   archivedAt?: string | null;
+}
+
+export interface Sla {
+  id: number;
+  name: string;
+  target_response_hours: number;
+  target_resolution_hours: number;
+  target_response_minutes?: number;
+  target_resolution_minutes?: number;
+}
+
+export interface ContactAffiliation {
+  customerId: number;
+  siteId: number | null;
+  role: string | null;
+  isPrimary: boolean;
+}
+
+export interface Contact {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string | null;
+  affiliations: ContactAffiliation[];
+  malleableData?: Record<string, any>;
+  createdAt: string;
+  archivedAt: string | null;
 }
 
 export interface Customer {
@@ -174,6 +260,42 @@ export interface Employee {
   archivedAt: string | null;
 }
 
+export interface TeamVisual {
+  type: string | null;
+  ref: string | null;
+  version?: string | null;
+}
+
+export interface Team {
+  id: number;
+  name: string;
+  parent_team_id?: number | null;
+  manager_id?: number | null;
+  escalation_manager_id?: number | null;
+  status: string;
+  visual?: TeamVisual;
+  member_ids?: number[];
+  created_at: string;
+  children?: Team[];
+}
+
+export interface SchemaFieldDefinition {
+  label: string;
+  key: string;
+  type: string;
+  required?: boolean;
+  options?: string[];
+}
+
+export interface SchemaDefinition {
+  id: number;
+  entityType: string;
+  status: string;
+  version: number;
+  schema: SchemaFieldDefinition[];
+  publishedAt?: string | null;
+}
+
 export interface Ticket {
   id: number;
   customerId: number;
@@ -192,6 +314,14 @@ export interface Ticket {
   sla_status?: string;
   response_due_at?: string;
   resolution_due_at?: string;
+  ticketMode?: string;
+  assignedUserId?: string | null;
+  category?: string | null;
+  subcategory?: string | null;
+  intake_source?: string | null;
+  contactId?: number | null;
+  queueId?: string | null;
+  ownerUserId?: string | null;
 }
 
 export interface Article {

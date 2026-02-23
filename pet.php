@@ -27,8 +27,11 @@ add_action('plugins_loaded', function () {
         $runner->run([
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateIdentityTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateCommercialTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateCostAdjustmentTable::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateDeliveryTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\DropTasksTable::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateTimeTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\UpdateTimeEntriesReplaceTaskWithTicket::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateSupportTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateKnowledgeTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateActivityTables::class,
@@ -39,16 +42,19 @@ add_action('plugins_loaded', function () {
             \Pet\Infrastructure\Persistence\Migration\Definition\AddMalleableIndexes::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddContactAffiliations::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddMissingCoreFields::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddMalleableToTimeEntries::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateAssetTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateTeamTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\UpdateTeamEscalationColumn::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\UpdateCommercialSchema::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\UpdateIdentityCoreFields::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateWorkTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddKpiTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreatePerformanceTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateQuoteComponentTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateCatalogTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateContractBaselineTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateBaselineComponentsTable::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddTitleDescriptionToQuotes::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddTypeToCatalogItems::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddWbsTemplateToCatalogItems::class,
@@ -66,7 +72,7 @@ add_action('plugins_loaded', function () {
             \Pet\Infrastructure\Persistence\Migration\Definition\AddManagerPriorityOverrideToWorkItems::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddCalendarIdToEmployees::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddRequiredRoleIdToWorkItems::class,
-            \Pet\Infrastructure\Persistence\Migration\Definition\AddRoleIdToTasks::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\UpdateWorkItemsRemoveProjectTask::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateEventBackboneTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateExternalIntegrationTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateBillingExportTables::class,
@@ -74,14 +80,18 @@ add_action('plugins_loaded', function () {
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateFeedTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddFeedIndexes::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateLeaveCapacityTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateDemoSeedRegistryTable::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateAdminAuditLog::class,
         ]);
 
-        // Register UI
         $uiRegistry = new \Pet\UI\Admin\AdminPageRegistry(
             __DIR__,
             plugin_dir_url(__FILE__)
         );
         $uiRegistry->register();
+
+        $shortcodeRegistrar = new \Pet\UI\Shortcode\ShortcodeRegistrar();
+        $shortcodeRegistrar->register();
 
         // Register REST API
         $apiRegistry = new \Pet\UI\Rest\ApiRegistry($container);
@@ -209,3 +219,83 @@ register_deactivation_hook(__FILE__, function () {
         wp_unschedule_event($timestamp, 'pet_outbox_dispatch_event');
     }
 });
+
+if (\defined('WP_CLI') && \constant('WP_CLI')) {
+    \call_user_func('WP_CLI::add_command', 'pet migrate', function () {
+        try {
+            $env = \getenv('PET_ENV') ?: \getenv('WP_ENV') ?: '';
+            $env = \strtolower((string) $env);
+            $allowed = ['local', 'development', 'dev'];
+            if (!\in_array($env, $allowed, true)) {
+                \call_user_func('WP_CLI::error', 'PET migrations are restricted to local/dev environments (PET_ENV or WP_ENV).');
+            }
+
+            $container = \Pet\Infrastructure\DependencyInjection\ContainerFactory::create();
+            /** @var \Pet\Infrastructure\Persistence\Migration\MigrationRunner $runner */
+            $runner = $container->get(\Pet\Infrastructure\Persistence\Migration\MigrationRunner::class);
+            $runner->run([
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateIdentityTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateCommercialTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateCostAdjustmentTable::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateDeliveryTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\DropTasksTable::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateTimeTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\UpdateTimeEntriesReplaceTaskWithTicket::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateSupportTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateKnowledgeTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateActivityTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateSettingsTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\UpdateIdentitySchema::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\UpdateMalleableSchema::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddSchemaStatusToDefinition::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddMalleableIndexes::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddContactAffiliations::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddMissingCoreFields::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateAssetTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateTeamTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\UpdateTeamEscalationColumn::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\UpdateCommercialSchema::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\UpdateIdentityCoreFields::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateWorkTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddKpiTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreatePerformanceTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateQuoteComponentTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateCatalogTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateContractBaselineTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateBaselineComponentsTable::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddTitleDescriptionToQuotes::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddTypeToCatalogItems::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddWbsTemplateToCatalogItems::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddCatalogItemIdToQuoteCatalogItems::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateCalendarTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateSlaTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddTicketSlaFields::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddSectionToQuoteComponents::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateQuoteSectionsTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateSlaClockStateTable::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateQuotePaymentScheduleTable::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddSkuAndRoleIdToQuoteCatalogItems::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateWorkOrchestrationTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateAdvisoryTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\UpdateWorkItemsTableAddRevenueAndTier::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddManagerPriorityOverrideToWorkItems::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddCalendarIdToEmployees::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddRequiredRoleIdToWorkItems::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\UpdateWorkItemsRemoveProjectTask::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateEventBackboneTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateExternalIntegrationTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateBillingExportTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateQuickBooksShadowTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateFeedTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddFeedIndexes::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateLeaveCapacityTables::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateDemoSeedRegistryTable::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\CreateAdminAuditLog::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\UpdateQuoteBlocksAddPayloadAndCreatedAt::class,
+            ]);
+            \call_user_func('WP_CLI::success', 'PET migrations executed');
+        } catch (\Throwable $e) {
+            \call_user_func('WP_CLI::error', 'PET migration failed: ' . $e->getMessage());
+        }
+    });
+}

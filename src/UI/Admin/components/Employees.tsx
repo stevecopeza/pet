@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Employee } from '../types';
+import { Employee, Team } from '../types';
 import { DataTable, Column } from './DataTable';
 import EmployeeForm from './EmployeeForm';
 import Teams from './Teams';
@@ -24,6 +24,9 @@ const Employees = () => {
   const [lvEnd, setLvEnd] = useState<string>(() => new Date(Date.now() + 86400000).toISOString().slice(0,10));
   const [lvTypeId, setLvTypeId] = useState<number>(0);
   const [lvNotes, setLvNotes] = useState<string>('');
+  const [orgTeams, setOrgTeams] = useState<Team[]>([]);
+  const [orgLoading, setOrgLoading] = useState(false);
+  const [orgError, setOrgError] = useState<string | null>(null);
 
   const fetchSchema = async () => {
     try {
@@ -70,6 +73,34 @@ const Employees = () => {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchOrgTeams = async () => {
+    try {
+      setOrgLoading(true);
+      setOrgError(null);
+      // @ts-ignore
+      const apiUrl = window.petSettings?.apiUrl;
+      // @ts-ignore
+      const nonce = window.petSettings?.nonce;
+
+      const response = await fetch(`${apiUrl}/teams`, {
+        headers: {
+          'X-WP-Nonce': nonce,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch teams');
+      }
+
+      const data = await response.json();
+      setOrgTeams(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setOrgError(err instanceof Error ? err.message : 'Failed to load organization');
+    } finally {
+      setOrgLoading(false);
     }
   };
 
@@ -141,6 +172,10 @@ const Employees = () => {
       fetchEmployees();
       fetchSchema();
       fetchLeaveTypes();
+    }
+    if (activeTab === 'org') {
+      fetchEmployees();
+      fetchOrgTeams();
     }
   }, [activeTab]);
 
@@ -216,6 +251,125 @@ const Employees = () => {
     
     setSelectedIds([]);
     fetchEmployees();
+  };
+
+  const findEmployeeById = (id: number): Employee | undefined => {
+    return employees.find(e => e.id === id);
+  };
+
+  const openEmployeeFromOrg = (employeeId: number) => {
+    const employee = findEmployeeById(employeeId);
+    if (!employee) {
+      return;
+    }
+    setEditingEmployee(employee);
+    setShowAddForm(true);
+    setActiveTab('people');
+  };
+
+  const renderTeamNode = (team: Team, depth: number = 0): React.ReactNode => {
+    const manager = team.manager_id ? findEmployeeById(team.manager_id) : undefined;
+    const members = (team.member_ids || [])
+      .map(id => findEmployeeById(id))
+      .filter((e): e is Employee => !!e);
+
+    return (
+      <div
+        key={team.id}
+        style={{
+          border: '1px solid #ccd0d4',
+          borderRadius: '4px',
+          padding: '12px 16px',
+          marginBottom: '12px',
+          marginLeft: depth * 20,
+          background: '#fff',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ fontWeight: 600 }}>
+            {team.name}
+          </div>
+          <div>
+            <span className={`status-badge status-${String(team.status).toLowerCase()}`}>{team.status}</span>
+          </div>
+        </div>
+
+        {manager && (
+          <div style={{ marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/*
+              Avatar comes from employees endpoint (avatarUrl field on EmployeeController).
+              Use optional chaining in case shape changes.
+            */}
+            {/* @ts-ignore */}
+            {manager.avatarUrl && (
+              <img
+                src={String((manager as any).avatarUrl)}
+                alt=""
+                style={{ width: '32px', height: '32px', borderRadius: '50%' }}
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => openEmployeeFromOrg(manager.id)}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                color: '#2271b1',
+                fontWeight: 600,
+              }}
+            >
+              {manager.firstName} {manager.lastName}
+            </button>
+            <span style={{ color: '#666', fontSize: '12px' }}>Manager</span>
+          </div>
+        )}
+
+        {members.length > 0 && (
+          <div style={{ marginTop: '4px' }}>
+            <div style={{ fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Team Members</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+              {members.map((member) => (
+                <button
+                  key={member.id}
+                  type="button"
+                  onClick={() => openEmployeeFromOrg(member.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 10px',
+                    borderRadius: '20px',
+                    border: '1px solid #dcdcde',
+                    background: '#f6f7f7',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {/* @ts-ignore */}
+                  {member.avatarUrl && (
+                    <img
+                      src={String((member as any).avatarUrl)}
+                      alt=""
+                      style={{ width: '24px', height: '24px', borderRadius: '50%' }}
+                    />
+                  )}
+                  <span style={{ fontSize: '12px' }}>
+                    {member.firstName} {member.lastName}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {team.children && team.children.length > 0 && (
+          <div style={{ marginTop: '10px' }}>
+            {team.children.map(child => renderTeamNode(child, depth + 1))}
+          </div>
+        )}
+      </div>
+    );
   };
 
   const columns: Column<Employee>[] = [
@@ -300,7 +454,18 @@ const Employees = () => {
       {activeTab === 'org' && (
         <div className="pet-org">
           <h2>Organization Structure</h2>
-          <p>Coming Soon</p>
+          {orgLoading && <p>Loading organization...</p>}
+          {orgError && !orgLoading && (
+            <div style={{ color: 'red', marginBottom: '10px' }}>Error: {orgError}</div>
+          )}
+          {!orgLoading && !orgError && orgTeams.length === 0 && (
+            <p>No teams defined yet.</p>
+          )}
+          {!orgLoading && !orgError && orgTeams.length > 0 && (
+            <div>
+              {orgTeams.map(team => renderTeamNode(team))}
+            </div>
+          )}
         </div>
       )}
 

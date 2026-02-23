@@ -22,7 +22,7 @@ class CreateWorkOrchestrationTables implements Migration
         // Work Items Table
         $work_items_sql = "CREATE TABLE IF NOT EXISTS {$this->wpdb->prefix}pet_work_items (
             id CHAR(36) NOT NULL,
-            source_type ENUM('project_task', 'ticket', 'escalation', 'admin') NOT NULL,
+            source_type ENUM('ticket', 'escalation', 'admin') NOT NULL,
             source_id CHAR(36) NOT NULL,
             assigned_user_id CHAR(36) NULL,
             department_id CHAR(36) NOT NULL,

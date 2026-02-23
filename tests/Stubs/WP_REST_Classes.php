@@ -82,3 +82,9 @@ if (!function_exists('get_current_user_id')) {
         return 1;
     }
 }
+
+if (!function_exists('wp_get_environment_type')) {
+    function wp_get_environment_type() {
+        return isset($GLOBALS['_pet_wp_env_type']) ? $GLOBALS['_pet_wp_env_type'] : 'production';
+    }
+}

@@ -7,6 +7,9 @@ namespace Pet\Infrastructure\Persistence\Repository;
 use Pet\Domain\Commercial\Entity\Quote;
 use Pet\Domain\Commercial\Entity\Component\QuoteComponent;
 use Pet\Domain\Commercial\Entity\Component\ImplementationComponent;
+use Pet\Domain\Commercial\Entity\Component\OnceOffServiceComponent;
+use Pet\Domain\Commercial\Entity\Component\Phase;
+use Pet\Domain\Commercial\Entity\Component\SimpleUnit;
 use Pet\Domain\Commercial\Entity\Component\RecurringServiceComponent;
 use Pet\Domain\Commercial\Entity\Component\CatalogComponent;
 use Pet\Domain\Commercial\Entity\Component\QuoteMilestone;
@@ -28,6 +31,8 @@ class SqlQuoteRepository implements QuoteRepository
     private $recurringTable;
     private $catalogTable;
     private $paymentScheduleTable;
+    private $onceOffPhasesTable;
+    private $onceOffUnitsTable;
     private $costAdjustmentRepository;
 
     public function __construct(\wpdb $wpdb, ?CostAdjustmentRepository $costAdjustmentRepository = null)
@@ -40,6 +45,8 @@ class SqlQuoteRepository implements QuoteRepository
         $this->recurringTable = $wpdb->prefix . 'pet_quote_recurring_services';
         $this->catalogTable = $wpdb->prefix . 'pet_quote_catalog_items';
         $this->paymentScheduleTable = $wpdb->prefix . 'pet_quote_payment_schedule';
+        $this->onceOffPhasesTable = $wpdb->prefix . 'pet_quote_onceoff_phases';
+        $this->onceOffUnitsTable = $wpdb->prefix . 'pet_quote_onceoff_units';
         $this->costAdjustmentRepository = $costAdjustmentRepository ?? new SqlCostAdjustmentRepository($wpdb);
     }
 
@@ -128,7 +135,7 @@ class SqlQuoteRepository implements QuoteRepository
     public function findByCustomerId(int $customerId): array
     {
         $sql = $this->wpdb->prepare(
-            "SELECT * FROM {$this->quotesTable} WHERE customer_id = %d AND (archived_at IS NULL OR archived_at = '') ORDER BY created_at DESC",
+            "SELECT * FROM {$this->quotesTable} WHERE customer_id = %d AND archived_at IS NULL ORDER BY created_at DESC",
             $customerId
         );
         $results = $this->wpdb->get_results($sql);
@@ -138,7 +145,7 @@ class SqlQuoteRepository implements QuoteRepository
 
     public function findAll(): array
     {
-        $sql = "SELECT * FROM {$this->quotesTable} WHERE (archived_at IS NULL OR archived_at = '') ORDER BY created_at DESC";
+        $sql = "SELECT * FROM {$this->quotesTable} WHERE archived_at IS NULL ORDER BY created_at DESC";
         $results = $this->wpdb->get_results($sql);
 
         return array_map([$this, 'hydrate'], $results);
@@ -207,6 +214,8 @@ class SqlQuoteRepository implements QuoteRepository
                 $this->saveRecurringService($componentId, $component);
             } elseif ($component instanceof CatalogComponent) {
                 $this->saveCatalogItems($componentId, $component->items());
+            } elseif ($component instanceof OnceOffServiceComponent) {
+                $this->saveOnceOffService($componentId, $component);
             }
         }
     }
@@ -424,10 +433,153 @@ class SqlQuoteRepository implements QuoteRepository
             } elseif ($type === 'catalog') {
                 $items = $this->loadCatalogItems($id);
                 $components[] = new CatalogComponent($items, $description, $id, $section);
+            } elseif ($type === 'once_off_service') {
+                $components[] = $this->loadOnceOffServiceComponent($id, $description, $section);
             }
         }
 
         return $components;
+    }
+
+    private function saveOnceOffService(int $componentId, OnceOffServiceComponent $component): void
+    {
+        if ($component->topology() === OnceOffServiceComponent::TOPOLOGY_SIMPLE) {
+            foreach ($component->units() as $unit) {
+                $this->saveOnceOffUnit($componentId, null, $unit);
+            }
+        } else {
+            foreach ($component->phases() as $phase) {
+                $this->wpdb->insert(
+                    $this->onceOffPhasesTable,
+                    [
+                        'component_id' => $componentId,
+                        'name' => $phase->name(),
+                        'description' => $phase->description(),
+                    ],
+                    ['%d', '%s', '%s']
+                );
+                $phaseId = $this->wpdb->insert_id;
+
+                foreach ($phase->units() as $unit) {
+                    $this->saveOnceOffUnit($componentId, $phaseId, $unit);
+                }
+            }
+        }
+    }
+
+    private function saveOnceOffUnit(int $componentId, ?int $phaseId, SimpleUnit $unit): void
+    {
+        $this->wpdb->insert(
+            $this->onceOffUnitsTable,
+            [
+                'component_id' => $componentId,
+                'phase_id' => $phaseId,
+                'title' => $unit->title(),
+                'description' => $unit->description(),
+                'quantity' => $unit->quantity(),
+                'unit_sell_price' => $unit->unitSellPrice(),
+                'unit_internal_cost' => $unit->unitInternalCost(),
+            ],
+            ['%d', '%d', '%s', '%s', '%f', '%f', '%f']
+        );
+    }
+
+    private function loadOnceOffServiceComponent(int $componentId, ?string $description, string $section): OnceOffServiceComponent
+    {
+        $phases = $this->loadOnceOffPhases($componentId);
+        $topology = empty($phases)
+            ? OnceOffServiceComponent::TOPOLOGY_SIMPLE
+            : OnceOffServiceComponent::TOPOLOGY_COMPLEX;
+
+        if ($topology === OnceOffServiceComponent::TOPOLOGY_SIMPLE) {
+            $units = $this->loadOnceOffUnitsWithoutPhase($componentId);
+
+            return new OnceOffServiceComponent(
+                $topology,
+                [],
+                $units,
+                $description,
+                $componentId,
+                $section
+            );
+        }
+
+        return new OnceOffServiceComponent(
+            $topology,
+            $phases,
+            [],
+            $description,
+            $componentId,
+            $section
+        );
+    }
+
+    private function loadOnceOffPhases(int $componentId): array
+    {
+        $sql = $this->wpdb->prepare(
+            "SELECT * FROM {$this->onceOffPhasesTable} WHERE component_id = %d ORDER BY id ASC",
+            $componentId
+        );
+        $rows = $this->wpdb->get_results($sql);
+        $phases = [];
+
+        foreach ($rows as $row) {
+            $units = $this->loadOnceOffUnitsForPhase((int)$row->id);
+            $phases[] = new Phase(
+                $row->name,
+                $units,
+                $row->description,
+                (int)$row->id
+            );
+        }
+
+        return $phases;
+    }
+
+    private function loadOnceOffUnitsForPhase(int $phaseId): array
+    {
+        $sql = $this->wpdb->prepare(
+            "SELECT * FROM {$this->onceOffUnitsTable} WHERE phase_id = %d ORDER BY id ASC",
+            $phaseId
+        );
+        $rows = $this->wpdb->get_results($sql);
+        $units = [];
+
+        foreach ($rows as $row) {
+            $units[] = new SimpleUnit(
+                $row->title,
+                (float)$row->quantity,
+                (float)$row->unit_sell_price,
+                (float)$row->unit_internal_cost,
+                $row->description,
+                (int)$row->id
+            );
+        }
+
+        return $units;
+    }
+
+    private function loadOnceOffUnitsWithoutPhase(int $componentId): array
+    {
+        $sql = $this->wpdb->prepare(
+            "SELECT * FROM {$this->onceOffUnitsTable} WHERE component_id = %d AND phase_id IS NULL ORDER BY id ASC",
+            $componentId
+        );
+        $rows = $this->wpdb->get_results($sql);
+        $units = [];
+
+        foreach ($rows as $row) {
+            $units[] = new SimpleUnit(
+                $row->title,
+                (float)$row->quantity,
+                (float)$row->unit_sell_price,
+                (float)$row->unit_internal_cost,
+                $row->description,
+                (int)$row->id
+            );
+        }
+
+        return $units;
     }
 
     private function loadMilestones(int $componentId): array

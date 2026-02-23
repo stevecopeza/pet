@@ -38,6 +38,30 @@ final class BillingExport
         $this->updatedAt = $updatedAt;
     }
 
+    public static function fromStorage(
+        int $id,
+        string $uuid,
+        int $customerId,
+        \DateTimeImmutable $periodStart,
+        \DateTimeImmutable $periodEnd,
+        string $status,
+        int $createdByEmployeeId,
+        \DateTimeImmutable $createdAt,
+        \DateTimeImmutable $updatedAt
+    ): self {
+        return new self(
+            $id,
+            $uuid,
+            $customerId,
+            $periodStart,
+            $periodEnd,
+            $status,
+            $createdByEmployeeId,
+            $createdAt,
+            $updatedAt
+        );
+    }
+
     public static function draft(
         string $uuid,
         int $customerId,
@@ -71,4 +95,40 @@ final class BillingExport
     public function createdAt(): \DateTimeImmutable { return $this->createdAt; }
     public function updatedAt(): \DateTimeImmutable { return $this->updatedAt; }
     public function touch(): void { $this->updatedAt = new \DateTimeImmutable(); }
+
+    public function queue(): void
+    {
+        if ($this->status !== 'draft') {
+            throw new \DomainException('Only draft exports can be queued');
+        }
+        $this->status = 'queued';
+        $this->touch();
+    }
+
+    public function markSent(): void
+    {
+        if ($this->status !== 'queued') {
+            throw new \DomainException('Only queued exports can be marked sent');
+        }
+        $this->status = 'sent';
+        $this->touch();
+    }
+
+    public function markFailed(): void
+    {
+        if ($this->status !== 'queued' && $this->status !== 'sent') {
+            throw new \DomainException('Failure only valid from queued or sent');
+        }
+        $this->status = 'failed';
+        $this->touch();
+    }
+
+    public function confirm(): void
+    {
+        if ($this->status !== 'sent') {
+            throw new \DomainException('Only sent exports can be confirmed');
+        }
+        $this->status = 'confirmed';
+        $this->touch();
+    }
 }

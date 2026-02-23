@@ -24,7 +24,7 @@ class CreateTimeTables implements Migration
         $sqlTimeEntries = "CREATE TABLE IF NOT EXISTS $timeEntriesTable (
             id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             employee_id bigint(20) UNSIGNED NOT NULL,
-            task_id bigint(20) UNSIGNED NOT NULL,
+            ticket_id bigint(20) UNSIGNED NOT NULL,
             start_time datetime NOT NULL,
             end_time datetime NOT NULL,
             duration_minutes int(11) NOT NULL,
@@ -35,7 +35,7 @@ class CreateTimeTables implements Migration
             updated_at datetime DEFAULT NULL,
             PRIMARY KEY (id),
             KEY employee_id (employee_id),
-            KEY task_id (task_id),
+            KEY ticket_id (ticket_id),
             KEY start_time (start_time),
             KEY status (status)
         ) $charsetCollate;";

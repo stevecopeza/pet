@@ -13,7 +13,9 @@ final class OutboxDispatcherService
     public function __construct(
         private SqlOutboxRepository $outbox,
         private BillingExportRepository $exports,
-        private SqlQbInvoiceRepository $qbInvoices
+        private SqlQbInvoiceRepository $qbInvoices,
+        private \Pet\Infrastructure\Persistence\Repository\SqlExternalMappingRepository $mappings,
+        private \Pet\Infrastructure\Persistence\Repository\SqlEventStreamRepository $events
     ) {
     }
 
@@ -24,17 +26,27 @@ final class OutboxDispatcherService
             $outboxId = (int)$row['id'];
             $eventId = (int)$row['event_id'];
             try {
-                $exportId = $eventId; // Using event_id to carry export id until full event linkage exists
+                $event = $this->events->findById($eventId);
+                if (!$event) {
+                    throw new \RuntimeException('Event not found for outbox row ' . $outboxId);
+                }
+                $payload = json_decode($event->payloadJson, true) ?: [];
+                $exportId = isset($payload['export_id']) ? (int)$payload['export_id'] : 0;
                 $export = $this->exports->findById($exportId);
                 if (!$export) {
                     throw new \RuntimeException('Export not found for outbox row ' . $outboxId);
                 }
                 $items = $this->exports->findItems($exportId);
-                $payload = $this->buildEnvelope($exportId, $items);
-                $this->simulateQuickBooksSend($payload);
-                $this->qbInvoices->recordInvoiceSnapshot($export->customerId(), $payload);
+                $envelope = $this->buildEnvelope($exportId, $items);
+                $qbInvoiceId = $this->deterministicInvoiceId($exportId);
+                $docNumber = $this->deterministicDocNumber($exportId);
+                $envelope['qb_invoice_id'] = $qbInvoiceId;
+                $envelope['doc_number'] = $docNumber;
+                $this->simulateQuickBooksSend($envelope);
+                $this->qbInvoices->recordInvoiceSnapshot($export->customerId(), $envelope);
+                $this->mappings->upsert('quickbooks', 'invoice', $exportId, $qbInvoiceId, null);
                 $this->outbox->markSent($outboxId);
-                $this->exports->setStatus($exportId, 'processed');
+                $this->exports->setStatus($exportId, 'sent');
             } catch (\Throwable $e) {
                 $attempt = ((int)$row['attempt_count']) + 1;
                 if ($attempt >= 6) {
@@ -82,6 +94,16 @@ final class OutboxDispatcherService
             throw new \RuntimeException('No line items to send');
         }
         // Simulate success
+    }
+
+    private function deterministicInvoiceId(int $exportId): string
+    {
+        return 'QB-INV-' . $exportId;
+    }
+
+    private function deterministicDocNumber(int $exportId): string
+    {
+        return 'INV-' . $exportId;
     }
 
     private function backoffAt(int $attempt): \DateTimeImmutable

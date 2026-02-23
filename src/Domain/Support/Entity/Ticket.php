@@ -14,6 +14,12 @@ class Ticket
     private string $status;
     private string $priority;
     private ?int $slaId;
+    private ?string $queueId = null;
+    private ?string $ownerUserId = null;
+    private ?string $category = null;
+    private ?string $subcategory = null;
+    private ?string $intakeSource = null;
+    private ?int $contactId = null;
     private ?int $malleableSchemaVersion;
     private array $malleableData;
     private \DateTimeImmutable $createdAt;
@@ -44,7 +50,13 @@ class Ticket
         ?int $slaSnapshotId = null,
         ?\DateTimeImmutable $responseDueAt = null,
         ?\DateTimeImmutable $resolutionDueAt = null,
-        ?\DateTimeImmutable $respondedAt = null
+        ?\DateTimeImmutable $respondedAt = null,
+        ?string $queueId = null,
+        ?string $ownerUserId = null,
+        ?string $category = null,
+        ?string $subcategory = null,
+        ?string $intakeSource = null,
+        ?int $contactId = null
     ) {
         $this->id = $id;
         $this->customerId = $customerId;
@@ -54,6 +66,12 @@ class Ticket
         $this->status = $status;
         $this->priority = $priority;
         $this->slaId = $slaId;
+        $this->queueId = $queueId;
+        $this->ownerUserId = $ownerUserId;
+        $this->category = $category;
+        $this->subcategory = $subcategory;
+        $this->intakeSource = $intakeSource;
+        $this->contactId = $contactId;
         $this->malleableSchemaVersion = $malleableSchemaVersion;
         $this->malleableData = $malleableData;
         $this->createdAt = $createdAt ?? new \DateTimeImmutable();
@@ -104,6 +122,36 @@ class Ticket
     public function slaId(): ?int
     {
         return $this->slaId;
+    }
+
+    public function queueId(): ?string
+    {
+        return $this->queueId;
+    }
+
+    public function ownerUserId(): ?string
+    {
+        return $this->ownerUserId;
+    }
+
+    public function category(): ?string
+    {
+        return $this->category;
+    }
+
+    public function subcategory(): ?string
+    {
+        return $this->subcategory;
+    }
+
+    public function intakeSource(): ?string
+    {
+        return $this->intakeSource;
+    }
+
+    public function contactId(): ?int
+    {
+        return $this->contactId;
     }
 
     public function malleableSchemaVersion(): ?int

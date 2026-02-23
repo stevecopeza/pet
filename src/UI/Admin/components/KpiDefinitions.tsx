@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { DataTable, Column } from './DataTable';
 import KpiDefinitionForm from './KpiDefinitionForm';
-import { KpiDefinition } from '../types';
+
+interface KpiDefinition {
+  id: number;
+  name: string;
+  description: string;
+  default_frequency: string;
+  unit: string;
+  created_at: string;
+}
 
 const KpiDefinitions = () => {
   const [definitions, setDefinitions] = useState<KpiDefinition[]>([]);
@@ -36,7 +44,31 @@ const KpiDefinitions = () => {
   }, []);
 
   const columns: Column<KpiDefinition>[] = [
-    { key: 'name', header: 'KPI Name' },
+    { 
+      key: 'name', 
+      header: 'KPI Name',
+      render: (val, def) => (
+        <button
+          type="button"
+          onClick={() => {
+            setEditingDefinition(def);
+            setShowAddForm(true);
+          }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#2271b1',
+            cursor: 'pointer',
+            padding: 0,
+            textAlign: 'left',
+            fontWeight: 'bold',
+            fontSize: 'inherit',
+          }}
+        >
+          {String(val)}
+        </button>
+      )
+    },
     { key: 'description', header: 'Description' },
     { key: 'unit', header: 'Unit' },
     { key: 'default_frequency', header: 'Default Frequency' },
@@ -81,7 +113,13 @@ const KpiDefinitions = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h3>KPI Library</h3>
-        <button className="button button-primary" onClick={() => setShowAddForm(true)}>
+        <button 
+          className="button button-primary" 
+          onClick={() => {
+            setEditingDefinition(null);
+            setShowAddForm(true);
+          }}
+        >
           Add KPI Definition
         </button>
       </div>
@@ -91,6 +129,19 @@ const KpiDefinitions = () => {
         columns={columns}
         loading={loading}
         emptyMessage="No KPI definitions found."
+        actions={(item) => (
+          <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
+            <button
+              className="button button-small"
+              onClick={() => {
+                setEditingDefinition(item);
+                setShowAddForm(true);
+              }}
+            >
+              Edit
+            </button>
+          </div>
+        )}
       />
     </div>
   );

@@ -6,6 +6,8 @@ namespace Pet\UI\Rest\Controller;
 
 use Pet\Application\Work\Command\CreateSkillCommand;
 use Pet\Application\Work\Command\CreateSkillHandler;
+use Pet\Application\Work\Command\UpdateSkillCommand;
+use Pet\Application\Work\Command\UpdateSkillHandler;
 use Pet\Domain\Work\Repository\SkillRepository;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -18,13 +20,16 @@ class SkillController implements RestController
 
     private $skillRepository;
     private $createSkillHandler;
+    private $updateSkillHandler;
 
     public function __construct(
         SkillRepository $skillRepository,
-        CreateSkillHandler $createSkillHandler
+        CreateSkillHandler $createSkillHandler,
+        UpdateSkillHandler $updateSkillHandler
     ) {
         $this->skillRepository = $skillRepository;
         $this->createSkillHandler = $createSkillHandler;
+        $this->updateSkillHandler = $updateSkillHandler;
     }
 
     public function registerRoutes(): void
@@ -38,6 +43,14 @@ class SkillController implements RestController
             [
                 'methods' => WP_REST_Server::CREATABLE,
                 'callback' => [$this, 'createSkill'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ],
+        ]);
+
+        register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/(?P<id>\d+)', [
+            [
+                'methods' => WP_REST_Server::EDITABLE,
+                'callback' => [$this, 'updateSkill'],
                 'permission_callback' => [$this, 'checkPermission'],
             ],
         ]);
@@ -81,6 +94,32 @@ class SkillController implements RestController
         try {
             $this->createSkillHandler->handle($command);
             return new WP_REST_Response(['message' => 'Skill created successfully'], 201);
+        } catch (\Exception $e) {
+            return new WP_REST_Response(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function updateSkill(WP_REST_Request $request): WP_REST_Response
+    {
+        $id = (int) $request->get_param('id');
+        $params = $request->get_json_params();
+
+        if (empty($params['name']) || empty($params['capability_id']) || empty($params['description'])) {
+            return new WP_REST_Response(['error' => 'Missing required fields'], 400);
+        }
+
+        $command = new UpdateSkillCommand(
+            $id,
+            $params['name'],
+            (int) $params['capability_id'],
+            $params['description']
+        );
+
+        try {
+            $this->updateSkillHandler->handle($command);
+            return new WP_REST_Response(['message' => 'Skill updated successfully'], 200);
+        } catch (\RuntimeException $e) {
+            return new WP_REST_Response(['error' => $e->getMessage()], 404);
         } catch (\Exception $e) {
             return new WP_REST_Response(['error' => $e->getMessage()], 500);
         }

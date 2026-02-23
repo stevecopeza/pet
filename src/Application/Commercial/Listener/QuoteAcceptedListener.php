@@ -5,23 +5,29 @@ declare(strict_types=1);
 namespace Pet\Application\Commercial\Listener;
 
 use Pet\Domain\Commercial\Event\QuoteAccepted;
+use Pet\Domain\Commercial\Event\ContractCreated;
+use Pet\Domain\Commercial\Event\BaselineCreated;
 use Pet\Domain\Commercial\Entity\Contract;
 use Pet\Domain\Commercial\Entity\Baseline;
 use Pet\Domain\Commercial\Repository\ContractRepository;
 use Pet\Domain\Commercial\Repository\BaselineRepository;
 use Pet\Domain\Commercial\ValueObject\ContractStatus;
+use Pet\Domain\Event\EventBus;
 
 class QuoteAcceptedListener
 {
     private ContractRepository $contractRepository;
     private BaselineRepository $baselineRepository;
+    private EventBus $eventBus;
 
     public function __construct(
         ContractRepository $contractRepository,
-        BaselineRepository $baselineRepository
+        BaselineRepository $baselineRepository,
+        EventBus $eventBus
     ) {
         $this->contractRepository = $contractRepository;
         $this->baselineRepository = $baselineRepository;
+        $this->eventBus = $eventBus;
     }
 
     public function __invoke(QuoteAccepted $event): void
@@ -39,12 +45,7 @@ class QuoteAcceptedListener
         );
         
         $this->contractRepository->save($contract);
-        
-        // Note: In a real implementation with auto-increment IDs, 
-        // save() should update the entity ID or we need to flush/refresh.
-        // Assuming save() handles this for the object reference or we rely on explicit IDs.
-        // If contract->id() is null here, Baseline creation will fail or have null FK.
-        // For now, we assume the repository handles identity generation on the object.
+        $this->eventBus->dispatch(new ContractCreated($contract));
         
         if ($contract->id()) {
             $baseline = new Baseline(
@@ -55,6 +56,7 @@ class QuoteAcceptedListener
             );
             
             $this->baselineRepository->save($baseline);
+            $this->eventBus->dispatch(new BaselineCreated($baseline));
         }
     }
 }

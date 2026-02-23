@@ -7,7 +7,7 @@ namespace Pet\Application\Time\Command;
 class LogTimeCommand
 {
     private int $employeeId;
-    private int $taskId;
+    private int $ticketId;
     private \DateTimeImmutable $start;
     private \DateTimeImmutable $end;
     private bool $isBillable;
@@ -16,7 +16,7 @@ class LogTimeCommand
 
     public function __construct(
         int $employeeId,
-        int $taskId,
+        int $ticketId,
         \DateTimeImmutable $start,
         \DateTimeImmutable $end,
         bool $isBillable,
@@ -24,7 +24,7 @@ class LogTimeCommand
         array $malleableData = []
     ) {
         $this->employeeId = $employeeId;
-        $this->taskId = $taskId;
+        $this->ticketId = $ticketId;
         $this->start = $start;
         $this->end = $end;
         $this->isBillable = $isBillable;
@@ -37,9 +37,9 @@ class LogTimeCommand
         return $this->employeeId;
     }
 
-    public function taskId(): int
+    public function ticketId(): int
     {
-        return $this->taskId;
+        return $this->ticketId;
     }
 
     public function start(): \DateTimeImmutable

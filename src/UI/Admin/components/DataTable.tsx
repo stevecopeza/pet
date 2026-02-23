@@ -4,6 +4,7 @@ export interface Column<T> {
   key: keyof T;
   header: string;
   render?: (value: T[keyof T], item: T) => React.ReactNode;
+  width?: string | number;
 }
 
 interface DataTableProps<T> {
@@ -16,6 +17,7 @@ interface DataTableProps<T> {
     onSelectionChange: (ids: (string | number)[]) => void;
   };
   actions?: (item: T) => React.ReactNode;
+  rowDetails?: (item: T) => React.ReactNode;
 }
 
 export function DataTable<T extends { id: string | number }>({ 
@@ -24,9 +26,11 @@ export function DataTable<T extends { id: string | number }>({
   loading = false, 
   emptyMessage = 'No data found.',
   selection,
-  actions
+  actions,
+  rowDetails
 }: DataTableProps<T>) {
-  
+  const [expandedIds, setExpandedIds] = React.useState<(string | number)[]>([]);
+
   if (loading) {
     return <div className="pet-data-table-loading">Loading...</div>;
   }
@@ -58,9 +62,18 @@ export function DataTable<T extends { id: string | number }>({
   const allSelected = selection && data.length > 0 && data.every(item => selection.selectedIds.includes(item.id));
   const someSelected = selection && data.some(item => selection.selectedIds.includes(item.id)) && !allSelected;
 
+  const toggleRowExpanded = (id: string | number) => {
+    if (!rowDetails) return;
+    setExpandedIds(prev =>
+      prev.includes(id) ? prev.filter(existingId => existingId !== id) : [...prev, id]
+    );
+  };
+
+  const columnCount = columns.length + (selection ? 1 : 0) + (actions ? 1 : 0);
+
   return (
     <div className="pet-data-table-container" style={{ overflowX: 'auto' }}>
-      <table className="wp-list-table widefat fixed striped" style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <table className="wp-list-table widefat fixed striped" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
         <thead>
           <tr>
             {selection && (
@@ -73,37 +86,62 @@ export function DataTable<T extends { id: string | number }>({
                 />
               </td>
             )}
-            {columns.map((col) => (
-              <th key={String(col.key)} scope="col" style={{ textAlign: 'left', padding: '8px' }}>
-                {col.header}
-              </th>
-            ))}
+            {columns.map((col) => {
+              const headerStyle: React.CSSProperties = { textAlign: 'left', padding: '8px' };
+              if (col.width !== undefined) {
+                headerStyle.width = col.width;
+              }
+              return (
+                <th key={String(col.key)} scope="col" style={headerStyle}>
+                  {col.header}
+                </th>
+              );
+            })}
             {actions && <th scope="col" style={{ textAlign: 'right', padding: '8px' }}>Actions</th>}
           </tr>
         </thead>
         <tbody>
           {data.map((item) => (
-            <tr key={item.id}>
-              {selection && (
-                <th scope="row" className="check-column" style={{ padding: '8px' }}>
-                  <input 
-                    type="checkbox" 
-                    checked={selection.selectedIds.includes(item.id)} 
-                    onChange={(e) => handleSelectRow(item.id, e.target.checked)} 
-                  />
-                </th>
+            <React.Fragment key={item.id}>
+              <tr
+                onClick={rowDetails ? () => toggleRowExpanded(item.id) : undefined}
+                style={rowDetails ? { cursor: 'pointer' } : undefined}
+              >
+                {selection && (
+                  <th scope="row" className="check-column" style={{ padding: '8px' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selection.selectedIds.includes(item.id)} 
+                      onChange={(e) => handleSelectRow(item.id, e.target.checked)} 
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </th>
+                )}
+                {columns.map((col) => {
+                  const cellStyle: React.CSSProperties = { padding: '8px' };
+                  if (col.width !== undefined) {
+                    cellStyle.width = col.width;
+                  }
+                  return (
+                    <td key={`${item.id}-${String(col.key)}`} style={cellStyle}>
+                      {col.render ? col.render(item[col.key], item) : renderValue(item[col.key])}
+                    </td>
+                  );
+                })}
+                {actions && (
+                  <td style={{ textAlign: 'right', padding: '8px' }}>
+                    {actions(item)}
+                  </td>
+                )}
+              </tr>
+              {rowDetails && expandedIds.includes(item.id) && (
+                <tr className="pet-data-table-row-details">
+                  <td colSpan={columnCount} style={{ padding: '12px 16px', background: '#f9f9f9' }}>
+                    {rowDetails(item)}
+                  </td>
+                </tr>
               )}
-              {columns.map((col) => (
-                <td key={`${item.id}-${String(col.key)}`} style={{ padding: '8px' }}>
-                  {col.render ? col.render(item[col.key], item) : renderValue(item[col.key])}
-                </td>
-              ))}
-              {actions && (
-                <td style={{ textAlign: 'right', padding: '8px' }}>
-                  {actions(item)}
-                </td>
-              )}
-            </tr>
+            </React.Fragment>
           ))}
         </tbody>
       </table>

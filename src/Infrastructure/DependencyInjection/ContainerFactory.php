@@ -9,8 +9,13 @@ use DI\ContainerBuilder;
 
 class ContainerFactory
 {
+    private static ?Container $instance = null;
+
     public static function create(): Container
     {
+        if (self::$instance instanceof Container) {
+            return self::$instance;
+        }
         $builder = new ContainerBuilder();
         $builder->useAutowiring(true);
         $builder->useAnnotations(false);
@@ -18,13 +23,21 @@ class ContainerFactory
         // Load definitions
         $builder->addDefinitions(self::getDefinitions());
 
-        return $builder->build();
+        self::$instance = $builder->build();
+        return self::$instance;
     }
 
     private static function getDefinitions(): array
     {
         return [
-            // Infrastructure
+            \wpdb::class => function () {
+                global $wpdb;
+                return $wpdb;
+            },
+            'wpdb' => function () {
+                global $wpdb;
+                return $wpdb;
+            },
             \Pet\Domain\Event\EventBus::class => \DI\autowire(\Pet\Infrastructure\Event\InMemoryEventBus::class),
             
             \Pet\Infrastructure\Persistence\Migration\MigrationRunner::class => function () {
@@ -33,6 +46,10 @@ class ContainerFactory
             },
 
             \Pet\Domain\Event\Repository\EventStreamRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlEventStreamRepository($wpdb);
+            },
+            \Pet\Infrastructure\Persistence\Repository\SqlEventStreamRepository::class => function () {
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlEventStreamRepository($wpdb);
             },
@@ -48,6 +65,22 @@ class ContainerFactory
             \Pet\Infrastructure\Persistence\Repository\SqlQbInvoiceRepository::class => function () {
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlQbInvoiceRepository($wpdb);
+            },
+            \Pet\Infrastructure\Persistence\Repository\SqlQbPaymentRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlQbPaymentRepository($wpdb);
+            },
+            \Pet\Infrastructure\Persistence\Repository\SqlExternalMappingRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlExternalMappingRepository($wpdb);
+            },
+            \Pet\Infrastructure\Persistence\Transaction\SqlTransaction::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Transaction\SqlTransaction($wpdb);
+            },
+            \Pet\Application\System\Service\TouchedTracker::class => function () {
+                global $wpdb;
+                return new \Pet\Application\System\Service\TouchedTracker($wpdb);
             },
 
             // Repositories
@@ -102,6 +135,10 @@ class ContainerFactory
             \Pet\Domain\Commercial\Repository\LeadRepository::class => function () {
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlLeadRepository($wpdb);
+            },
+            \Pet\Domain\Commercial\Repository\QuoteSectionRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlQuoteSectionRepository($wpdb);
             },
             
             \Pet\Domain\Time\Repository\TimeEntryRepository::class => function () {
@@ -268,6 +305,11 @@ class ContainerFactory
                 );
             },
 
+            \Pet\Domain\Commercial\Repository\QuoteBlockRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlQuoteBlockRepository($wpdb);
+            },
+
             // Application Handlers
             \Pet\Application\Delivery\Command\CreateProjectHandler::class => \DI\autowire(\Pet\Application\Delivery\Command\CreateProjectHandler::class),
             \Pet\Application\Delivery\Command\AddTaskHandler::class => \DI\autowire(\Pet\Application\Delivery\Command\AddTaskHandler::class),
@@ -283,6 +325,13 @@ class ContainerFactory
             \Pet\Application\Commercial\Command\AddComponentHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\AddComponentHandler::class),
             \Pet\Application\Commercial\Command\RemoveComponentHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\RemoveComponentHandler::class),
             \Pet\Application\Commercial\Command\ArchiveQuoteHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\ArchiveQuoteHandler::class),
+            \Pet\Application\Commercial\Command\AddQuoteSectionHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\AddQuoteSectionHandler::class),
+            \Pet\Application\Commercial\Command\CreateQuoteBlockHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\CreateQuoteBlockHandler::class),
+            \Pet\Application\Commercial\Command\UpdateQuoteBlockHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\UpdateQuoteBlockHandler::class),
+            \Pet\Application\Commercial\Command\DeleteQuoteBlockHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\DeleteQuoteBlockHandler::class),
+            \Pet\Application\Commercial\Command\UpdateQuoteSectionHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\UpdateQuoteSectionHandler::class),
+            \Pet\Application\Commercial\Command\CloneQuoteSectionHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\CloneQuoteSectionHandler::class),
+            \Pet\Application\Commercial\Command\DeleteQuoteSectionHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\DeleteQuoteSectionHandler::class),
             \Pet\Application\Commercial\Listener\QuoteAcceptedListener::class => \DI\autowire(\Pet\Application\Commercial\Listener\QuoteAcceptedListener::class),
             \Pet\Application\Commercial\Listener\CreateForecastFromQuoteListener::class => \DI\autowire(\Pet\Application\Commercial\Listener\CreateForecastFromQuoteListener::class),
             \Pet\Application\Delivery\Listener\CreateProjectFromQuoteListener::class => \DI\autowire(\Pet\Application\Delivery\Listener\CreateProjectFromQuoteListener::class),
@@ -297,6 +346,7 @@ class ContainerFactory
             \Pet\Application\Team\Command\ArchiveTeamHandler::class => \DI\autowire(\Pet\Application\Team\Command\ArchiveTeamHandler::class),
             
             \Pet\Application\Time\Command\LogTimeHandler::class => \DI\autowire(\Pet\Application\Time\Command\LogTimeHandler::class),
+            \Pet\Application\Time\Command\SubmitTimeEntryHandler::class => \DI\autowire(\Pet\Application\Time\Command\SubmitTimeEntryHandler::class),
             \Pet\Application\Identity\Command\CreateEmployeeHandler::class => \DI\autowire(\Pet\Application\Identity\Command\CreateEmployeeHandler::class),
             \Pet\Application\Identity\Command\UpdateEmployeeHandler::class => \DI\autowire(\Pet\Application\Identity\Command\UpdateEmployeeHandler::class),
             \Pet\Application\Identity\Command\ArchiveEmployeeHandler::class => \DI\autowire(\Pet\Application\Identity\Command\ArchiveEmployeeHandler::class),
@@ -308,10 +358,13 @@ class ContainerFactory
             \Pet\Application\Work\Command\AssignRoleToPersonHandler::class => \DI\autowire(\Pet\Application\Work\Command\AssignRoleToPersonHandler::class),
             \Pet\Application\Work\Command\EndAssignmentHandler::class => \DI\autowire(\Pet\Application\Work\Command\EndAssignmentHandler::class),
             \Pet\Application\Work\Command\CreateSkillHandler::class => \DI\autowire(\Pet\Application\Work\Command\CreateSkillHandler::class),
+            \Pet\Application\Work\Command\UpdateSkillHandler::class => \DI\autowire(\Pet\Application\Work\Command\UpdateSkillHandler::class),
             \Pet\Application\Work\Command\RateEmployeeSkillHandler::class => \DI\autowire(\Pet\Application\Work\Command\RateEmployeeSkillHandler::class),
             \Pet\Application\Work\Command\CreateCertificationHandler::class => \DI\autowire(\Pet\Application\Work\Command\CreateCertificationHandler::class),
+            \Pet\Application\Work\Command\UpdateCertificationHandler::class => \DI\autowire(\Pet\Application\Work\Command\UpdateCertificationHandler::class),
             \Pet\Application\Work\Command\AssignCertificationToPersonHandler::class => \DI\autowire(\Pet\Application\Work\Command\AssignCertificationToPersonHandler::class),
             \Pet\Application\Work\Command\CreateKpiDefinitionHandler::class => \DI\autowire(\Pet\Application\Work\Command\CreateKpiDefinitionHandler::class),
+            \Pet\Application\Work\Command\UpdateKpiDefinitionHandler::class => \DI\autowire(\Pet\Application\Work\Command\UpdateKpiDefinitionHandler::class),
             \Pet\Application\Work\Command\AssignKpiToRoleHandler::class => \DI\autowire(\Pet\Application\Work\Command\AssignKpiToRoleHandler::class),
             \Pet\Application\Work\Command\GeneratePersonKpisHandler::class => \DI\autowire(\Pet\Application\Work\Command\GeneratePersonKpisHandler::class),
             \Pet\Application\Work\Command\UpdatePersonKpiHandler::class => \DI\autowire(\Pet\Application\Work\Command\UpdatePersonKpiHandler::class),
@@ -328,6 +381,7 @@ class ContainerFactory
             \Pet\Domain\Work\Service\CapacityCalendar::class => \DI\autowire(\Pet\Domain\Work\Service\CapacityCalendar::class),
             \Pet\Application\Integration\Service\OutboxDispatcherService::class => \DI\autowire(\Pet\Application\Integration\Service\OutboxDispatcherService::class),
             \Pet\Application\Integration\Cron\OutboxDispatchJob::class => \DI\autowire(\Pet\Application\Integration\Cron\OutboxDispatchJob::class),
+            \Pet\Application\Integration\Service\QbMockPullService::class => \DI\autowire(\Pet\Application\Integration\Service\QbMockPullService::class),
 
             \Pet\Application\Identity\Command\CreateCustomerHandler::class => \DI\autowire(\Pet\Application\Identity\Command\CreateCustomerHandler::class),
 
@@ -376,6 +430,18 @@ class ContainerFactory
             \Pet\UI\Rest\Controller\WorkController::class => \DI\autowire(\Pet\UI\Rest\Controller\WorkController::class),
             \Pet\UI\Rest\Controller\WorkItemController::class => \DI\autowire(),
             \Pet\UI\Rest\Controller\LeaveController::class => \DI\autowire(),
+            \Pet\Application\System\Service\DemoSeedService::class => function () {
+                global $wpdb;
+                return new \Pet\Application\System\Service\DemoSeedService($wpdb);
+            },
+            \Pet\Application\System\Service\DemoPurgeService::class => function () {
+                global $wpdb;
+                return new \Pet\Application\System\Service\DemoPurgeService($wpdb);
+            },
+            \Pet\Application\System\Service\TouchedTracker::class => function () {
+                global $wpdb;
+                return new \Pet\Application\System\Service\TouchedTracker($wpdb);
+            },
         ];
     }
 }

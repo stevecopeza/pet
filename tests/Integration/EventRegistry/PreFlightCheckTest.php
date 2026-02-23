@@ -161,6 +161,7 @@ class PreFlightCheckTest extends TestCase
         $customerRepo = $this->createMock(CustomerRepository::class);
         $schemaRepo = $this->createMock(SchemaDefinitionRepository::class);
         $schemaValidator = $this->createMock(SchemaValidator::class);
+        $departmentResolver = $this->createMock(\Pet\Domain\Work\Service\DepartmentResolver::class);
 
         $customer = new Customer('Acme', 'email@acme.com', 1);
         $customerRepo->method('findById')->willReturn($customer);
@@ -170,7 +171,8 @@ class PreFlightCheckTest extends TestCase
             $customerRepo,
             $this->eventBus,
             $schemaRepo,
-            $schemaValidator
+            $schemaValidator,
+            $departmentResolver
         );
 
         $command = new CreateTicketCommand(

@@ -31,13 +31,13 @@ class LogTimeHandlerTest extends TestCase
     public function testHandleLogsTimeSuccessfully()
     {
         $employeeId = 1;
-        $taskId = 10;
+        $ticketId = 10;
         $start = new \DateTimeImmutable('2023-01-01 10:00:00');
         $end = new \DateTimeImmutable('2023-01-01 12:00:00');
         
         $command = new LogTimeCommand(
             $employeeId,
-            $taskId,
+            $ticketId,
             $start,
             $end,
             true,
@@ -51,9 +51,9 @@ class LogTimeHandlerTest extends TestCase
 
         $this->timeEntryRepository->expects($this->once())
             ->method('save')
-            ->with($this->callback(function (TimeEntry $entry) use ($employeeId, $taskId) {
+            ->with($this->callback(function (TimeEntry $entry) use ($employeeId, $ticketId) {
                 return $entry->employeeId() === $employeeId
-                    && $entry->taskId() === $taskId
+                    && $entry->ticketId() === $ticketId
                     && $entry->durationMinutes() === 120;
             }));
 

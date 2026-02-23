@@ -14,7 +14,10 @@ final class OutboxDispatchJob
 
     public function run(): void
     {
-        $this->dispatcher->dispatchQuickBooks();
+        try {
+            $this->dispatcher->dispatchQuickBooks();
+        } catch (\Throwable $e) {
+            error_log('PET OutboxDispatchJob error: ' . $e->getMessage());
+        }
     }
 }
-

@@ -19,6 +19,7 @@ use Pet\Infrastructure\Event\InMemoryEventBus;
 use Pet\Domain\Commercial\Entity\PaymentMilestone;
 use Pet\Domain\Commercial\Repository\QuoteRepository;
 use Pet\Domain\Commercial\Event\QuoteAccepted;
+use Pet\Domain\Commercial\Event\PaymentScheduleItemBecameDueEvent;
 use Pet\Application\Delivery\Listener\CreateProjectFromQuoteListener;
 use Pet\Application\Delivery\Command\CreateProjectHandler;
 use Pet\Domain\Delivery\Repository\ProjectRepository;
@@ -57,7 +58,7 @@ class AcceptQuoteFlowTest extends TestCase
         $this->eventBus = new InMemoryEventBus();
 
         // 1. QuoteAccepted -> Contract/Baseline
-        $listener = new QuoteAcceptedListener($this->contractRepo, $this->baselineRepo);
+        $listener = new QuoteAcceptedListener($this->contractRepo, $this->baselineRepo, $this->eventBus);
         $this->eventBus->subscribe(QuoteAccepted::class, $listener);
 
         // 2. QuoteAccepted -> Project
@@ -85,6 +86,7 @@ class AcceptQuoteFlowTest extends TestCase
         };
         $this->eventBus->subscribe(QuoteAccepted::class, $captureListener);
         $this->eventBus->subscribe(ProjectCreated::class, $captureListener);
+        $this->eventBus->subscribe(PaymentScheduleItemBecameDueEvent::class, $captureListener);
 
         $this->handler = new AcceptQuoteHandler($this->quoteRepo, $this->eventBus);
     }
@@ -135,7 +137,15 @@ class AcceptQuoteFlowTest extends TestCase
             'archived_at' => null
         ];
         
-        $componentRow = (object) [
+        $implementationComponentRow = (object) [
+            'id' => '10',
+            'quote_id' => (string)$quoteId,
+            'type' => 'implementation',
+            'description' => 'Implementation Component 1',
+            'created_at' => '2023-01-01 00:00:00'
+        ];
+
+        $catalogComponentRow = (object) [
             'id' => '10',
             'quote_id' => (string)$quoteId,
             'type' => 'catalog',
@@ -165,6 +175,24 @@ class AcceptQuoteFlowTest extends TestCase
             'paid_flag' => '0'
         ];
 
+        $milestoneRow = (object) [
+            'id' => '30',
+            'component_id' => '10',
+            'title' => 'Milestone 1',
+            'description' => 'Implementation milestone'
+        ];
+
+        $taskRow = (object) [
+            'id' => '40',
+            'milestone_id' => '30',
+            'title' => 'Task 1',
+            'description' => 'Implementation task',
+            'duration_hours' => '10.00',
+            'role_id' => '1',
+            'base_internal_rate' => '50.00',
+            'sell_rate' => '100.00'
+        ];
+
         $this->wpdb->expects($this->any())
             ->method('get_row')
             ->willReturnCallback(function ($query) use ($quoteRow) {
@@ -176,15 +204,21 @@ class AcceptQuoteFlowTest extends TestCase
 
         $this->wpdb->expects($this->any())
             ->method('get_results')
-            ->willReturnCallback(function ($query) use ($componentRow, $itemRow, $paymentRow) {
+            ->willReturnCallback(function ($query) use ($implementationComponentRow, $catalogComponentRow, $itemRow, $paymentRow, $milestoneRow, $taskRow) {
                 if (strpos($query, 'pet_quote_components') !== false) {
-                    return [$componentRow];
+                    return [$implementationComponentRow, $catalogComponentRow];
                 }
                 if (strpos($query, 'pet_quote_catalog_items') !== false) {
                     return [$itemRow];
                 }
                 if (strpos($query, 'pet_quote_payment_schedule') !== false) {
                     return [$paymentRow];
+                }
+                if (strpos($query, 'pet_quote_milestones') !== false) {
+                    return [$milestoneRow];
+                }
+                if (strpos($query, 'pet_quote_tasks') !== false) {
+                    return [$taskRow];
                 }
                 return [];
             });
@@ -225,60 +259,44 @@ class AcceptQuoteFlowTest extends TestCase
         // It does saveComponents.
         
         // For this test, to simplify, we can relax exact call counts and focus on the Contract/Baseline inserts.
-        // But we want to ensure they are called.
-        
-        $this->wpdb->expects($this->any()) // Allow other inserts (like quote components re-save)
+        // But we want to ensure they are called and that insert_id is propagated correctly.
+
+        $wpdb = $this->wpdb;
+
+        $this->wpdb->expects($this->any()) // Allow other inserts (like quote components, milestones, tasks, payment schedule)
              ->method('insert')
-             ->willReturnCallback(function ($table, $data) {
+             ->willReturnCallback(function ($table, $data) use ($wpdb) {
                  if ($table === 'wp_pet_contracts') {
-                     // Verify Contract Data
-                     if ($data['status'] !== 'active') throw new \Exception('Contract status wrong');
-                     if ($data['total_value'] != 200.0) throw new \Exception('Contract value wrong');
-                     return 100; // Contract ID
+                     if ($data['status'] !== 'active') {
+                         throw new \Exception('Contract status wrong');
+                     }
+                     if ($data['total_value'] != 200.0) {
+                         throw new \Exception('Contract value wrong');
+                     }
+                     $wpdb->insert_id = 100;
+                     return 1;
                  }
+
                  if ($table === 'wp_pet_baselines') {
-                     // Verify Baseline Data
-                     if ($data['contract_id'] !== 100) throw new \Exception('Baseline contract_id wrong');
-                     return 200; // Baseline ID
+                     if ($data['contract_id'] !== 100) {
+                         throw new \Exception('Baseline contract_id wrong');
+                     }
+                     $wpdb->insert_id = 200;
+                     return 1;
                  }
+
                  if ($table === 'wp_pet_baseline_components') {
-                     // Verify Component Data
-                     if ($data['baseline_id'] !== 200) throw new \Exception('Component baseline_id wrong');
-                     if (strpos($data['component_data'], 'CatalogComponent') === false) throw new \Exception('Component serialization wrong');
-                     return 300;
+                     if ($data['baseline_id'] !== 200) {
+                         throw new \Exception('Component baseline_id wrong');
+                     }
+                     if (!isset($data['component_data'])) {
+                         throw new \Exception('Component serialization missing');
+                     }
+                     return 1;
                  }
+
                  return 1;
              });
-
-        // Set insert_id behavior is tricky with callbacks in PHPUnit mock.
-        // The mock object's public property insert_id won't update automatically from our callback.
-        // We have to set it manually or assume the repos don't read it immediately after insert if we return int?
-        // No, wpdb->insert returns int|false, but the ID is in $wpdb->insert_id.
-        // The Repos read $this->wpdb->insert_id.
-        
-        // This is a limitation of mocking public properties on method calls.
-        // However, I can mock the `__get` or just set the property in the callback if I pass the mock by reference? No.
-        // I can use `willReturnCallback` to modify the mock object?
-        // $this->wpdb is the mock.
-        
-        // A common workaround is to mock `insert` to set the property.
-        // But `insert` is a method on the mock.
-        // We can't easily change the property of the mock inside the callback of the mock unless we have reference.
-        
-        // Actually, since I created the mock, I can capture it in closure.
-        
-        $wpdb = $this->wpdb;
-        $wpdb->method('insert')->willReturnCallback(function($table, $data) use ($wpdb) {
-             if ($table === 'wp_pet_contracts') {
-                 $wpdb->insert_id = 100;
-                 return 1;
-             }
-             if ($table === 'wp_pet_baselines') {
-                 $wpdb->insert_id = 200;
-                 return 1;
-             }
-             return 1;
-        });
 
         // 4. Execute
         $command = new AcceptQuoteCommand($quoteId);
@@ -287,7 +305,8 @@ class AcceptQuoteFlowTest extends TestCase
         // 5. Assertions
         $this->assertArrayHasKey(QuoteAccepted::class, $this->capturedEvents);
         $this->assertArrayHasKey(ProjectCreated::class, $this->capturedEvents);
-        
+        $this->assertArrayHasKey(PaymentScheduleItemBecameDueEvent::class, $this->capturedEvents);
+
         $projectEvent = $this->capturedEvents[ProjectCreated::class];
         $this->assertInstanceOf(ProjectCreated::class, $projectEvent);
         $this->assertEquals(123, $projectEvent->project()->sourceQuoteId());

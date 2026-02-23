@@ -125,26 +125,15 @@ class SqlPersonSkillRepository implements PersonSkillRepository
 
     private function hydrate(object $row): PersonSkill
     {
-        $personSkill = new PersonSkill(
-            (int)$row->employee_id,
-            (int)$row->skill_id,
-            $row->review_cycle_id ? (int)$row->review_cycle_id : null,
-            $row->self_rating ? (int)$row->self_rating : null,
-            $row->manager_rating ? (int)$row->manager_rating : null,
-            new \DateTimeImmutable($row->effective_date)
+        return new PersonSkill(
+            (int) $row->employee_id,
+            (int) $row->skill_id,
+            (int) ($row->self_rating ?? 0),
+            (int) ($row->manager_rating ?? 0),
+            new \DateTimeImmutable($row->effective_date),
+            $row->review_cycle_id !== null ? (int) $row->review_cycle_id : null,
+            (int) $row->id,
+            new \DateTimeImmutable($row->created_at)
         );
-
-        // Reflection to set ID and created_at
-        $ref = new \ReflectionClass($personSkill);
-        
-        $idProp = $ref->getProperty('id');
-        $idProp->setAccessible(true);
-        $idProp->setValue($personSkill, (int)$row->id);
-
-        $createdAtProp = $ref->getProperty('createdAt');
-        $createdAtProp->setAccessible(true);
-        $createdAtProp->setValue($personSkill, new \DateTimeImmutable($row->created_at));
-
-        return $personSkill;
     }
 }

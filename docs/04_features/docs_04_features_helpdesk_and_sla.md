@@ -90,7 +90,19 @@ Illegal actions:
 
 ---
 
+## See also: Ticket Backbone
+
+The Ticket Backbone specification unifies support tickets with project and internal work and defines SLA and entitlement alignment at the Ticket level.
+
+Related documents:
+
+- `00_foundations/01_Ticket_Backbone_Principles_and_Invariants_v1.md`
+- `02_domain/03_Ticket_Lifecycle_and_State_Machines_v1.md`
+- `06_sla/07_SLA_Agreement_Entitlement_Drawdown_v1.md`
+- `07_work_orchestration/08_Work_Orchestration_Queues_and_Assignment_v1.md`
+
+---
+
 **Authority**: Normative
 
 This document defines PET’s helpdesk and SLA behaviour.
-

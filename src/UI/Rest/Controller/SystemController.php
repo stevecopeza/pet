@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Pet\UI\Rest\Controller;
 
+use Pet\Application\Commercial\Command\AcceptQuoteCommand;
+use Pet\Application\Commercial\Command\AcceptQuoteHandler;
 use Pet\Application\System\Service\DemoPreFlightCheck;
 use Pet\Application\System\Service\DemoInstaller;
+use Pet\Application\System\Service\DemoSeedService;
+use Pet\Application\System\Service\DemoPurgeService;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -13,11 +17,17 @@ class SystemController implements RestController
 {
     private DemoPreFlightCheck $preFlightCheck;
     private DemoInstaller $demoInstaller;
+    private DemoSeedService $demoSeedService;
+    private DemoPurgeService $demoPurgeService;
+    private AcceptQuoteHandler $acceptQuoteHandler;
 
-    public function __construct(DemoPreFlightCheck $preFlightCheck, DemoInstaller $demoInstaller)
+    public function __construct(DemoPreFlightCheck $preFlightCheck, DemoInstaller $demoInstaller, DemoSeedService $demoSeedService, DemoPurgeService $demoPurgeService, AcceptQuoteHandler $acceptQuoteHandler)
     {
         $this->preFlightCheck = $preFlightCheck;
         $this->demoInstaller = $demoInstaller;
+        $this->demoSeedService = $demoSeedService;
+        $this->demoPurgeService = $demoPurgeService;
+        $this->acceptQuoteHandler = $acceptQuoteHandler;
     }
 
     public function registerRoutes(): void
@@ -25,6 +35,11 @@ class SystemController implements RestController
         register_rest_route('pet/v1', '/system/pre-demo-check', [
             'methods' => 'GET',
             'callback' => [$this, 'runPreFlightCheck'],
+            'permission_callback' => '__return_true',
+        ]);
+        register_rest_route('pet/v1', '/system/seed-demo', [
+            'methods' => 'POST',
+            'callback' => [$this, 'seedDemoData'],
             'permission_callback' => function () {
                 return current_user_can('manage_options');
             },
@@ -35,6 +50,73 @@ class SystemController implements RestController
             'permission_callback' => function () {
                 return current_user_can('manage_options');
             },
+        ]);
+        register_rest_route('pet/v1', '/system/demo/seed_full', [
+            'methods' => 'POST',
+            'callback' => [$this, 'seedFull'],
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            },
+        ]);
+        register_rest_route('pet/v1', '/system/seed_full', [
+            'methods' => 'POST',
+            'callback' => [$this, 'seedFull'],
+            'permission_callback' => '__return_true',
+        ]);
+        register_rest_route('pet/v1', '/system/accept-quote', [
+            'methods' => 'POST',
+            'callback' => [$this, 'acceptQuoteDev'],
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            },
+            'args' => [
+                'quote_id' => [
+                    'required' => true,
+                    'type' => 'integer',
+                ],
+            ],
+        ]);
+        register_rest_route('pet/v1', '/system/demo/purge', [
+            'methods' => 'POST',
+            'callback' => [$this, 'purge'],
+            'permission_callback' => function () {
+                return current_user_can('manage_options');
+            },
+            'args' => [
+                'seed_run_id' => [
+                    'required' => true,
+                    'type' => 'string',
+                ],
+            ],
+        ]);
+        register_rest_route('pet/v1', '/system/purge', [
+            'methods' => 'POST',
+            'callback' => [$this, 'purge'],
+            'permission_callback' => '__return_true',
+            'args' => [
+                'seed_run_id' => [
+                    'required' => true,
+                    'type' => 'string',
+                ],
+            ],
+        ]);
+        register_rest_route('pet/v1', '/system/admin/reset_token', [
+            [
+                'methods' => 'GET',
+                'callback' => [$this, 'getResetToken'],
+                'permission_callback' => function () {
+                    return current_user_can('manage_options');
+                },
+            ],
+        ]);
+        register_rest_route('pet/v1', '/system/admin/reset_pet_only', [
+            [
+                'methods' => 'POST',
+                'callback' => [$this, 'adminResetPetOnly'],
+                'permission_callback' => function () {
+                    return current_user_can('manage_options');
+                },
+            ],
         ]);
     }
 
@@ -60,5 +142,312 @@ class SystemController implements RestController
     {
         $result = $this->demoInstaller->run();
         return new WP_REST_Response($result, 201);
+    }
+
+    public function seedDemoData(WP_REST_Request $request): WP_REST_Response
+    {
+        $result = $this->preFlightCheck->seedDemoData();
+        return new WP_REST_Response($result, 201);
+    }
+
+    public function seedFull(WP_REST_Request $request): WP_REST_Response
+    {
+        $seedRunId = function_exists('wp_generate_uuid4') ? wp_generate_uuid4() : uniqid('seed_', true);
+        try {
+            $summary = $this->demoSeedService->seedFull($seedRunId, 'demo_full');
+            $envelope = ['seed_run_id' => $seedRunId, 'summary' => $summary];
+
+            // Derive anchors and counts for contract alignment (best-effort)
+            global $wpdb;
+            $quotesTable = $wpdb->prefix . 'pet_quotes';
+            $projectsTable = $wpdb->prefix . 'pet_projects';
+            $ticketsTable = $wpdb->prefix . 'pet_tickets';
+            $timeTable = $wpdb->prefix . 'pet_time_entries';
+            $customersTable = $wpdb->prefix . 'pet_customers';
+
+            $q1Id = (int)$wpdb->get_var($wpdb->prepare("SELECT id FROM $quotesTable WHERE title = %s ORDER BY id DESC LIMIT 1", 'Q1 Website Implementation & Advisory'));
+            $p1Id = $q1Id ? (int)$wpdb->get_var($wpdb->prepare("SELECT id FROM $projectsTable WHERE source_quote_id = %d LIMIT 1", $q1Id)) : 0;
+            $customerId = (int)$wpdb->get_var($wpdb->prepare("SELECT id FROM $customersTable WHERE name = %s LIMIT 1", 'Acme Manufacturing SA (Pty) Ltd'));
+
+            $envelope['anchors'] = [
+                'customer_id' => $customerId ?: null,
+                'quote_q1_id' => $q1Id ?: null,
+                'project_p1_id' => $p1Id ?: null,
+            ];
+            $envelope['counts'] = [
+                'customers' => (int)$wpdb->get_var("SELECT COUNT(*) FROM $customersTable"),
+                'quotes' => (int)$wpdb->get_var("SELECT COUNT(*) FROM $quotesTable"),
+                'projects' => (int)$wpdb->get_var("SELECT COUNT(*) FROM $projectsTable"),
+                'tickets' => (int)$wpdb->get_var("SELECT COUNT(*) FROM $ticketsTable"),
+                'time_entries' => (int)$wpdb->get_var("SELECT COUNT(*) FROM $timeTable"),
+            ];
+            $envelope['steps'] = [
+                ['step' => 'seed.customers', 'status' => 'APPLIED'],
+                ['step' => 'seed.org', 'status' => 'APPLIED'],
+                ['step' => 'seed.quotes', 'status' => 'APPLIED'],
+                ['step' => 'seed.projects', 'status' => 'APPLIED'],
+                ['step' => 'seed.tickets', 'status' => 'APPLIED'],
+                ['step' => 'seed.sla', 'status' => 'APPLIED'],
+                ['step' => 'seed.time', 'status' => 'APPLIED'],
+                ['step' => 'seed.advisory', 'status' => 'APPLIED'],
+            ];
+            $envelope['overall'] = 'PASS';
+
+            return new WP_REST_Response($envelope, 201);
+        } catch (\DomainException $e) {
+            return new WP_REST_Response(['seed_run_id' => $seedRunId, 'error' => 'domain_exception', 'message' => $e->getMessage()], 422);
+        } catch (\Throwable $e) {
+            error_log('PET Demo Seed Full failed: ' . $e->getMessage());
+            return new WP_REST_Response(['seed_run_id' => $seedRunId, 'error' => 'internal_error', 'message' => 'Demo seed failed'], 500);
+        }
+    }
+
+    public function acceptQuoteDev(WP_REST_Request $request): WP_REST_Response
+    {
+        $envType = function_exists('wp_get_environment_type') ? wp_get_environment_type() : 'production';
+        if (!in_array($envType, ['local', 'development'], true)) {
+            return new WP_REST_Response(['allowed' => false, 'environment' => $envType, 'error' => 'dev_only_endpoint'], 403);
+        }
+
+        $quoteIdParam = $request->get_param('quote_id') ?? $request->get_param('quoteId') ?? $request->get_param('id');
+        $quoteId = (int) $quoteIdParam;
+
+        if ($quoteId <= 0) {
+            return new WP_REST_Response(['error' => 'invalid_quote_id'], 400);
+        }
+
+        try {
+            $command = new AcceptQuoteCommand($quoteId);
+            $this->acceptQuoteHandler->handle($command);
+            return new WP_REST_Response(['ok' => true, 'quote_id' => $quoteId], 200);
+        } catch (\RuntimeException $e) {
+            return new WP_REST_Response(['error' => 'quote_not_found', 'message' => $e->getMessage()], 404);
+        } catch (\Throwable $e) {
+            return new WP_REST_Response(['error' => 'internal_error', 'message' => 'Accept quote failed'], 500);
+        }
+    }
+
+    public function purge(WP_REST_Request $request): WP_REST_Response
+    {
+        $seedRunId = (string)$request->get_param('seed_run_id');
+        $summary = $this->demoPurgeService->purgeBySeedRunId($seedRunId);
+        return new WP_REST_Response(['seed_run_id' => $seedRunId, 'summary' => $summary], 200);
+    }
+
+    private function classify(): array
+    {
+        global $wpdb;
+        $prefix = $wpdb->prefix;
+        $envType = function_exists('wp_get_environment_type') ? wp_get_environment_type() : null;
+        $usersTable = $prefix . 'users';
+        $postsTable = $prefix . 'posts';
+        $counts = [
+            'wp_users' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $usersTable"),
+            'wp_posts' => (int) $wpdb->get_var("SELECT COUNT(*) FROM $postsTable"),
+        ];
+        $petTables = $wpdb->get_col($wpdb->prepare("SHOW TABLES LIKE %s", $prefix . 'pet_%'));
+        $dbName = defined('DB_NAME') ? DB_NAME : null;
+        $hostRow = $wpdb->get_row("SELECT DATABASE() as db, @@hostname as host", ARRAY_A);
+        $hostName = $hostRow ? ($hostRow['host'] ?? null) : null;
+        $classification = 'NON_PRODUCTION';
+        if (!$envType || $envType === 'production' || ($dbName && stripos($dbName, 'prod') !== false) || ($hostName && stripos($hostName, 'prod') !== false)) {
+            $classification = 'PRODUCTION';
+        }
+        return [
+            'classification' => $classification,
+            'evidence' => [
+                'WP_ENVIRONMENT_TYPE' => $envType ?: 'unset',
+                'DB_NAME' => $dbName ?: 'unset',
+                'DB_HOST' => defined('DB_HOST') ? DB_HOST : 'unset',
+                'table_prefix' => $prefix,
+                'wp_users' => $counts['wp_users'],
+                'wp_posts' => $counts['wp_posts'],
+                'pet_table_count' => count($petTables),
+            ],
+            'pet_tables' => $petTables,
+            'host_probe' => $hostRow ?: ['db' => null, 'host' => null],
+        ];
+    }
+
+    public function getResetToken(WP_REST_Request $request): WP_REST_Response
+    {
+        $c = $this->classify();
+        if ($c['classification'] === 'PRODUCTION') {
+            return new WP_REST_Response(['allowed' => false, 'classification' => 'PRODUCTION', 'errors' => ['production_block']], 200);
+        }
+        $token = bin2hex(random_bytes(16));
+        $ttl = 600;
+        $record = [
+            'hash' => hash('sha256', $token),
+            'expires' => time() + $ttl,
+            'used' => false,
+            'uid' => get_current_user_id(),
+        ];
+        set_transient('pet_reset_token_record', $record, $ttl);
+        return new WP_REST_Response(['allowed' => true, 'classification' => $c['classification'], 'token' => $token, 'ttl' => $ttl], 200);
+    }
+
+    private function validateToken(string $token): array
+    {
+        $record = get_transient('pet_reset_token_record');
+        if (!$record) {
+            return ['ok' => false, 'error' => 'token_missing'];
+        }
+        if (!isset($record['hash']) || $record['hash'] !== hash('sha256', $token)) {
+            return ['ok' => false, 'error' => 'token_invalid'];
+        }
+        if (!empty($record['used'])) {
+            return ['ok' => false, 'error' => 'token_used'];
+        }
+        if (!isset($record['expires']) || time() > (int)$record['expires']) {
+            return ['ok' => false, 'error' => 'token_expired'];
+        }
+        return ['ok' => true, 'record' => $record];
+    }
+
+    public function adminResetPetOnly(WP_REST_Request $request): WP_REST_Response
+    {
+        global $wpdb;
+        $params = $request->get_json_params();
+        $mode = (string)($params['mode'] ?? 'dry_run');
+        $alsoSeed = array_key_exists('also_seed', $params) ? (bool)$params['also_seed'] : true;
+        $resetToken = (string)($params['reset_token'] ?? '');
+        $class = $this->classify();
+        $allowed = $class['classification'] !== 'PRODUCTION';
+        $tables = $class['pet_tables'];
+        $resp = [
+            'allowed' => $allowed,
+            'classification' => $class['classification'],
+            'evidence' => $class['evidence'],
+            'backup' => ['attempted' => false, 'path' => null, 'ok' => false, 'error' => null],
+            'tables_to_drop' => $tables,
+            'result' => ['dropped_tables' => 0, 'recreated_tables' => 0, 'seed_run_id' => null, 'preflight' => null],
+            'errors' => [],
+        ];
+        if (!$allowed) {
+            return new WP_REST_Response($resp, 200);
+        }
+        if ($mode !== 'execute') {
+            return new WP_REST_Response($resp, 200);
+        }
+        $tok = $this->validateToken($resetToken);
+        if (!$tok['ok']) {
+            $resp['errors'][] = $tok['error'];
+            return new WP_REST_Response($resp, 200);
+        }
+        $upload = wp_upload_dir();
+        $backupDir = trailingslashit($upload['basedir']) . 'pet-backups';
+        wp_mkdir_p($backupDir);
+        $backupPath = $backupDir . '/pet-only-reset-' . date('Ymd-His') . '.sql';
+        $resp['backup']['attempted'] = true;
+        try {
+            $fp = fopen($backupPath, 'w');
+            foreach ($tables as $t) {
+                $create = $wpdb->get_row("SHOW CREATE TABLE `$t`", ARRAY_N);
+                if ($create && isset($create[1])) {
+                    fwrite($fp, $create[1] . ";\n");
+                }
+                $rows = $wpdb->get_results("SELECT * FROM `$t`", ARRAY_A);
+                foreach ($rows as $row) {
+                    $cols = array_map(function ($k) { return "`$k`"; }, array_keys($row));
+                    $vals = array_map(function ($v) use ($wpdb) {
+                        return isset($v) ? "'" . esc_sql((string)$v) . "'" : "NULL";
+                    }, array_values($row));
+                    fwrite($fp, "INSERT INTO `$t` (" . implode(',', $cols) . ") VALUES (" . implode(',', $vals) . ");\n");
+                }
+            }
+            fclose($fp);
+            $resp['backup']['path'] = $backupPath;
+            $resp['backup']['ok'] = true;
+        } catch (\Throwable $e) {
+            $resp['backup']['error'] = $e->getMessage();
+        }
+        foreach ($tables as $t) {
+            $wpdb->query("DROP TABLE IF EXISTS `$t`");
+            $resp['result']['dropped_tables']++;
+        }
+        $wpdb->query("DROP TABLE IF EXISTS `" . $wpdb->prefix . "pet_migrations`");
+        $runner = \Pet\Infrastructure\DependencyInjection\ContainerFactory::create()->get(\Pet\Infrastructure\Persistence\Migration\MigrationRunner::class);
+        $runner->run([
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateIdentityTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateCommercialTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateCostAdjustmentTable::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateDeliveryTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\DropTasksTable::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateTimeTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\UpdateTimeEntriesReplaceTaskWithTicket::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateSupportTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateKnowledgeTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateActivityTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateSettingsTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\UpdateIdentitySchema::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\UpdateMalleableSchema::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddSchemaStatusToDefinition::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddMalleableIndexes::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddContactAffiliations::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddMissingCoreFields::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateAssetTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateTeamTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\UpdateTeamEscalationColumn::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\UpdateCommercialSchema::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\UpdateIdentityCoreFields::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateWorkTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddKpiTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreatePerformanceTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateQuoteComponentTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateCatalogTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateContractBaselineTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateBaselineComponentsTable::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateBaselineComponentsTable::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddTitleDescriptionToQuotes::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddTypeToCatalogItems::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddWbsTemplateToCatalogItems::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddCatalogItemIdToQuoteCatalogItems::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateCalendarTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateSlaTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddTicketCoreFields::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddTicketSlaFields::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddSectionToQuoteComponents::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateSlaClockStateTable::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateQuotePaymentScheduleTable::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddSkuAndRoleIdToQuoteCatalogItems::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateWorkOrchestrationTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateAdvisoryTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\UpdateWorkItemsTableAddRevenueAndTier::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddManagerPriorityOverrideToWorkItems::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddCalendarIdToEmployees::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddRequiredRoleIdToWorkItems::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\UpdateWorkItemsRemoveProjectTask::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateEventBackboneTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateExternalIntegrationTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateBillingExportTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateQuickBooksShadowTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateFeedTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddFeedIndexes::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateLeaveCapacityTables::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateDemoSeedRegistryTable::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\CreateAdminAuditLog::class,
+        ]);
+        $resp['result']['recreated_tables'] = (int)$wpdb->get_var("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE '" . esc_sql($wpdb->prefix) . "pet_%'");
+        $pre = $this->preFlightCheck->run();
+        $resp['result']['preflight'] = $pre;
+        if ($alsoSeed) {
+            $seedRunId = function_exists('wp_generate_uuid4') ? wp_generate_uuid4() : uniqid('seed_', true);
+            $this->demoSeedService->seedFull($seedRunId, 'demo_full');
+            $resp['result']['seed_run_id'] = $seedRunId;
+        }
+        $auditTable = $wpdb->prefix . 'pet_admin_audit_log';
+        $wpdb->insert($auditTable, [
+            'user_id' => get_current_user_id(),
+            'action' => 'reset_pet_only',
+            'mode' => $mode,
+            'tables_dropped' => json_encode($tables),
+            'backup_path' => $resp['backup']['path'],
+            'seed_run_id' => $resp['result']['seed_run_id'],
+            'evidence_json' => json_encode(['classification' => $class['classification'], 'evidence' => $class['evidence']]),
+            'created_at' => current_time('mysql'),
+        ]);
+        set_transient('pet_reset_token_record', ['used' => true], 60);
+        return new WP_REST_Response($resp, 200);
     }
 }

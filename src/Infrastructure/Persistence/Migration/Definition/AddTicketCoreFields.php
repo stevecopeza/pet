@@ -24,9 +24,21 @@ class AddTicketCoreFields implements Migration
         $this->addColumnIfNotExists($table, 'sla_id', 'mediumint(9) DEFAULT NULL');
         $this->addColumnIfNotExists($table, 'opened_at', 'datetime DEFAULT NULL');
         $this->addColumnIfNotExists($table, 'closed_at', 'datetime DEFAULT NULL');
+        $this->addColumnIfNotExists($table, 'queue_id', 'char(36) DEFAULT NULL');
+        $this->addColumnIfNotExists($table, 'owner_user_id', 'char(36) DEFAULT NULL');
+        $this->addColumnIfNotExists($table, 'category', 'varchar(100) DEFAULT NULL');
+        $this->addColumnIfNotExists($table, 'subcategory', 'varchar(100) DEFAULT NULL');
+        $this->addColumnIfNotExists($table, 'intake_source', 'varchar(50) DEFAULT NULL');
+        $this->addColumnIfNotExists($table, 'contact_id', 'mediumint(9) DEFAULT NULL');
 
         // Add indexes
         $this->addIndexIfNotExists($table, 'site_id', 'site_id');
+        $this->addIndexIfNotExists($table, 'queue_id', 'queue_id');
+        $this->addIndexIfNotExists($table, 'owner_user_id', 'owner_user_id');
+        $this->addIndexIfNotExists($table, 'category', 'category');
+        $this->addIndexIfNotExists($table, 'subcategory', 'subcategory');
+        $this->addIndexIfNotExists($table, 'intake_source', 'intake_source');
+        $this->addIndexIfNotExists($table, 'contact_id', 'contact_id');
     }
 
     private function addColumnIfNotExists(string $table, string $column, string $definition): void
@@ -47,6 +59,6 @@ class AddTicketCoreFields implements Migration
 
     public function getDescription(): string
     {
-        return 'Add core fields (site_id, sla_id, opened_at, closed_at) to tickets table.';
+        return 'Add core fields (site_id, sla_id, opened_at, closed_at, queue/owner and categorisation) to tickets table.';
     }
 }

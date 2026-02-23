@@ -11,27 +11,35 @@ class SqlTimeEntryRepository implements TimeEntryRepository
 {
     private \wpdb $db;
     private string $table;
+    private bool $hasMalleableColumn = false;
+    private bool $hasArchivedColumn = false;
 
     public function __construct(\wpdb $db)
     {
         $this->db = $db;
         $this->table = $db->prefix . 'pet_time_entries';
+        $this->hasMalleableColumn = ($this->db->get_var("SHOW COLUMNS FROM {$this->table} LIKE 'malleable_data'") !== null);
+        $this->hasArchivedColumn = ($this->db->get_var("SHOW COLUMNS FROM {$this->table} LIKE 'archived_at'") !== null);
     }
 
     public function save(TimeEntry $timeEntry): void
     {
         $data = [
             'employee_id' => $timeEntry->employeeId(),
-            'task_id' => $timeEntry->taskId(),
+            'ticket_id' => $timeEntry->ticketId(),
             'start_time' => $timeEntry->start()->format('Y-m-d H:i:s'),
             'end_time' => $timeEntry->end()->format('Y-m-d H:i:s'),
             'duration_minutes' => $timeEntry->durationMinutes(),
             'is_billable' => $timeEntry->isBillable() ? 1 : 0,
             'description' => $timeEntry->description(),
             'status' => $timeEntry->status(),
-            'malleable_data' => json_encode($timeEntry->malleableData()),
-            'archived_at' => $timeEntry->archivedAt() ? $timeEntry->archivedAt()->format('Y-m-d H:i:s') : null,
         ];
+        if ($this->hasMalleableColumn) {
+            $data['malleable_data'] = json_encode($timeEntry->malleableData());
+        }
+        if ($this->hasArchivedColumn) {
+            $data['archived_at'] = $timeEntry->archivedAt() ? $timeEntry->archivedAt()->format('Y-m-d H:i:s') : null;
+        }
 
         if ($timeEntry->id()) {
             $this->db->update(
@@ -41,7 +49,7 @@ class SqlTimeEntryRepository implements TimeEntryRepository
             );
         } else {
             $this->db->insert($this->table, $data);
-            
+
             // In a real implementation we would set the ID back on the entity via reflection or a setter
             // $timeEntry->setId($this->db->insert_id);
         }
@@ -92,11 +100,11 @@ class SqlTimeEntryRepository implements TimeEntryRepository
         return array_map([$this, 'hydrate'], $results);
     }
 
-    public function findByTaskId(int $taskId): array
+    public function findByTicketId(int $ticketId): array
     {
         $query = $this->db->prepare(
-            "SELECT * FROM {$this->table} WHERE task_id = %d ORDER BY start_time DESC",
-            $taskId
+            "SELECT * FROM {$this->table} WHERE ticket_id = %d ORDER BY start_time DESC",
+            $ticketId
         );
         
         $results = $this->db->get_results($query);
@@ -115,14 +123,14 @@ class SqlTimeEntryRepository implements TimeEntryRepository
     {
         return new TimeEntry(
             (int) $row->employee_id,
-            (int) $row->task_id,
+            (int) $row->ticket_id,
             new \DateTimeImmutable($row->start_time),
             new \DateTimeImmutable($row->end_time),
             (bool) $row->is_billable,
             $row->description,
             $row->status,
             (int) $row->id,
-            json_decode($row->malleable_data ?? '[]', true),
+            json_decode(isset($row->malleable_data) ? $row->malleable_data : '[]', true),
             isset($row->created_at) ? new \DateTimeImmutable($row->created_at) : null,
             isset($row->archived_at) ? new \DateTimeImmutable($row->archived_at) : null
         );

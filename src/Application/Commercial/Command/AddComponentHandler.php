@@ -12,6 +12,8 @@ use Pet\Domain\Commercial\Entity\Component\ImplementationComponent;
 use Pet\Domain\Commercial\Entity\Component\QuoteMilestone;
 use Pet\Domain\Commercial\Entity\Component\QuoteTask;
 use Pet\Domain\Commercial\Entity\Component\RecurringServiceComponent;
+use Pet\Domain\Commercial\Entity\Component\OnceOffServiceComponent;
+use Pet\Domain\Commercial\Entity\Component\SimpleUnit;
 
 class AddComponentHandler
 {
@@ -56,14 +58,26 @@ class AddComponentHandler
                     $wbsSnapshot = $itemData['wbs_snapshot'];
                 }
 
+                $type = $itemData['type'] ?? 'service';
+                $sku = $itemData['sku'] ?? null;
+                if ($catalogItemId && !$sku) {
+                    $catalogItem = $this->catalogItemRepository->findById($catalogItemId);
+                    if ($catalogItem) {
+                        $sku = $catalogItem->sku();
+                        $type = $catalogItem->type();
+                    }
+                }
                 $items[] = new QuoteCatalogItem(
                     $itemData['description'],
                     (float) $itemData['quantity'],
                     (float) $itemData['unit_sell_price'],
                     (float) ($itemData['unit_internal_cost'] ?? 0.0),
-                    null, // id
+                    null,
                     $catalogItemId,
-                    $wbsSnapshot
+                    $wbsSnapshot,
+                    $type,
+                    $sku,
+                    $itemData['role_id'] ?? null
                 );
             }
             $component = new CatalogComponent($items, $description, null, $section);
@@ -98,6 +112,65 @@ class AddComponentHandler
                 null,
                 $section
             );
+
+        } elseif ($type === 'once_off_service') {
+            $topology = $data['topology'] ?? OnceOffServiceComponent::TOPOLOGY_SIMPLE;
+
+            if ($topology === OnceOffServiceComponent::TOPOLOGY_SIMPLE) {
+                $units = [];
+                foreach ($data['units'] ?? [] as $unitData) {
+                    $units[] = new SimpleUnit(
+                        $unitData['title'],
+                        (float) $unitData['quantity'],
+                        (float) $unitData['unit_sell_price'],
+                        (float) ($unitData['unit_internal_cost'] ?? 0.0),
+                        $unitData['description'] ?? null
+                    );
+                }
+                if (empty($units)) {
+                    throw new \InvalidArgumentException('Once-off service component requires at least one unit.');
+                }
+
+                $component = new OnceOffServiceComponent(
+                    $topology,
+                    [],
+                    $units,
+                    $description,
+                    null,
+                    $section
+                );
+            } else {
+                $phases = [];
+                foreach ($data['phases'] ?? [] as $phaseData) {
+                    $phaseUnits = [];
+                    foreach ($phaseData['units'] ?? [] as $unitData) {
+                        $phaseUnits[] = new SimpleUnit(
+                            $unitData['title'],
+                            (float) $unitData['quantity'],
+                            (float) $unitData['unit_sell_price'],
+                            (float) ($unitData['unit_internal_cost'] ?? 0.0),
+                            $unitData['description'] ?? null
+                        );
+                    }
+                    $phases[] = new \Pet\Domain\Commercial\Entity\Component\Phase(
+                        $phaseData['name'],
+                        $phaseUnits,
+                        $phaseData['description'] ?? null
+                    );
+                }
+                if (empty($phases)) {
+                    throw new \InvalidArgumentException('Complex once-off service component requires at least one phase.');
+                }
+
+                $component = new OnceOffServiceComponent(
+                    $topology,
+                    $phases,
+                    [],
+                    $description,
+                    null,
+                    $section
+                );
+            }
 
         } else {
             throw new \InvalidArgumentException("Invalid component type: {$type}");

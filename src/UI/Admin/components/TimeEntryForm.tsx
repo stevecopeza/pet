@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Employee, Project, TimeEntry } from '../types';
+import { Employee, Ticket, TimeEntry } from '../types';
 
 interface TimeEntryFormProps {
   initialData?: TimeEntry;
@@ -10,8 +10,7 @@ interface TimeEntryFormProps {
 const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ initialData, onSuccess, onCancel }) => {
   const isEditMode = !!initialData;
   const [employeeId, setEmployeeId] = useState(initialData?.employeeId?.toString() || '');
-  const [projectId, setProjectId] = useState('');
-  const [taskId, setTaskId] = useState(initialData?.taskId?.toString() || '');
+  const [ticketId, setTicketId] = useState(initialData?.ticketId?.toString() || '');
   // Format dates for datetime-local input (YYYY-MM-DDThh:mm)
   const [start, setStart] = useState(initialData?.start ? new Date(initialData.start).toISOString().slice(0, 16) : '');
   const [end, setEnd] = useState(initialData?.end ? new Date(initialData.end).toISOString().slice(0, 16) : '');
@@ -20,7 +19,7 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ initialData, onSuccess, o
   const [malleableData, setMalleableData] = useState<Record<string, any>>(initialData?.malleableData || {});
 
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(false);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,33 +49,27 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ initialData, onSuccess, o
     const fetchData = async () => {
       try {
         // @ts-ignore
-        const [empRes, projRes] = await Promise.all([
+        const [empRes, ticketRes] = await Promise.all([
           fetch(`${window.petSettings.apiUrl}/employees`, { headers: { 'X-WP-Nonce': window.petSettings.nonce } }),
-          fetch(`${window.petSettings.apiUrl}/projects`, { headers: { 'X-WP-Nonce': window.petSettings.nonce } })
+          fetch(`${window.petSettings.apiUrl}/tickets`, { headers: { 'X-WP-Nonce': window.petSettings.nonce } })
         ]);
 
-        if (!empRes.ok || !projRes.ok) {
+        if (!empRes.ok || !ticketRes.ok) {
           throw new Error('Failed to fetch required data');
         }
 
         const empData = await empRes.json();
-        const projData = await projRes.json();
+        const ticketData = await ticketRes.json();
 
         setEmployees(empData);
-        setProjects(projData);
+        setTickets(ticketData);
 
         if (!isEditMode && empData.length > 0) {
           setEmployeeId(empData[0].id.toString());
         }
 
-        // If in edit mode, try to find the project based on the task ID
-        if (isEditMode && initialData?.taskId) {
-          for (const project of projData) {
-            if (project.tasks && project.tasks.find((t: any) => t.id === initialData.taskId)) {
-              setProjectId(project.id.toString());
-              break;
-            }
-          }
+        if (isEditMode && initialData?.ticketId) {
+          setTicketId(initialData.ticketId.toString());
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data');
@@ -90,7 +83,7 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ initialData, onSuccess, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!employeeId || !taskId || !start || !end) {
+    if (!employeeId || !ticketId || !start || !end) {
       setError('Please fill in all required fields');
       return;
     }
@@ -116,7 +109,7 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ initialData, onSuccess, o
         },
         body: JSON.stringify({ 
           employeeId: parseInt(employeeId, 10),
-          taskId: parseInt(taskId, 10),
+          ticketId: parseInt(ticketId, 10),
           start,
           end,
           isBillable,
@@ -137,8 +130,6 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ initialData, onSuccess, o
       setLoading(false);
     }
   };
-
-  const selectedProject = projects.find(p => p.id.toString() === projectId);
 
   return (
     <div className="pet-form-container" style={{ padding: '20px', background: '#f9f9f9', border: '1px solid #ddd', marginBottom: '20px' }}>
@@ -165,37 +156,20 @@ const TimeEntryForm: React.FC<TimeEntryFormProps> = ({ initialData, onSuccess, o
         </div>
 
         <div style={{ marginBottom: '10px' }}>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Project:</label>
+          <label style={{ display: 'block', marginBottom: '5px' }}>Ticket:</label>
           <select 
-            value={projectId} 
-            onChange={(e) => {
-              setProjectId(e.target.value);
-              setTaskId(''); // Reset task when project changes
-            }}
-            style={{ width: '100%', maxWidth: '400px' }}
-          >
-            <option value="">Select a project</option>
-            {projects.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div style={{ marginBottom: '10px' }}>
-          <label style={{ display: 'block', marginBottom: '5px' }}>Task:</label>
-          <select 
-            value={taskId} 
-            onChange={(e) => setTaskId(e.target.value)}
+            value={ticketId} 
+            onChange={(e) => setTicketId(e.target.value)}
             required
-            disabled={!projectId}
             style={{ width: '100%', maxWidth: '400px' }}
           >
-            <option value="">Select a task</option>
-            {selectedProject?.tasks.map(t => (
-              <option key={t.id} value={t.id}>{t.name}</option>
+            <option value="">Select a ticket</option>
+            {tickets.map(t => (
+              <option key={t.id} value={t.id}>
+                {t.id} - {t.subject}
+              </option>
             ))}
           </select>
-          {!projectId && <small style={{ display: 'block', color: '#666' }}>Select a project first</small>}
         </div>
 
         <div style={{ marginBottom: '10px' }}>

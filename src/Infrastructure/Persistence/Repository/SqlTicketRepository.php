@@ -10,6 +10,7 @@ use Pet\Domain\Support\Repository\TicketRepository;
 class SqlTicketRepository implements TicketRepository
 {
     private $wpdb;
+    private ?array $columns = null;
 
     public function __construct($wpdb)
     {
@@ -19,7 +20,8 @@ class SqlTicketRepository implements TicketRepository
     public function save(Ticket $ticket): void
     {
         $table = $this->wpdb->prefix . 'pet_tickets';
-        
+        $this->ensureColumnsCached($table);
+
         $data = [
             'customer_id' => $ticket->customerId(),
             'site_id' => $ticket->siteId(),
@@ -41,16 +43,45 @@ class SqlTicketRepository implements TicketRepository
         ];
 
         $formats = [
-            '%d', '%d', '%d', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s', '%s', '%s',
-            '%d', '%s', '%s', '%s'
+            '%d',
+            '%d',
+            '%d',
+            '%s',
+            '%s',
+            '%s',
+            '%s',
+            '%d',
+            '%s',
+            '%s',
+            '%s',
+            '%s',
+            '%d',
+            '%s',
+            '%s',
+            '%s',
         ];
+
+        $this->conditionallyAddColumn($data, $formats, 'queue_id', $ticket->queueId(), '%s');
+        $this->conditionallyAddColumn($data, $formats, 'owner_user_id', $ticket->ownerUserId(), '%s');
+        $this->conditionallyAddColumn($data, $formats, 'category', $ticket->category(), '%s');
+        $this->conditionallyAddColumn($data, $formats, 'subcategory', $ticket->subcategory(), '%s');
+        $this->conditionallyAddColumn($data, $formats, 'intake_source', $ticket->intakeSource(), '%s');
+        $this->conditionallyAddColumn($data, $formats, 'contact_id', $ticket->contactId(), '%d');
 
         if ($ticket->id()) {
             $this->wpdb->update($table, $data, ['id' => $ticket->id()], $formats, ['%d']);
         } else {
             $this->wpdb->insert($table, $data, $formats);
-            // $ticket->id = $this->wpdb->insert_id; // Ticket is immutable/readonly on ID usually, but for consistency we might want to reload or return ID.
-            // Since Ticket doesn't expose setId, we rely on repository users to reload or we just persist.
+            $insertId = (int) $this->wpdb->insert_id;
+
+            if ($insertId > 0) {
+                $ref = new \ReflectionObject($ticket);
+                if ($ref->hasProperty('id')) {
+                    $prop = $ref->getProperty('id');
+                    $prop->setAccessible(true);
+                    $prop->setValue($ticket, $insertId);
+                }
+            }
         }
     }
 
@@ -122,7 +153,45 @@ class SqlTicketRepository implements TicketRepository
             isset($row->sla_snapshot_id) ? (int) $row->sla_snapshot_id : null,
             isset($row->response_due_at) && $row->response_due_at ? new \DateTimeImmutable($row->response_due_at) : null,
             isset($row->resolution_due_at) && $row->resolution_due_at ? new \DateTimeImmutable($row->resolution_due_at) : null,
-            isset($row->responded_at) && $row->responded_at ? new \DateTimeImmutable($row->responded_at) : null
+            isset($row->responded_at) && $row->responded_at ? new \DateTimeImmutable($row->responded_at) : null,
+            isset($row->queue_id) ? (string) $row->queue_id : null,
+            isset($row->owner_user_id) ? (string) $row->owner_user_id : null,
+            isset($row->category) ? (string) $row->category : null,
+            isset($row->subcategory) ? (string) $row->subcategory : null,
+            isset($row->intake_source) ? (string) $row->intake_source : null,
+            isset($row->contact_id) ? (int) $row->contact_id : null
         );
+    }
+
+    private function ensureColumnsCached(string $table): void
+    {
+        if ($this->columns !== null) {
+            return;
+        }
+
+        $this->columns = [];
+        $results = $this->wpdb->get_results("SHOW COLUMNS FROM $table");
+        if (!is_array($results)) {
+            return;
+        }
+
+        foreach ($results as $column) {
+            if (isset($column->Field)) {
+                $this->columns[$column->Field] = true;
+            }
+        }
+    }
+
+    private function hasColumn(string $column): bool
+    {
+        return $this->columns !== null && isset($this->columns[$column]);
+    }
+
+    private function conditionallyAddColumn(array &$data, array &$formats, string $column, $value, string $format): void
+    {
+        if ($this->hasColumn($column)) {
+            $data[$column] = $value;
+            $formats[] = $format;
+        }
     }
 }

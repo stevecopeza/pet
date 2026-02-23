@@ -23,6 +23,11 @@ const Roles = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
 
+  const openRole = (role: Role) => {
+    setEditingRole(role);
+    setShowAddForm(true);
+  };
+
   const fetchRoles = async () => {
     try {
       setLoading(true);
@@ -84,7 +89,28 @@ const Roles = () => {
   };
 
   const columns: Column<Role>[] = [
-    { key: 'name', header: 'Name' },
+    { 
+      key: 'name', 
+      header: 'Name',
+      render: (val, role) => (
+        <button
+          type="button"
+          onClick={() => openRole(role)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: '#2271b1',
+            cursor: 'pointer',
+            padding: 0,
+            textAlign: 'left',
+            fontWeight: 'bold',
+            fontSize: 'inherit',
+          }}
+        >
+          {String(val)}
+        </button>
+      )
+    },
     { key: 'level', header: 'Level' },
     { 
       key: 'status', 
@@ -110,10 +136,7 @@ const Roles = () => {
           {role.status === 'draft' && (
             <>
               <button 
-                onClick={() => {
-                  setEditingRole(role);
-                  setShowAddForm(true);
-                }}
+                onClick={() => openRole(role)}
                 className="button button-small"
               >
                 Edit
@@ -127,7 +150,14 @@ const Roles = () => {
               </button>
             </>
           )}
-          {/* Add Edit button later if needed, mostly for viewing details */}
+          {role.status === 'published' && (
+            <button
+              onClick={() => openRole(role)}
+              className="button button-small"
+            >
+              View
+            </button>
+          )}
         </div>
       ) 
     }
@@ -147,7 +177,10 @@ const Roles = () => {
         <RoleForm 
           role={editingRole} 
           onSuccess={handleFormSuccess} 
-          onCancel={() => setShowAddForm(false)} 
+          onCancel={() => {
+            setShowAddForm(false);
+            setEditingRole(null);
+          }} 
         />
       </div>
     );

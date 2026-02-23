@@ -15,7 +15,7 @@ class SqlSlaRepository implements SlaRepository
     private $wpdb;
     private CalendarRepository $calendarRepository;
 
-    public function __construct($wpdb, CalendarRepository $calendarRepository)
+    public function __construct(\wpdb $wpdb, CalendarRepository $calendarRepository)
     {
         $this->wpdb = $wpdb;
         $this->calendarRepository = $calendarRepository;
@@ -43,6 +43,16 @@ class SqlSlaRepository implements SlaRepository
         } else {
             $this->wpdb->insert($table, $data);
             $slaId = $this->wpdb->insert_id;
+            
+            // Set generated ID back on the entity
+            if ($slaId) {
+                $ref = new \ReflectionObject($sla);
+                if ($ref->hasProperty('id')) {
+                    $prop = $ref->getProperty('id');
+                    $prop->setAccessible(true);
+                    $prop->setValue($sla, (int)$slaId);
+                }
+            }
         }
 
         // Save Rules
@@ -110,7 +120,7 @@ class SqlSlaRepository implements SlaRepository
             'sla_name_at_binding' => $snapshot->slaNameAtBinding(),
             'response_target_minutes' => $snapshot->responseTargetMinutes(),
             'resolution_target_minutes' => $snapshot->resolutionTargetMinutes(),
-            'calendar_snapshot' => json_encode($snapshot->calendarSnapshot()),
+            'calendar_snapshot_json' => json_encode($snapshot->calendarSnapshot()),
             'bound_at' => $snapshot->boundAt()->format('Y-m-d H:i:s'),
         ];
 
@@ -139,7 +149,7 @@ class SqlSlaRepository implements SlaRepository
             $row->sla_name_at_binding,
             (int)$row->response_target_minutes,
             (int)$row->resolution_target_minutes,
-            json_decode($row->calendar_snapshot, true),
+            json_decode($row->calendar_snapshot_json ?? '[]', true),
             $row->uuid,
             (int)$row->id,
             new \DateTimeImmutable($row->bound_at)

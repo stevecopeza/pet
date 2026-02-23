@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Employee, Project, Task } from '../types';
+import { Employee, Ticket } from '../types';
 
 interface LogTimeModalProps {
-  project: Project;
-  task: Task;
+  ticket: Ticket;
   onSuccess: () => void;
   onClose: () => void;
 }
 
-const LogTimeModal: React.FC<LogTimeModalProps> = ({ project, task, onSuccess, onClose }) => {
+const LogTimeModal: React.FC<LogTimeModalProps> = ({ ticket, onSuccess, onClose }) => {
   const [employeeId, setEmployeeId] = useState('');
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
@@ -63,7 +62,7 @@ const LogTimeModal: React.FC<LogTimeModalProps> = ({ project, task, onSuccess, o
         },
         body: JSON.stringify({ 
           employeeId: parseInt(employeeId, 10),
-          taskId: task.id,
+          ticketId: ticket.id,
           start,
           end,
           isBillable,
@@ -103,10 +102,7 @@ const LogTimeModal: React.FC<LogTimeModalProps> = ({ project, task, onSuccess, o
 
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: '15px' }}>
-            <strong>Project:</strong> {project.name}
-          </div>
-          <div style={{ marginBottom: '15px' }}>
-            <strong>Task:</strong> {task.name}
+            <strong>Ticket:</strong> {ticket.subject}
           </div>
 
           <div style={{ marginBottom: '15px' }}>

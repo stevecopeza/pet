@@ -140,4 +140,15 @@ class WorkItemControllerTest extends TestCase
         $this->assertCount(1, $data[0]['signals']);
         $this->assertEquals('sla_risk', $data[0]['signals'][0]['type']);
     }
+
+    public function testGetBySourceRejectsInvalidSourceType()
+    {
+        $request = new WP_REST_Request();
+        $request->set_param('source_type', 'project_task');
+        $request->set_param('source_id', '123');
+
+        $response = $this->controller->getBySource($request);
+
+        $this->assertEquals(400, $response->get_status());
+    }
 }

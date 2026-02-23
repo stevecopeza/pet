@@ -104,13 +104,16 @@ class EmployeeController implements RestController
         $employees = $this->employeeRepository->findAll();
 
         $data = array_map(function ($employee) {
+            $displayName = $employee->firstName() . ' ' . $employee->lastName();
+
             return [
                 'id' => $employee->id(),
                 'wpUserId' => $employee->wpUserId(),
                 'avatarUrl' => get_avatar_url($employee->wpUserId()),
                 'firstName' => $employee->firstName(),
                 'lastName' => $employee->lastName(),
-                'displayName' => $employee->firstName() . ' ' . $employee->lastName(),
+                'displayName' => $displayName,
+                'display_name' => $displayName,
                 'email' => $employee->email(),
                 'status' => $employee->status(),
                 'hireDate' => $employee->hireDate() ? $employee->hireDate()->format('Y-m-d') : null,

@@ -67,7 +67,7 @@ class SlaFlowTest extends TestCase
                     return $data['project_id'] === null &&
                            $data['sla_original_id'] === 101 &&
                            $data['response_target_minutes'] === 60 &&
-                           $data['calendar_snapshot'] !== '';
+                           $data['calendar_snapshot_json'] !== '';
                 })
             )
             ->will($this->returnCallback(function() {

@@ -51,7 +51,7 @@ class SqlBillingExportRepository implements BillingExportRepository
             ARRAY_A
         );
         if (!$row) return null;
-        return new BillingExport(
+        return BillingExport::fromStorage(
             (int)$row['id'],
             $row['uuid'],
             (int)$row['customer_id'],
@@ -75,7 +75,7 @@ class SqlBillingExportRepository implements BillingExportRepository
         );
         $out = [];
         foreach ($rows as $row) {
-            $out[] = new BillingExport(
+            $out[] = BillingExport::fromStorage(
                 (int)$row['id'],
                 $row['uuid'],
                 (int)$row['customer_id'],

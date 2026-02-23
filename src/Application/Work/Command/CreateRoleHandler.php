@@ -18,6 +18,9 @@ class CreateRoleHandler
 
     public function handle(CreateRoleCommand $command): int
     {
+        /** @var \wpdb|null $wpdb */
+        global $wpdb;
+
         $role = new Role(
             $command->name(),
             $command->level(),
@@ -31,6 +34,15 @@ class CreateRoleHandler
 
         $this->roleRepository->save($role);
 
-        return $role->id();
+        $id = $role->id();
+        if ($id !== null && $id > 0) {
+            return $id;
+        }
+
+        if ($wpdb instanceof \wpdb && isset($wpdb->insert_id) && (int)$wpdb->insert_id > 0) {
+            return (int)$wpdb->insert_id;
+        }
+
+        throw new \RuntimeException('Failed to persist Role and obtain identifier.');
     }
 }

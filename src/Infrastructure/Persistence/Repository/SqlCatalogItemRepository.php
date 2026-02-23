@@ -11,7 +11,7 @@ class SqlCatalogItemRepository implements CatalogItemRepository
 {
     private $wpdb;
 
-    public function __construct($wpdb)
+    public function __construct(\wpdb $wpdb)
     {
         $this->wpdb = $wpdb;
     }
@@ -63,10 +63,33 @@ class SqlCatalogItemRepository implements CatalogItemRepository
             );
         } else {
             $data['created_at'] = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
-            $this->wpdb->insert(
-                $this->wpdb->prefix . 'pet_catalog_items',
-                $data
-            );
+            $table = $this->wpdb->prefix . 'pet_catalog_items';
+            $sql = "
+                INSERT INTO $table (sku, name, type, description, category, wbs_template, unit_price, unit_cost, updated_at, created_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %f, %f, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    name = VALUES(name),
+                    type = VALUES(type),
+                    description = VALUES(description),
+                    category = VALUES(category),
+                    wbs_template = VALUES(wbs_template),
+                    unit_price = VALUES(unit_price),
+                    unit_cost = VALUES(unit_cost),
+                    updated_at = VALUES(updated_at)
+            ";
+            $this->wpdb->query($this->wpdb->prepare(
+                $sql,
+                $data['sku'],
+                $data['name'],
+                $data['type'],
+                $data['description'],
+                $data['category'],
+                $data['wbs_template'],
+                $data['unit_price'],
+                $data['unit_cost'],
+                $data['updated_at'],
+                $data['created_at']
+            ));
         }
     }
 

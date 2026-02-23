@@ -36,6 +36,14 @@ class WorkItemController implements RestController
             ]
         ]);
 
+        register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/by-source', [
+            [
+                'methods' => WP_REST_Server::READABLE,
+                'callback' => [$this, 'getBySource'],
+                'permission_callback' => [$this, 'checkPermission'],
+            ]
+        ]);
+
         register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/(?P<id>[a-zA-Z0-9-]+)', [
             [
                 'methods' => WP_REST_Server::READABLE,
@@ -85,6 +93,29 @@ class WorkItemController implements RestController
     {
         $id = $request->get_param('id');
         $item = $this->repository->findById($id);
+
+        if (!$item) {
+            return new WP_REST_Response(['message' => 'Not Found'], 404);
+        }
+
+        return new WP_REST_Response($this->serializeWorkItem($item), 200);
+    }
+
+    public function getBySource(WP_REST_Request $request): WP_REST_Response
+    {
+        $sourceType = (string)$request->get_param('source_type');
+        $sourceId = (string)$request->get_param('source_id');
+
+        if ($sourceType === '' || $sourceId === '') {
+            return new WP_REST_Response(['message' => 'Missing source_type or source_id'], 400);
+        }
+
+        $allowedTypes = ['ticket', 'escalation', 'admin'];
+        if (!in_array($sourceType, $allowedTypes, true)) {
+            return new WP_REST_Response(['message' => 'Invalid source_type'], 400);
+        }
+
+        $item = $this->repository->findBySource($sourceType, $sourceId);
 
         if (!$item) {
             return new WP_REST_Response(['message' => 'Not Found'], 404);

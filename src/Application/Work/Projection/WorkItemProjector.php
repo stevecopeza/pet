@@ -50,6 +50,12 @@ class WorkItemProjector
             $event->occurredAt()
         );
 
+        // If the ticket has an explicit owner, assign it immediately
+        $ownerUserId = $ticket->ownerUserId();
+        if ($ownerUserId !== null && $ownerUserId !== '') {
+            $workItem->assignUser($ownerUserId);
+        }
+
         // Populate details if available
         $due = $ticket->resolutionDueAt();
         if ($due) {
@@ -101,55 +107,5 @@ class WorkItemProjector
 
     public function onProjectTaskCreated(ProjectTaskCreated $event): void
     {
-        $project = $event->project();
-        $task = $event->task();
-        
-        // 1. Determine Department
-        $departmentId = $this->departmentResolver->resolveForProjectTask($project, $task);
-
-        // 2. Create WorkItem
-        $workItemId = wp_generate_uuid4();
-        
-        $workItem = WorkItem::create(
-            $workItemId,
-            'project_task',
-            (string)$task->id(),
-            $departmentId,
-            0.0, // Initial priority score
-            'active',
-            $event->occurredAt(),
-            $task->roleId()
-        );
-
-        // Populate due date from project end date
-        if ($project->endDate()) {
-            $workItem->updateScheduling(null, $project->endDate());
-        }
-
-        // Commercial Info
-        $customer = $this->customerRepository->findById($project->customerId());
-        if ($customer) {
-            $data = $customer->malleableData();
-            $tier = isset($data['tier']) ? (int)$data['tier'] : 1;
-            $workItem->updateCommercialInfo($project->soldValue(), $tier);
-        }
-
-        // Save first
-        $this->workItemRepository->save($workItem);
-
-        // Calculate Initial Priority Score & SLA/Deadline State
-        $this->slaClockCalculator->updateItemSlaState($workItem, new \DateTimeImmutable());
-        
-        // Save again with updated score
-        $this->workItemRepository->save($workItem);
-
-        // 3. Create DepartmentQueue entry
-        $queueItem = DepartmentQueue::enter(
-            wp_generate_uuid4(),
-            $departmentId,
-            $workItemId
-        );
-
-        $this->departmentQueueRepository->save($queueItem);
     }
 }

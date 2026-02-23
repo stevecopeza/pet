@@ -46,6 +46,15 @@ class SqlAssignmentRepository implements AssignmentRepository
                 $data,
                 $format
             );
+            $insertId = (int)$this->wpdb->insert_id;
+            if ($insertId > 0) {
+                $ref = new \ReflectionObject($assignment);
+                if ($ref->hasProperty('id')) {
+                    $prop = $ref->getProperty('id');
+                    $prop->setAccessible(true);
+                    $prop->setValue($assignment, $insertId);
+                }
+            }
         }
     }
 

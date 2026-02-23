@@ -99,8 +99,14 @@ class CapacityCalendarPrecedenceTest extends TestCase
     public function testOverrideScalesCapacity(): void
     {
         $this->leaveRepo->method('isApprovedOnDate')->willReturn(false);
-        $override = $this->createMock(\Pet\Domain\Work\Entity\CapacityOverride::class);
-        $override->method('capacityPct')->willReturn(50);
+        $override = new \Pet\Domain\Work\Entity\CapacityOverride(
+            1,
+            1,
+            new \DateTimeImmutable('2025-01-06'),
+            50,
+            null,
+            new \DateTimeImmutable('2025-01-01')
+        );
         $this->overrideRepo->method('findForDate')->willReturn($override);
 
         $service = new CapacityCalendar(

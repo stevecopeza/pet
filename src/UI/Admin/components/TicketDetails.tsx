@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Ticket, Customer } from '../types';
+import { Ticket, Customer, WorkItem, ActivityLog, Employee } from '../types';
 
 interface TicketDetailsProps {
   ticket: Ticket;
@@ -13,23 +13,42 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack }) => {
   const [status, setStatus] = useState(ticket.status);
   const [priority, setPriority] = useState(ticket.priority);
   const [saving, setSaving] = useState(false);
+  const [workItem, setWorkItem] = useState<WorkItem | null>(null);
+  const [loadingWorkItem, setLoadingWorkItem] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [selectedAssignee, setSelectedAssignee] = useState<string>('');
+  const [updatingAssignment, setUpdatingAssignment] = useState(false);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [loadingActivity, setLoadingActivity] = useState(false);
+  const [activityError, setActivityError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCustomer = async () => {
       if (!ticket.customerId) return;
-      
+
       try {
         setLoadingCustomer(true);
-        const response = await fetch(`${window.petSettings.apiUrl}/customers?id=${ticket.customerId}`, {
-          headers: {
-            'X-WP-Nonce': window.petSettings.nonce,
-          },
-        });
-        
+        const apiUrl = (window as any).petSettings?.apiUrl;
+        const nonce = (window as any).petSettings?.nonce;
+        if (!apiUrl || !nonce) {
+          return;
+        }
+        const response = await fetch(
+          `${apiUrl}/customers?id=${ticket.customerId}`,
+          {
+            headers: {
+              'X-WP-Nonce': nonce,
+            },
+          }
+        );
+
         if (response.ok) {
           const data = await response.json();
           if (Array.isArray(data) && data.length > 0) {
-            setCustomer(data.find((c: Customer) => c.id === ticket.customerId) || null);
+            setCustomer(
+              data.find((c: Customer) => c.id === ticket.customerId) || null
+            );
           }
         }
       } catch (err) {
@@ -42,14 +61,115 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack }) => {
     fetchCustomer();
   }, [ticket.customerId]);
 
+  useEffect(() => {
+    const fetchWorkItem = async () => {
+      try {
+        setLoadingWorkItem(true);
+        const apiUrl = (window as any).petSettings?.apiUrl;
+        const nonce = (window as any).petSettings?.nonce;
+        if (!apiUrl || !nonce) {
+          return;
+        }
+        const response = await fetch(`${apiUrl}/work-items/by-source?source_type=ticket&source_id=${ticket.id}`, {
+          headers: {
+            'X-WP-Nonce': nonce,
+          },
+        });
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        setWorkItem(data);
+        if (data && data.assigned_user_id) {
+          setSelectedAssignee(String(data.assigned_user_id));
+        } else {
+          setSelectedAssignee('');
+        }
+      } catch (err) {
+        console.error('Failed to fetch work item', err);
+      } finally {
+        setLoadingWorkItem(false);
+      }
+    };
+
+    fetchWorkItem();
+  }, [ticket.id]);
+
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const apiUrl = (window as any).petSettings?.apiUrl;
+        const nonce = (window as any).petSettings?.nonce;
+        if (!apiUrl || !nonce) {
+          return;
+        }
+        const response = await fetch(`${apiUrl}/employees`, {
+          headers: {
+            'X-WP-Nonce': nonce,
+          },
+        });
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        setEmployees(data);
+      } catch (err) {
+        console.error('Failed to fetch employees for ticket details', err);
+      }
+    };
+
+    fetchEmployees();
+  }, []);
+
+  useEffect(() => {
+    const fetchActivity = async () => {
+      try {
+        setLoadingActivity(true);
+        setActivityError(null);
+        const apiUrl = (window as any).petSettings?.apiUrl;
+        const nonce = (window as any).petSettings?.nonce;
+        if (!apiUrl || !nonce) {
+          setLoadingActivity(false);
+          return;
+        }
+        const response = await fetch(
+          `${apiUrl}/activity?entity_type=ticket&entity_id=${ticket.id}`,
+          {
+            headers: {
+              'X-WP-Nonce': nonce,
+            },
+          }
+        );
+        if (!response.ok) {
+          throw new Error('Failed to fetch activity');
+        }
+        const data = await response.json();
+        setActivityLogs(data);
+      } catch (err) {
+        setActivityError(
+          err instanceof Error ? err.message : 'Failed to load activity'
+        );
+      } finally {
+        setLoadingActivity(false);
+      }
+    };
+
+    fetchActivity();
+  }, [ticket.id]);
+
   const handleSave = async () => {
     try {
       setSaving(true);
-      const response = await fetch(`${window.petSettings.apiUrl}/tickets/${ticket.id}`, {
+      const apiUrl = (window as any).petSettings?.apiUrl;
+      const nonce = (window as any).petSettings?.nonce;
+      if (!apiUrl || !nonce) {
+        throw new Error('API settings missing');
+      }
+      const response = await fetch(`${apiUrl}/tickets/${ticket.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'X-WP-Nonce': window.petSettings.nonce,
+          'X-WP-Nonce': nonce,
         },
         body: JSON.stringify({
           status,
@@ -61,13 +181,11 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack }) => {
         throw new Error('Failed to update ticket');
       }
 
-      // In a real app we'd update the parent list or refetch, 
-      // but here we just exit edit mode as the local state is updated
       setIsEditing(false);
-      // Ideally we should callback to parent to refresh the ticket data
-      // onBack(); // simplistic refresh
     } catch (err) {
-      alert('Failed to update ticket');
+      alert(
+        err instanceof Error ? err.message : 'Failed to update ticket'
+      );
     } finally {
       setSaving(false);
     }
@@ -85,6 +203,139 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack }) => {
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'N/A';
     return new Date(dateStr).toLocaleString();
+  };
+
+  const formatMinutes = (minutes: number | null | undefined) => {
+    if (minutes === null || minutes === undefined) {
+      return 'N/A';
+    }
+    const negative = minutes < 0;
+    const value = Math.abs(minutes);
+    const hours = Math.floor(value / 60);
+    const mins = value % 60;
+    const base = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+    return negative ? `-${base}` : base;
+  };
+
+  const getSlaClockColor = (minutes: number | null | undefined) => {
+    if (minutes === null || minutes === undefined) {
+      return '#666';
+    }
+    if (minutes < 0) {
+      return '#dc3232';
+    }
+    if (minutes < 60) {
+      return '#dba617';
+    }
+    return '#46b450';
+  };
+
+  const getDepartmentLabel = (id?: string | null) => {
+    if (!id) return 'Unknown';
+    if (id === 'dept_support') return 'Support';
+    if (id === 'dept_delivery') return 'Delivery';
+    if (id === 'dept_sales') return 'Sales';
+    if (id === 'dept_admin') return 'Admin';
+    return id;
+  };
+
+  const getAssigneeLabel = () => {
+    if (!workItem || !workItem.assigned_user_id) {
+      return 'Unassigned';
+    }
+    const match = employees.find(
+      (e) => String(e.wpUserId) === String(workItem.assigned_user_id)
+    );
+    if (match) {
+      return `${match.firstName} ${match.lastName}`;
+    }
+    const currentUserId = (window as any).petSettings?.currentUserId;
+    if (
+      currentUserId &&
+      String(workItem.assigned_user_id) === String(currentUserId)
+    ) {
+      return 'You';
+    }
+    return `User #${workItem.assigned_user_id}`;
+  };
+
+  const handleAssignToMe = async () => {
+    if (!workItem) return;
+    const currentUserId = (window as any).petSettings?.currentUserId;
+    if (!currentUserId) return;
+    if (!confirm('Assign this ticket to yourself?')) return;
+
+    try {
+      setAssigning(true);
+      const apiUrl = (window as any).petSettings?.apiUrl;
+      const nonce = (window as any).petSettings?.nonce;
+      if (!apiUrl || !nonce) {
+        return;
+      }
+      const response = await fetch(`${apiUrl}/work-items/${workItem.id}/assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-WP-Nonce': nonce,
+        },
+        body: JSON.stringify({
+          assigned_user_id: currentUserId,
+        }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to assign work item');
+      }
+      setWorkItem({
+        ...workItem,
+        assigned_user_id: String(currentUserId),
+      });
+      setSelectedAssignee(String(currentUserId));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to assign ticket');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleAssignmentUpdate = async () => {
+    if (!workItem || !selectedAssignee) {
+      return;
+    }
+
+    try {
+      setUpdatingAssignment(true);
+      const apiUrl = (window as any).petSettings?.apiUrl;
+      const nonce = (window as any).petSettings?.nonce;
+      if (!apiUrl || !nonce) {
+        return;
+      }
+      const response = await fetch(
+        `${apiUrl}/work-items/${workItem.id}/assign`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-WP-Nonce': nonce,
+          },
+          body: JSON.stringify({
+            assigned_user_id: selectedAssignee,
+          }),
+        }
+      );
+      if (!response.ok) {
+        throw new Error('Failed to update assignment');
+      }
+      setWorkItem({
+        ...workItem,
+        assigned_user_id: String(selectedAssignee),
+      });
+    } catch (err) {
+      alert(
+        err instanceof Error ? err.message : 'Failed to update assignment'
+      );
+    } finally {
+      setUpdatingAssignment(false);
+    }
   };
 
   return (
@@ -110,6 +361,12 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack }) => {
           <div style={{ color: '#666', fontSize: '1.1em' }}>
             #{ticket.id} &bull; {ticket.createdAt}
           </div>
+          {ticket.malleableData && ticket.malleableData.source === 'quote' && (
+            <div style={{ marginTop: '6px', fontSize: '0.95em', color: '#555' }}>
+              From Quote #{ticket.malleableData.quote_id}
+              {ticket.malleableData.quote_phase_name ? ` – ${ticket.malleableData.quote_phase_name}` : ''}
+            </div>
+          )}
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ marginBottom: '5px' }}>
@@ -143,23 +400,61 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack }) => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
-        <div className="pet-ticket-main">
-          <div className="pet-box" style={{ background: '#fff', padding: '20px', border: '1px solid #ccd0d4', marginBottom: '20px' }}>
-            <h3 style={{ marginTop: 0 }}>Description</h3>
-            <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
-              {ticket.description}
+          <div className="pet-ticket-main">
+            <div
+              className="pet-box"
+              style={{
+                background: '#fff',
+                padding: '20px',
+                border: '1px solid #ccd0d4',
+                marginBottom: '20px',
+              }}
+            >
+              <h3 style={{ marginTop: 0 }}>Description</h3>
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
+                {ticket.description}
+              </div>
+            </div>
+
+            <div
+              className="pet-box"
+              style={{
+                background: '#fff',
+                padding: '20px',
+                border: '1px solid #ccd0d4',
+              }}
+            >
+              <h3 style={{ marginTop: 0 }}>Activity & Comments</h3>
+              {loadingActivity ? (
+                <p>Loading activity...</p>
+              ) : activityError ? (
+                <p style={{ color: '#c00' }}>{activityError}</p>
+              ) : activityLogs.length === 0 ? (
+                <p style={{ color: '#666', fontStyle: 'italic' }}>
+                  No activity recorded yet.
+                </p>
+              ) : (
+                <ul
+                  style={{
+                    listStyle: 'none',
+                    padding: 0,
+                    margin: 0,
+                  }}
+                >
+                  {activityLogs.map((log) => (
+                    <li key={log.id} style={{ marginBottom: '8px' }}>
+                      <div style={{ fontSize: '12px', color: '#666' }}>
+                        {log.createdAt}
+                      </div>
+                      <div>{log.description}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
 
-          <div className="pet-box" style={{ background: '#fff', padding: '20px', border: '1px solid #ccd0d4' }}>
-            <h3 style={{ marginTop: 0 }}>Activity & Comments</h3>
-            <p style={{ color: '#666', fontStyle: 'italic' }}>
-              No comments yet. (Comment functionality coming soon)
-            </p>
-          </div>
-        </div>
-
-        <div className="pet-ticket-sidebar">
+          <div className="pet-ticket-sidebar">
           <div className="pet-box" style={{ background: '#fff', padding: '20px', border: '1px solid #ccd0d4', marginBottom: '20px' }}>
             <h3 style={{ marginTop: 0 }}>SLA Status</h3>
             {ticket.slaId ? (
@@ -203,7 +498,67 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack }) => {
           </div>
 
           <div className="pet-box" style={{ background: '#fff', padding: '20px', border: '1px solid #ccd0d4' }}>
-            <h3 style={{ marginTop: 0 }}>Actions</h3>
+            <h3 style={{ marginTop: 0 }}>Ownership & Actions</h3>
+            {loadingWorkItem && <p>Loading work item...</p>}
+            {workItem && (
+              <>
+                <p>
+                  <strong>Department:</strong>{' '}
+                  {getDepartmentLabel(workItem.department_id)}
+                </p>
+                <p>
+                  <strong>Assignment:</strong> {getAssigneeLabel()}
+                </p>
+                {employees.length > 0 && (
+                  <div style={{ marginBottom: '10px' }}>
+                    <label style={{ display: 'block', marginBottom: '4px' }}>
+                      Change assignment:
+                    </label>
+                    <select
+                      value={selectedAssignee}
+                      onChange={(e) => setSelectedAssignee(e.target.value)}
+                      style={{ width: '100%' }}
+                    >
+                      <option value="">Select person</option>
+                      {employees
+                        .filter((e) => e.status !== 'archived')
+                        .map((e) => (
+                          <option key={e.wpUserId} value={e.wpUserId}>
+                            {e.firstName} {e.lastName}
+                          </option>
+                        ))}
+                    </select>
+                    <button
+                      className="button"
+                      style={{ marginTop: '6px', width: '100%' }}
+                      disabled={updatingAssignment || !selectedAssignee}
+                      onClick={handleAssignmentUpdate}
+                    >
+                      {updatingAssignment ? 'Updating...' : 'Update assignment'}
+                    </button>
+                  </div>
+                )}
+                <p>
+                  <strong>SLA Clock:</strong>{' '}
+                  <span
+                    style={{ color: getSlaClockColor(workItem.sla_time_remaining) }}
+                  >
+                    {formatMinutes(workItem.sla_time_remaining)}
+                  </span>
+                </p>
+                {!workItem.assigned_user_id &&
+                  (window as any).petSettings?.currentUserId && (
+                    <button
+                      className="button button-large button-primary"
+                      onClick={handleAssignToMe}
+                      disabled={assigning}
+                      style={{ width: '100%', marginBottom: '10px' }}
+                    >
+                      {assigning ? 'Assigning...' : 'Pick Up Ticket'}
+                    </button>
+                  )}
+              </>
+            )}
             <button className="button button-large" disabled style={{ width: '100%', marginBottom: '10px' }}>
               Reply
             </button>

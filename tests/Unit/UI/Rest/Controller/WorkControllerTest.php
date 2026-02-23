@@ -96,8 +96,8 @@ class WorkControllerTest extends TestCase
         // Arrange
         $item = WorkItem::create(
             'wi-2',
-            'project_task',
-            'pt-1',
+            'ticket',
+            't-1',
             'dept-2',
             80.0,
             'waiting',

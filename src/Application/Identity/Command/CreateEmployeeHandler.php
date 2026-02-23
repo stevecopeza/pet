@@ -50,6 +50,7 @@ class CreateEmployeeHandler
             $command->status(),
             $command->hireDate(),
             $command->managerId(),
+            null,
             $schemaVersion,
             $malleableData,
             $command->teamIds()

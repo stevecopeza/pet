@@ -159,7 +159,98 @@ const Finance: React.FC = () => {
           {actionError && <div style={{ color: 'red', marginTop: '10px' }}>Error: {actionError}</div>}
         </div>
       )}
+
+      <div className="pet-card" style={{ marginTop: '20px' }}>
+        <h2 style={{ marginTop: 0 }}>QuickBooks Invoices</h2>
+        <QuickBooksInvoices />
+      </div>
+
+      <div className="pet-card" style={{ marginTop: '20px' }}>
+        <h2 style={{ marginTop: 0 }}>QuickBooks Payments</h2>
+        <QuickBooksPayments />
+      </div>
     </div>
+  );
+};
+
+const QuickBooksInvoices: React.FC = () => {
+  const [rows, setRows] = useState<Array<any>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const res = await fetch(`${window.petSettings.apiUrl}/finance/qb/invoices`, {
+          headers: { 'X-WP-Nonce': window.petSettings.nonce },
+        });
+        if (!res.ok) throw new Error('Failed to fetch invoices');
+        const data = await res.json();
+        setRows(data);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
+  }, []);
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div style={{ color: 'red' }}>Error: {error}</div>;
+  return (
+    <DataTable
+      columns={[
+        { key: 'id', header: 'ID', render: (v) => String(v) },
+        { key: 'qb_invoice_id', header: 'QB ID' },
+        { key: 'doc_number', header: 'Doc' },
+        { key: 'status', header: 'Status' },
+        { key: 'issue_date', header: 'Issued' },
+        { key: 'currency', header: 'Currency' },
+        { key: 'total', header: 'Total', render: (v) => `$${Number(v).toFixed(2)}` },
+        { key: 'balance', header: 'Balance', render: (v) => `$${Number(v).toFixed(2)}` },
+        { key: 'last_synced_at', header: 'Synced' },
+      ]}
+      data={rows}
+      emptyMessage="No invoices."
+    />
+  );
+};
+
+const QuickBooksPayments: React.FC = () => {
+  const [rows, setRows] = useState<Array<any>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const res = await fetch(`${window.petSettings.apiUrl}/finance/qb/payments`, {
+          headers: { 'X-WP-Nonce': window.petSettings.nonce },
+        });
+        if (!res.ok) throw new Error('Failed to fetch payments');
+        const data = await res.json();
+        setRows(data);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    };
+    run();
+  }, []);
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div style={{ color: 'red' }}>Error: {error}</div>;
+  return (
+    <DataTable
+      columns={[
+        { key: 'id', header: 'ID', render: (v) => String(v) },
+        { key: 'qb_payment_id', header: 'QB Payment' },
+        { key: 'received_date', header: 'Received' },
+        { key: 'currency', header: 'Currency' },
+        { key: 'amount', header: 'Amount', render: (v) => `$${Number(v).toFixed(2)}` },
+        { key: 'last_synced_at', header: 'Synced' },
+      ]}
+      data={rows}
+      emptyMessage="No payments."
+    />
   );
 };
 

@@ -10,7 +10,7 @@ class SqlDepartmentQueueRepository implements DepartmentQueueRepository
 {
     private $wpdb;
 
-    public function __construct($wpdb)
+    public function __construct(\wpdb $wpdb)
     {
         $this->wpdb = $wpdb;
     }

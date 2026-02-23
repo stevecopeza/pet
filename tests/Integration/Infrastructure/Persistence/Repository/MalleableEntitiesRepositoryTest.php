@@ -100,7 +100,17 @@ class MalleableEntitiesRepositoryTest extends TestCase
     {
         $malleableData = ['skills' => ['php', 'js']];
         $employee = new Employee(
-            1, 'John', 'Doe', 'john@example.com', null, 'active', null, null, 1, $malleableData
+            1,
+            'John',
+            'Doe',
+            'john@example.com',
+            null,
+            'active',
+            null,
+            null,
+            null,
+            1,
+            $malleableData
         );
 
         $this->wpdb->expects($this->once())

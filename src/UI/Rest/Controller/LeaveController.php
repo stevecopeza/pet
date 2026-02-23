@@ -112,20 +112,20 @@ final class LeaveController implements RestController
         $startStr = (string)$request->get_param('startDate');
         $endStr = (string)$request->get_param('endDate');
         if ($employeeId <= 0 || $leaveTypeId <= 0 || $startStr === '' || $endStr === '') {
-            return new WP_REST_Response(['error' => 'invalid_parameters'], 400);
+            return new WP_REST_Response(['error' => ['code' => 'VALIDATION_ERROR', 'message' => 'Invalid parameters', 'details' => []]], 400);
         }
         $type = $this->types->findById($leaveTypeId);
         if (!$type) {
-            return new WP_REST_Response(['error' => 'leave_type_not_found'], 404);
+            return new WP_REST_Response(['error' => ['code' => 'NOT_FOUND', 'message' => 'Leave type not found', 'details' => ['leaveTypeId' => $leaveTypeId]]], 404);
         }
         try {
             $start = new \DateTimeImmutable($startStr);
             $end = new \DateTimeImmutable($endStr);
         } catch (\Exception $e) {
-            return new WP_REST_Response(['error' => 'invalid_dates'], 400);
+            return new WP_REST_Response(['error' => ['code' => 'VALIDATION_ERROR', 'message' => 'Invalid dates', 'details' => []]], 400);
         }
         if ($end < $start) {
-            return new WP_REST_Response(['error' => 'end_before_start'], 400);
+            return new WP_REST_Response(['error' => ['code' => 'VALIDATION_ERROR', 'message' => 'End date before start date', 'details' => []]], 400);
         }
         $notes = $request->get_param('notes');
         $id = $this->submitHandler->handle(new SubmitLeaveRequestCommand($employeeId, $leaveTypeId, $start, $end, $notes ? (string)$notes : null));
@@ -138,10 +138,10 @@ final class LeaveController implements RestController
         $by = (int)$request->get_param('decidedByEmployeeId');
         $decision = (string)$request->get_param('decision');
         if ($id <= 0 || $by <= 0 || $decision === '') {
-            return new WP_REST_Response(['error' => 'invalid_parameters'], 400);
+            return new WP_REST_Response(['error' => ['code' => 'VALIDATION_ERROR', 'message' => 'Invalid parameters', 'details' => []]], 400);
         }
         if (!in_array($decision, ['approved', 'rejected', 'cancelled'], true)) {
-            return new WP_REST_Response(['error' => 'invalid_decision'], 400);
+            return new WP_REST_Response(['error' => ['code' => 'VALIDATION_ERROR', 'message' => 'Invalid decision', 'details' => ['allowed' => ['approved','rejected','cancelled']]]], 400);
         }
         $reason = $request->get_param('reason');
         $this->decideHandler->handle(new DecideLeaveRequestCommand($id, $by, $decision, $reason ? (string)$reason : null));
@@ -154,15 +154,15 @@ final class LeaveController implements RestController
         $dateStr = (string)$request->get_param('date');
         $pct = (int)$request->get_param('capacityPct');
         if ($employeeId <= 0 || $dateStr === '' || !is_int($pct)) {
-            return new WP_REST_Response(['error' => 'invalid_parameters'], 400);
+            return new WP_REST_Response(['error' => ['code' => 'VALIDATION_ERROR', 'message' => 'Invalid parameters', 'details' => []]], 400);
         }
         try {
             $date = new \DateTimeImmutable($dateStr);
         } catch (\Exception $e) {
-            return new WP_REST_Response(['error' => 'invalid_date'], 400);
+            return new WP_REST_Response(['error' => ['code' => 'VALIDATION_ERROR', 'message' => 'Invalid date', 'details' => []]], 400);
         }
         if ($pct < 0 || $pct > 100) {
-            return new WP_REST_Response(['error' => 'invalid_capacity_pct'], 400);
+            return new WP_REST_Response(['error' => ['code' => 'VALIDATION_ERROR', 'message' => 'Invalid capacity percentage', 'details' => ['range' => [0,100]]]], 400);
         }
         $reason = $request->get_param('reason');
         $this->overrideHandler->handle(new SetCapacityOverrideCommand($employeeId, $date, $pct, $reason ? (string)$reason : null));

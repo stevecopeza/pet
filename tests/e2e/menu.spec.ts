@@ -5,8 +5,11 @@ test('pet menu structure and routing works', async ({ page }) => {
   await page.goto('/wp-login.php');
   await page.fill('#user_login', 'admin');
   await page.fill('#user_pass', 'stc54');
-  await page.click('#wp-submit');
-  await expect(page.locator('#wpadminbar')).toBeVisible();
+  await Promise.all([
+    page.waitForNavigation(),
+    page.click('#wp-submit'),
+  ]);
+  await expect(page.locator('#wpadminbar')).toBeVisible({ timeout: 10000 });
 
   // 2. Check Top Level Menu
   const petMenu = page.locator('#toplevel_page_pet-dashboard');

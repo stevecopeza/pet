@@ -162,7 +162,17 @@ Rules:
 
 ---
 
+## See also: Ticket Backbone
+
+The Ticket Backbone data model extension defines Ticket as the universal work unit and introduces the bridging required between tickets, tasks, time entries, and quotes.
+
+Related documents:
+
+- `05_data_model/02_Ticket_Data_Model_and_Migrations_v1.md`
+- `04_time/05_Time_Entry_Ticket_Enforcement_v1.md`
+
+---
+
 **Authority**: Normative
 
 This document defines the structural rules for PET’s core tables.
-

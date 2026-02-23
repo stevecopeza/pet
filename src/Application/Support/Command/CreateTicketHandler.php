@@ -11,6 +11,7 @@ use Pet\Domain\Configuration\Repository\SchemaDefinitionRepository;
 use Pet\Domain\Configuration\Service\SchemaValidator;
 use Pet\Domain\Event\EventBus;
 use Pet\Domain\Support\Event\TicketCreated;
+use Pet\Domain\Work\Service\DepartmentResolver;
 use InvalidArgumentException;
 
 class CreateTicketHandler
@@ -20,19 +21,22 @@ class CreateTicketHandler
     private EventBus $eventBus;
     private SchemaDefinitionRepository $schemaRepository;
     private SchemaValidator $schemaValidator;
+    private DepartmentResolver $departmentResolver;
 
     public function __construct(
         TicketRepository $ticketRepository,
         CustomerRepository $customerRepository,
         EventBus $eventBus,
         SchemaDefinitionRepository $schemaRepository,
-        SchemaValidator $schemaValidator
+        SchemaValidator $schemaValidator,
+        DepartmentResolver $departmentResolver
     ) {
         $this->ticketRepository = $ticketRepository;
         $this->customerRepository = $customerRepository;
         $this->eventBus = $eventBus;
         $this->schemaRepository = $schemaRepository;
         $this->schemaValidator = $schemaValidator;
+        $this->departmentResolver = $departmentResolver;
     }
 
     public function handle(CreateTicketCommand $command): void
@@ -55,6 +59,23 @@ class CreateTicketHandler
             }
         }
 
+        $ticketMode = $malleableData['ticket_mode'] ?? 'support';
+
+        $queueId = $malleableData['queue_id'] ?? null;
+        $ownerUserId = $malleableData['owner_user_id'] ?? null;
+        $category = $malleableData['category'] ?? null;
+        $subcategory = $malleableData['subcategory'] ?? null;
+        $intakeSource = $malleableData['intake_source'] ?? ($malleableData['source'] ?? null);
+        $contactId = isset($malleableData['contact_id']) ? (int)$malleableData['contact_id'] : null;
+
+        if ($queueId === null) {
+            if ($ticketMode === 'execution') {
+                $queueId = DepartmentResolver::DEPT_DELIVERY;
+            } else {
+                $queueId = DepartmentResolver::DEPT_SUPPORT;
+            }
+        }
+
         $ticket = new Ticket(
             $command->customerId(),
             $command->subject(),
@@ -65,7 +86,21 @@ class CreateTicketHandler
             $command->slaId(),
             null,
             $schemaVersion,
-            $malleableData
+            $malleableData,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            $queueId !== null ? (string) $queueId : null,
+            $ownerUserId !== null ? (string) $ownerUserId : null,
+            $category,
+            $subcategory,
+            $intakeSource,
+            $contactId
         );
 
         $this->ticketRepository->save($ticket);

@@ -10,7 +10,7 @@ class TimeEntry
 {
     private ?int $id;
     private int $employeeId;
-    private int $taskId;
+    private int $ticketId;
     private \DateTimeImmutable $start;
     private \DateTimeImmutable $end;
     private int $durationMinutes;
@@ -29,7 +29,7 @@ class TimeEntry
 
     public function __construct(
         int $employeeId,
-        int $taskId,
+        int $ticketId,
         \DateTimeImmutable $start,
         \DateTimeImmutable $end,
         bool $isBillable,
@@ -46,7 +46,7 @@ class TimeEntry
 
         $this->id = $id;
         $this->employeeId = $employeeId;
-        $this->taskId = $taskId;
+        $this->ticketId = $ticketId;
         $this->start = $start;
         $this->end = $end;
         $this->isBillable = $isBillable;
@@ -114,7 +114,7 @@ class TimeEntry
     // Immutable getters
     public function id(): ?int { return $this->id; }
     public function employeeId(): int { return $this->employeeId; }
-    public function taskId(): int { return $this->taskId; }
+    public function ticketId(): int { return $this->ticketId; }
     public function start(): \DateTimeImmutable { return $this->start; }
     public function end(): \DateTimeImmutable { return $this->end; }
     public function durationMinutes(): int { return $this->durationMinutes; }

@@ -105,7 +105,7 @@ const TimeEntries = () => {
   const columns: Column<TimeEntry>[] = [
     { key: 'id', header: 'ID' },
     { key: 'employeeId', header: 'Employee' },
-    { key: 'taskId', header: 'Task' },
+    { key: 'ticketId', header: 'Ticket' },
     { key: 'start', header: 'Start', render: (val) => new Date(val as string).toLocaleString() },
     { key: 'end', header: 'End', render: (val) => new Date(val as string).toLocaleString() },
     { key: 'duration', header: 'Duration (m)' },

@@ -43,29 +43,18 @@ class WorkItemProjectorTest extends TestCase
         );
     }
 
-    public function testOnProjectTaskCreatedWithRoleId()
+    public function testOnProjectTaskCreatedDoesNotCreateWorkItem(): void
     {
         $project = $this->createMock(Project::class);
-        $project->method('customerId')->willReturn(1);
-        $project->method('endDate')->willReturn(new \DateTimeImmutable());
-        $project->method('soldValue')->willReturn(1000.0);
-
         $task = $this->createMock(Task::class);
-        $task->method('id')->willReturn(101);
-        $task->method('roleId')->willReturn(55); // Role ID present
 
         $event = new ProjectTaskCreated($project, $task);
 
-        $this->departmentResolver->method('resolveForProjectTask')
-            ->willReturn('dept-delivery');
+        $this->workItemRepository->expects($this->never())
+            ->method('save');
 
-        // Expect WorkItem to be saved with required_role_id = 55
-        $this->workItemRepository->expects($this->exactly(2))
-            ->method('save')
-            ->with($this->callback(function (WorkItem $item) {
-                // Verify Role ID
-                return $item->getRequiredRoleId() === 55;
-            }));
+        $this->departmentQueueRepository->expects($this->never())
+            ->method('save');
 
         $this->projector->onProjectTaskCreated($event);
     }
