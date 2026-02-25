@@ -28,7 +28,7 @@ class AcceptQuoteHandlerTest extends TestCase
     {
         $this->quoteRepository = $this->createMock(QuoteRepository::class);
         $this->eventBus = $this->createMock(EventBus::class);
-        $this->touchedTracker = null;
+        $this->touchedTracker = $this->createMock(TouchedTracker::class);
         $this->createTicketHandler = $this->createMock(CreateTicketHandler::class);
     }
 
@@ -61,6 +61,10 @@ class AcceptQuoteHandlerTest extends TestCase
 
         $this->eventBus->expects($this->once())
             ->method('dispatch');
+
+        $this->touchedTracker->expects($this->once())
+            ->method('mark')
+            ->with('quote', $quoteId, 1);
 
         $this->createTicketHandler->expects($this->exactly(2))
             ->method('handle')

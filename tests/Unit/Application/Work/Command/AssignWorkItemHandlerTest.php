@@ -8,17 +8,20 @@ use Pet\Application\Work\Command\AssignWorkItemCommand;
 use Pet\Application\Work\Command\AssignWorkItemHandler;
 use Pet\Domain\Work\Entity\WorkItem;
 use Pet\Domain\Work\Repository\WorkItemRepository;
+use Pet\Domain\Activity\Repository\ActivityLogRepository;
 use PHPUnit\Framework\TestCase;
 
 class AssignWorkItemHandlerTest extends TestCase
 {
     private $repository;
+    private $activityLogRepository;
     private $handler;
 
     protected function setUp(): void
     {
         $this->repository = $this->createMock(WorkItemRepository::class);
-        $this->handler = new AssignWorkItemHandler($this->repository);
+        $this->activityLogRepository = $this->createMock(ActivityLogRepository::class);
+        $this->handler = new AssignWorkItemHandler($this->repository, $this->activityLogRepository);
     }
 
     public function testAssignsUserToWorkItem()

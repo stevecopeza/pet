@@ -14,6 +14,7 @@ use Pet\Domain\Event\EventBus;
 use Pet\Application\System\Service\TouchedTracker;
 use Pet\Application\Support\Command\CreateTicketHandler;
 use Pet\Application\Support\Command\CreateTicketCommand;
+use Pet\Application\Conversation\Service\ActionGatingService;
 
 class AcceptQuoteHandler
 {
@@ -21,17 +22,20 @@ class AcceptQuoteHandler
     private EventBus $eventBus;
     private ?TouchedTracker $touched;
     private ?CreateTicketHandler $createTicketHandler;
+    private ?ActionGatingService $gatingService;
 
     public function __construct(
         QuoteRepository $quoteRepository,
         EventBus $eventBus,
         ?TouchedTracker $touched = null,
-        ?CreateTicketHandler $createTicketHandler = null
+        ?CreateTicketHandler $createTicketHandler = null,
+        ?ActionGatingService $gatingService = null
     ) {
         $this->quoteRepository = $quoteRepository;
         $this->eventBus = $eventBus;
         $this->touched = $touched;
         $this->createTicketHandler = $createTicketHandler;
+        $this->gatingService = $gatingService;
     }
 
     public function handle(AcceptQuoteCommand $command): void
@@ -40,6 +44,10 @@ class AcceptQuoteHandler
 
         if (!$quote) {
             throw new \RuntimeException('Quote not found');
+        }
+
+        if ($this->gatingService) {
+            $this->gatingService->check('quote', (string)$quote->id(), 'accept_quote', $quote->version());
         }
 
         $quote->accept();
@@ -66,8 +74,7 @@ class AcceptQuoteHandler
 
         if ($this->touched !== null) {
             $employeeId = 1;
-            $table = $GLOBALS['wpdb']->prefix . 'pet_quotes';
-            $this->touched->mark($table, (int)$quote->id(), $employeeId);
+            $this->touched->mark('quote', (int)$quote->id(), $employeeId);
         }
 
         $this->createTicketsFromQuote($quote);

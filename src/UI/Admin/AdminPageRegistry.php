@@ -43,6 +43,8 @@ class AdminPageRegistry
             'pet-delivery' => 'Delivery',
             'pet-time' => 'Time',
             'pet-support' => 'Support',
+            'pet-conversations' => 'Conversations',
+            'pet-approvals' => 'Approvals',
             'pet-knowledge' => 'Knowledge',
             'pet-people' => 'Staff',
             'pet-roles' => 'Roles & Capabilities',

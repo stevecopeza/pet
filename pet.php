@@ -82,6 +82,9 @@ add_action('plugins_loaded', function () {
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateLeaveCapacityTables::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateDemoSeedRegistryTable::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\CreateAdminAuditLog::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddReplyToMessageIdToConversationEvents::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddParticipantTypesToConversationParticipants::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddVersionToConversations::class,
         ]);
 
         $uiRegistry = new \Pet\UI\Admin\AdminPageRegistry(

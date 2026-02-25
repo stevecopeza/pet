@@ -11,6 +11,7 @@ const Support = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [showConversation, setShowConversation] = useState(false);
   const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [modeFilter, setModeFilter] = useState<string>('');
@@ -235,8 +236,10 @@ const Support = () => {
     return (
       <TicketDetails 
         ticket={selectedTicket} 
+        initialShowConversation={showConversation}
         onBack={() => {
           setSelectedTicket(null);
+          setShowConversation(false);
           fetchTickets();
         }} 
       />
@@ -336,6 +339,16 @@ const Support = () => {
         }}
         actions={(item) => (
           <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
+            <button 
+              className="button button-small"
+              onClick={() => {
+                setSelectedTicket(item);
+                setShowConversation(true);
+              }}
+              title="Discuss"
+            >
+              💬
+            </button>
             <button 
               className="button button-small"
               onClick={() => setSelectedTicket(item)}

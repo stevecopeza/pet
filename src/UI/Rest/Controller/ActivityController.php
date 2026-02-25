@@ -20,11 +20,12 @@ class ActivityController implements RestController
     private FeedEventRepository $feedEventRepository;
     private ActivityEventTransformer $transformer;
 
-    public function __construct()
-    {
-        $container = ContainerFactory::create();
-        $this->feedEventRepository = $container->get(FeedEventRepository::class);
-        $this->transformer = new ActivityEventTransformer();
+    public function __construct(
+        FeedEventRepository $feedEventRepository,
+        ActivityEventTransformer $transformer
+    ) {
+        $this->feedEventRepository = $feedEventRepository;
+        $this->transformer = $transformer;
     }
 
     public function registerRoutes(): void

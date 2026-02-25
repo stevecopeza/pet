@@ -30,7 +30,6 @@ final class SubmitTimeEntryHandler
             $this->eventBus->dispatch($event);
         }
 
-        $table = $GLOBALS['wpdb']->prefix . 'pet_time_entries';
-        $this->touched->mark($table, (int)$entry->id(), $entry->employeeId());
+        $this->touched->mark('time_entry', (int)$entry->id(), $entry->employeeId());
     }
 }

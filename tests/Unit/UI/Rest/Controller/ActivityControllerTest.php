@@ -4,20 +4,28 @@ declare(strict_types=1);
 
 namespace Pet\UI\Rest\Controller;
 
-function is_user_logged_in()
-{
-    return true;
+use Pet\Tests\Stubs\WPMocks;
+
+if (!function_exists(__NAMESPACE__ . '\is_user_logged_in')) {
+    function is_user_logged_in()
+    {
+        return WPMocks::$isUserLoggedIn;
+    }
 }
 
-function get_current_user_id()
-{
-    return 1;
+if (!function_exists(__NAMESPACE__ . '\get_current_user_id')) {
+    function get_current_user_id()
+    {
+        return WPMocks::$currentUserId ?: 1;
+    }
 }
 
 namespace Pet\Tests\Unit\UI\Rest\Controller;
 
 require_once __DIR__ . '/../../../../Stubs/WP_REST_Classes.php';
+require_once __DIR__ . '/../../../../Stubs/WPMocks.php';
 
+use Pet\Tests\Stubs\WPMocks;
 use Pet\Application\Activity\Service\ActivityEventTransformer;
 use Pet\Domain\Feed\Entity\FeedEvent;
 use Pet\Domain\Feed\Repository\FeedEventRepository;
@@ -30,6 +38,14 @@ class ActivityControllerTest extends TestCase
     public function setUp(): void
     {
         parent::setUp();
+        WPMocks::$currentUserId = 1;
+        WPMocks::$isUserLoggedIn = true;
+    }
+
+    public function tearDown(): void
+    {
+        WPMocks::reset();
+        parent::tearDown();
     }
 
     public function testCheckPermissionRequiresLogin(): void
@@ -101,19 +117,15 @@ class ActivityControllerTest extends TestCase
             {
                 return array_slice($this->events, 0, $limit);
             }
+
+            public function findLatestBySource(string $sourceEngine, string $sourceEntityId, string $eventType): ?FeedEvent
+            {
+                return null;
+            }
         };
 
         $transformer = new ActivityEventTransformer();
 
-        return new class($repo, $transformer) extends ActivityController {
-            protected \Pet\Domain\Feed\Repository\FeedEventRepository $feedEventRepository;
-            protected \Pet\Application\Activity\Service\ActivityEventTransformer $transformer;
-
-            public function __construct(FeedEventRepository $repo, ActivityEventTransformer $transformer)
-            {
-                $this->feedEventRepository = $repo;
-                $this->transformer = $transformer;
-            }
-        };
+        return new ActivityController($repo, $transformer);
     }
 }

@@ -89,6 +89,19 @@ class SqlFeedEventRepository implements FeedEventRepository
         return array_map([$this, 'mapRowToEntity'], $results);
     }
 
+    public function findLatestBySource(string $sourceEngine, string $sourceEntityId, string $eventType): ?FeedEvent
+    {
+        $table = $this->wpdb->prefix . 'pet_feed_events';
+        $sql = "SELECT * FROM $table WHERE source_engine = %s AND source_entity_id = %s AND event_type = %s ORDER BY created_at DESC LIMIT 1";
+        $row = $this->wpdb->get_row($this->wpdb->prepare($sql, $sourceEngine, $sourceEntityId, $eventType));
+
+        if (!$row) {
+            return null;
+        }
+
+        return $this->mapRowToEntity($row);
+    }
+
     private function mapRowToEntity($row): FeedEvent
     {
         return new FeedEvent(

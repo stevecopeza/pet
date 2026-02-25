@@ -20,4 +20,6 @@ interface FeedEventRepository
      * @return FeedEvent[]
      */
     public function findRelevantForUser(string $userId, array $departmentIds, array $roleIds, int $limit = 50): array;
+
+    public function findLatestBySource(string $sourceEngine, string $sourceEntityId, string $eventType): ?FeedEvent;
 }

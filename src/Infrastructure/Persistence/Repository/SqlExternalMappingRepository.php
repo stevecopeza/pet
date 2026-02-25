@@ -35,7 +35,7 @@ final class SqlExternalMappingRepository
         $this->wpdb->query($createSql);
         $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
         $sql = "
-            INSERT INTO $table (system, entity_type, pet_entity_id, external_id, external_version, created_at, updated_at)
+            INSERT INTO $table (`system`, entity_type, pet_entity_id, external_id, external_version, created_at, updated_at)
             VALUES (%s, %s, %d, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE external_version = VALUES(external_version), updated_at = VALUES(updated_at)
         ";

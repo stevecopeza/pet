@@ -1,5 +1,10 @@
 <?php
 
+error_reporting(E_ALL & ~E_DEPRECATED);
+define('WP_DEBUG', true);
+define('WP_DEBUG_DISPLAY', true);
+define('WP_DEBUG_LOG', true);
+
 require_once dirname(__DIR__) . '/vendor/autoload.php';
 
 if (!defined('ABSPATH')) {
@@ -11,11 +16,29 @@ if (!defined('ABSPATH')) {
     }
 }
 
-if (!function_exists('wp_get_environment_type')) {
+// Check if we are running Unit tests
+$isUnitTests = false;
+// Skip argv[0] which is the command path
+for ($i = 1; $i < count($_SERVER['argv']); $i++) {
+    $arg = $_SERVER['argv'][$i];
+    if (stripos($arg, 'Unit') !== false) {
+        $isUnitTests = true;
+        break;
+    }
+}
+
+if (!$isUnitTests && !function_exists('wp_get_environment_type')) {
+    define('DISABLE_WP_CRON', true);
     $wpLoad = ABSPATH . 'wp-load.php';
+    echo "Attempting to load WP from: $wpLoad\n";
     if (file_exists($wpLoad)) {
         require_once $wpLoad;
+        echo "WP Loaded.\n";
+    } else {
+        echo "WP Load file not found!\n";
     }
+} else {
+    echo "Skipping WP Load. isUnitTests: " . ($isUnitTests ? 'true' : 'false') . ", wp_get_environment_type exists: " . (function_exists('wp_get_environment_type') ? 'true' : 'false') . "\n";
 }
 
 if (!defined('OBJECT')) {
@@ -62,7 +85,11 @@ if (!class_exists('wpdb')) {
     }
 }
 
-if (file_exists(ABSPATH . 'wp-admin/includes/upgrade.php')) {
+if (!isset($GLOBALS['wpdb'])) {
+    $GLOBALS['wpdb'] = new wpdb('root', 'root', 'test', 'localhost');
+}
+
+if (!$isUnitTests && file_exists(ABSPATH . 'wp-admin/includes/upgrade.php')) {
     $container = \Pet\Infrastructure\DependencyInjection\ContainerFactory::create();
     /** @var \Pet\Infrastructure\Persistence\Migration\MigrationRunner $runner */
     $runner = $container->get(\Pet\Infrastructure\Persistence\Migration\MigrationRunner::class);

@@ -12,6 +12,8 @@ import Settings from './components/Settings';
 import Roles from './components/Roles';
 import WorkItems from './components/WorkItems';
 import Finance from './components/Finance';
+import Conversations from './components/Conversations';
+import Approvals from './components/Approvals';
 
 const App = () => {
   const currentPage = window.petSettings?.currentPage || 'pet-dashboard';
@@ -31,6 +33,7 @@ const App = () => {
       case 'pet-activity': return 'Activity';
       case 'pet-settings': return 'Settings';
       case 'pet-finance': return 'Finance';
+      case 'pet-conversations': return 'Conversations';
       default: return 'PET';
     }
   };
@@ -55,6 +58,10 @@ const App = () => {
         return <Roles />;
       case 'pet-support':
         return <Support />;
+      case 'pet-conversations':
+        return <Conversations />;
+      case 'pet-approvals':
+        return <Approvals />;
       case 'pet-knowledge':
         return <Knowledge />;
       case 'pet-activity':

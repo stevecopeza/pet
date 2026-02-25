@@ -94,6 +94,35 @@ export interface Quote {
   }>;
 }
 
+export interface Conversation {
+  uuid: string;
+  context_type: string;
+  context_id: string;
+  subject: string;
+  state: string;
+  created_at: string;
+  decisions: Decision[];
+  timeline: TimelineEvent[];
+}
+
+export interface Decision {
+  uuid: string;
+  decision_type: string;
+  state: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  payload: any;
+  outcome: string | null;
+  requested_at: string;
+  finalized_at: string | null;
+}
+
+export interface TimelineEvent {
+  id: number;
+  type: string;
+  payload: any;
+  occurred_at: string;
+  actor_id: number;
+}
+
 export interface CostAdjustment {
   id: number;
   description: string;
@@ -330,6 +359,7 @@ export interface Article {
   content: string;
   category: string;
   status: string;
+  malleableData?: Record<string, any>;
   createdAt: string;
   updatedAt: string | null;
 }

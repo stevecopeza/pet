@@ -8,6 +8,11 @@ use Pet\Domain\Activity\Entity\ActivityLog;
 use Pet\Domain\Activity\Repository\ActivityLogRepository;
 use Pet\Domain\Feed\Entity\FeedEvent;
 use Pet\Domain\Feed\Repository\FeedEventRepository;
+use Pet\Domain\Conversation\Repository\ConversationRepository;
+use Pet\Domain\Conversation\Repository\DecisionRepository;
+use Pet\Domain\Conversation\Event\MessagePosted;
+use Pet\Domain\Conversation\Event\DecisionRequested;
+use Pet\Domain\Conversation\Event\DecisionResponded;
 use Pet\Domain\Commercial\Event\QuoteAccepted;
 use Pet\Domain\Commercial\Event\ChangeOrderApprovedEvent;
 use Pet\Domain\Delivery\Event\ProjectCreated;
@@ -21,11 +26,157 @@ class FeedProjectionListener
 {
     private ActivityLogRepository $activityRepo;
     private FeedEventRepository $feedRepo;
+    private ConversationRepository $conversationRepo;
+    private DecisionRepository $decisionRepo;
 
-    public function __construct(ActivityLogRepository $activityRepo, FeedEventRepository $feedRepo)
-    {
+    public function __construct(
+        ActivityLogRepository $activityRepo, 
+        FeedEventRepository $feedRepo,
+        ConversationRepository $conversationRepo,
+        DecisionRepository $decisionRepo
+    ) {
         $this->activityRepo = $activityRepo;
         $this->feedRepo = $feedRepo;
+        $this->conversationRepo = $conversationRepo;
+        $this->decisionRepo = $decisionRepo;
+    }
+
+    public function onMessagePosted(MessagePosted $event): void
+    {
+        $conversation = $this->conversationRepo->findByUuid($event->conversationUuid());
+        if (!$conversation) {
+            return;
+        }
+
+        // Collapse logic
+        $lastEvent = $this->feedRepo->findLatestBySource(
+            'conversation', 
+            $event->conversationUuid(), 
+            'conversation.message_posted'
+        );
+
+        $payload = $event->payload();
+        $body = $payload['body'];
+        $actorId = $event->actorId();
+
+        // Check if we can collapse
+        if ($lastEvent) {
+            $meta = $lastEvent->getMetadata();
+            if (($meta['actor_id'] ?? null) === $actorId) {
+                $count = ($meta['message_count'] ?? 1) + 1;
+                $newMeta = array_merge($meta, [
+                    'message_count' => $count,
+                    'latest_body' => $body
+                ]);
+                
+                $summary = "User {$actorId} posted {$count} messages in " . $conversation->subject();
+
+                $updatedEvent = new FeedEvent(
+                    $lastEvent->getId(),
+                    $lastEvent->getEventType(),
+                    $lastEvent->getSourceEngine(),
+                    $lastEvent->getSourceEntityId(),
+                    $lastEvent->getClassification(),
+                    $lastEvent->getTitle(),
+                    $summary,
+                    $newMeta,
+                    $lastEvent->getAudienceScope(),
+                    $lastEvent->getAudienceReferenceId(),
+                    $lastEvent->isPinned(),
+                    $lastEvent->getExpiresAt(),
+                    new \DateTimeImmutable()
+                );
+                
+                $this->feedRepo->save($updatedEvent);
+                return;
+            }
+        }
+
+        // Create new event
+        $this->feedRepo->save(FeedEvent::create(
+            $this->generateUuid(),
+            'conversation.message_posted',
+            'conversation',
+            $event->conversationUuid(),
+            'informational',
+            'New Message',
+            "User {$actorId} posted a message in " . $conversation->subject(),
+            [
+                'actor_id' => $actorId,
+                'message_count' => 1,
+                'latest_body' => $body,
+                'context_type' => $conversation->contextType(),
+                'context_id' => $conversation->contextId(),
+                'subject_key' => $conversation->subjectKey()
+            ],
+            'global',
+            null
+        ));
+    }
+
+    public function onDecisionRequested(DecisionRequested $event): void
+    {
+        $conversation = $this->conversationRepo->findByUuid($event->conversationUuid());
+        if (!$conversation) {
+            return;
+        }
+
+        $payload = $event->payload();
+        $decisionType = $payload['decision_type'];
+
+        $this->feedRepo->save(FeedEvent::create(
+            $this->generateUuid(),
+            'conversation.decision_requested',
+            'conversation',
+            $event->conversationUuid(),
+            'action_required',
+            'Decision Requested',
+            "Decision requested: {$decisionType} in " . $conversation->subject(),
+            [
+                'decision_type' => $decisionType,
+                'requester_id' => $event->actorId(),
+                'context_type' => $conversation->contextType(),
+                'context_id' => $conversation->contextId()
+            ],
+            'global',
+            null
+        ));
+    }
+
+    public function onDecisionResponded(DecisionResponded $event): void
+    {
+        $decision = $this->decisionRepo->findByUuid($event->decisionUuid());
+        if (!$decision) {
+            return;
+        }
+
+        $conversation = $this->conversationRepo->findById($decision->conversationId());
+        if (!$conversation) {
+            return;
+        }
+
+        $payload = $event->payload();
+        $response = $payload['response'];
+        $comment = $payload['comment'] ?? '';
+
+        $this->feedRepo->save(FeedEvent::create(
+            $this->generateUuid(),
+            'conversation.decision_recorded',
+            'conversation',
+            $conversation->uuid(),
+            'informational',
+            'Decision Response',
+            "User {$event->actorId()} responded '{$response}' in " . $conversation->subject(),
+            [
+                'response' => $response,
+                'comment' => $comment,
+                'responder_id' => $event->actorId(),
+                'context_type' => $conversation->contextType(),
+                'context_id' => $conversation->contextId()
+            ],
+            'global',
+            null
+        ));
     }
 
     public function onQuoteAccepted(QuoteAccepted $event): void

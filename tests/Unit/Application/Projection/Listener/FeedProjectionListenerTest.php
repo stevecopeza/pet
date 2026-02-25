@@ -14,6 +14,8 @@ use PHPUnit\Framework\TestCase;
 use Pet\Application\Projection\Listener\FeedProjectionListener;
 use Pet\Domain\Activity\Repository\ActivityLogRepository;
 use Pet\Domain\Feed\Repository\FeedEventRepository;
+use Pet\Domain\Conversation\Repository\ConversationRepository;
+use Pet\Domain\Conversation\Repository\DecisionRepository;
 use Pet\Domain\Feed\Entity\FeedEvent;
 use Pet\Domain\Commercial\Entity\Quote;
 use Pet\Domain\Commercial\Event\QuoteAccepted;
@@ -29,13 +31,22 @@ class FeedProjectionListenerTest extends TestCase
 {
     private $activityRepo;
     private $feedRepo;
+    private $conversationRepo;
+    private $decisionRepo;
     private $listener;
 
     protected function setUp(): void
     {
         $this->activityRepo = $this->createMock(ActivityLogRepository::class);
         $this->feedRepo = $this->createMock(FeedEventRepository::class);
-        $this->listener = new FeedProjectionListener($this->activityRepo, $this->feedRepo);
+        $this->conversationRepo = $this->createMock(ConversationRepository::class);
+        $this->decisionRepo = $this->createMock(DecisionRepository::class);
+        $this->listener = new FeedProjectionListener(
+            $this->activityRepo, 
+            $this->feedRepo,
+            $this->conversationRepo,
+            $this->decisionRepo
+        );
     }
 
     public function testOnQuoteAccepted()

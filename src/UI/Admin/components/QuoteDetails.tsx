@@ -13,6 +13,7 @@ const flattenTeams = (nodes: Team[]): Team[] => {
 };
 import MalleableFieldsRenderer from './MalleableFieldsRenderer';
 import AddCostAdjustmentForm from './AddCostAdjustmentForm';
+import ConversationPanel from './ConversationPanel';
 
 interface MarkdownTextareaProps {
   value: string;
@@ -355,6 +356,13 @@ const QuoteDetails: React.FC<QuoteDetailsProps> = ({ quoteId, onBack }) => {
   const [editingSectionId, setEditingSectionId] = useState<number | null>(null);
   const [sectionDraftNames, setSectionDraftNames] = useState<Record<number, string>>({});
   const [sectionMenuOpenId, setSectionMenuOpenId] = useState<number | null>(null);
+  const [conversationContext, setConversationContext] = useState<{
+    type: string;
+    id: string;
+    version: string;
+    subject: string;
+    subjectKey: string;
+  } | null>(null);
 
   const blocksForRendering: QuoteBlock[] = (quote?.blocks || []).slice().sort((a, b) => a.orderIndex - b.orderIndex);
   const sectionsForRendering: QuoteSection[] = (quote?.sections || [])
@@ -1622,7 +1630,21 @@ const QuoteDetails: React.FC<QuoteDetailsProps> = ({ quoteId, onBack }) => {
       </div>
 
       <div className="card" style={{ padding: '20px', marginBottom: '20px', background: '#fff', border: '1px solid #ccd0d4' }}>
-        <h2>Quote #{quote.id} (v{quote.version})</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h2>Quote #{quote.id} (v{quote.version})</h2>
+          <button
+            className="button"
+            onClick={() => setConversationContext({
+              type: 'quote',
+              id: quote.id.toString(),
+              version: quote.version.toString(),
+              subject: `Quote #${quote.id}: ${quote.title}`,
+              subjectKey: `quote:${quote.id}`
+            })}
+          >
+            Discuss Quote
+          </button>
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
           <div>
             <p><strong>Customer ID:</strong> {quote.customerId}</p>
@@ -2309,6 +2331,25 @@ const QuoteDetails: React.FC<QuoteDetailsProps> = ({ quoteId, onBack }) => {
                                   }
                                 >
                                   {isExpanded ? 'Close' : 'Edit'}
+                                </button>
+                                <button
+                                  className="button button-small"
+                                  style={{ marginLeft: '8px' }}
+                                  onClick={() => {
+                                    const desc = (block.payload && typeof block.payload.description === 'string') 
+                                      ? block.payload.description 
+                                      : block.type;
+                                    setConversationContext({
+                                      type: 'quote',
+                                      id: quote.id.toString(),
+                                      version: quote.version.toString(),
+                                      subject: `Block: ${desc}`,
+                                      subjectKey: `quote_line:${block.id}`
+                                    });
+                                  }}
+                                  title="Discuss Line Item"
+                                >
+                                  💬
                                 </button>
                                 <button
                                   className="button button-small"
@@ -4489,7 +4530,7 @@ const QuoteDetails: React.FC<QuoteDetailsProps> = ({ quoteId, onBack }) => {
                                 : undefined;
                               const { quoteTotal } = computeQuoteTotals(quote!);
                               const amount =
-                                quoteTotal > 0
+                                quoteTotal > 0 && typeof percent === 'number'
                                   ? (quoteTotal * percent) / 100
                                   : 0;
                               next[index] = {
@@ -5109,6 +5150,31 @@ const QuoteDetails: React.FC<QuoteDetailsProps> = ({ quoteId, onBack }) => {
           </div>
         )}
       </div>
+
+      {conversationContext && (
+        <div className="pet-modal-overlay" style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div className="pet-modal-content" style={{
+            background: 'white', padding: '20px', borderRadius: '5px', width: '800px', maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)', display: 'flex', flexDirection: 'column'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+              <h3 style={{ margin: 0 }}>Conversation: {conversationContext.subject}</h3>
+              <button onClick={() => setConversationContext(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: '1.2em' }}>&times;</button>
+            </div>
+            <ConversationPanel
+              contextType={conversationContext.type}
+              contextId={conversationContext.id}
+              contextVersion={conversationContext.version}
+              defaultSubject={conversationContext.subject}
+              subjectKey={conversationContext.subjectKey}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

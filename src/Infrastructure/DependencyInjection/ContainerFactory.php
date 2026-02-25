@@ -83,7 +83,30 @@ class ContainerFactory
                 return new \Pet\Application\System\Service\TouchedTracker($wpdb);
             },
 
-            // Repositories
+            \Pet\Application\Conversation\Command\CreateConversationHandler::class => function (\Psr\Container\ContainerInterface $c) {
+                return new \Pet\Application\Conversation\Command\CreateConversationHandler(
+                    $c->get(\Pet\Domain\Conversation\Repository\ConversationRepository::class),
+                    $c->get(\Pet\Domain\Identity\Repository\EmployeeRepository::class),
+                    $c->get(\Pet\Domain\Identity\Repository\ContactRepository::class),
+                    $c->get(\Pet\Domain\Team\Repository\TeamRepository::class),
+                    $c->get(\Pet\Domain\Commercial\Repository\QuoteRepository::class)
+                );
+            },
+
+            \Pet\Application\Conversation\Command\PostMessageHandler::class => function (\Psr\Container\ContainerInterface $c) {
+                return new \Pet\Application\Conversation\Command\PostMessageHandler(
+                    $c->get(\Pet\Domain\Conversation\Repository\ConversationRepository::class),
+                    $c->get(\Pet\Domain\Identity\Repository\EmployeeRepository::class),
+                    $c->get(\Pet\Domain\Identity\Repository\ContactRepository::class),
+                    $c->get(\Pet\Domain\Team\Repository\TeamRepository::class)
+                );
+            },
+
+            \Pet\Domain\Team\Repository\TeamRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlTeamRepository($wpdb);
+            },
+            
             \Pet\Domain\Identity\Repository\EmployeeRepository::class => function () {
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlEmployeeRepository($wpdb);
@@ -297,6 +320,18 @@ class ContainerFactory
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlCalendarRepository($wpdb);
             },
+
+            // Conversation & Decision Repositories
+            \Pet\Domain\Conversation\Repository\ConversationRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\Conversation\SqlConversationRepository($wpdb);
+            },
+            \Pet\Domain\Conversation\Repository\DecisionRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\Conversation\SqlDecisionRepository($wpdb);
+            },
+            \Pet\Application\Conversation\Service\ActionGatingService::class => \DI\autowire(\Pet\Application\Conversation\Service\ActionGatingService::class),
+            \Pet\Domain\Conversation\Service\ConversationAccessControl::class => \DI\autowire(\Pet\Domain\Conversation\Service\ConversationAccessControl::class),
             \Pet\Domain\Sla\Repository\SlaRepository::class => function (\DI\Container $c) {
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlSlaRepository(
@@ -334,6 +369,10 @@ class ContainerFactory
             \Pet\Application\Commercial\Command\DeleteQuoteSectionHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\DeleteQuoteSectionHandler::class),
             \Pet\Application\Commercial\Listener\QuoteAcceptedListener::class => \DI\autowire(\Pet\Application\Commercial\Listener\QuoteAcceptedListener::class),
             \Pet\Application\Commercial\Listener\CreateForecastFromQuoteListener::class => \DI\autowire(\Pet\Application\Commercial\Listener\CreateForecastFromQuoteListener::class),
+
+            \Pet\Application\Conversation\Command\AddParticipantHandler::class => \DI\autowire(\Pet\Application\Conversation\Command\AddParticipantHandler::class),
+            \Pet\Application\Conversation\Command\RemoveParticipantHandler::class => \DI\autowire(\Pet\Application\Conversation\Command\RemoveParticipantHandler::class),
+
             \Pet\Application\Delivery\Listener\CreateProjectFromQuoteListener::class => \DI\autowire(\Pet\Application\Delivery\Listener\CreateProjectFromQuoteListener::class),
             \Pet\Application\Commercial\Command\CreateLeadHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\CreateLeadHandler::class),
             \Pet\Application\Commercial\Command\UpdateLeadHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\UpdateLeadHandler::class),

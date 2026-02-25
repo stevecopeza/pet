@@ -4,19 +4,27 @@ declare(strict_types=1);
 
 namespace Pet\UI\Rest\Controller;
 
+use Pet\Tests\Stubs\WPMocks;
+
 // Mock global WordPress functions in the same namespace
-function get_current_user_id() {
-    return 123;
+if (!function_exists(__NAMESPACE__ . '\get_current_user_id')) {
+    function get_current_user_id() {
+        return WPMocks::$currentUserId ?: 123;
+    }
 }
 
-function is_user_logged_in() {
-    return true;
+if (!function_exists(__NAMESPACE__ . '\is_user_logged_in')) {
+    function is_user_logged_in() {
+        return WPMocks::$isUserLoggedIn;
+    }
 }
 
 namespace Pet\Tests\Unit\UI\Rest\Controller;
 
 require_once __DIR__ . '/../../../../Stubs/WP_REST_Classes.php';
+require_once __DIR__ . '/../../../../Stubs/WPMocks.php';
 
+use Pet\Tests\Stubs\WPMocks;
 use Pet\Domain\Work\Entity\WorkItem;
 use Pet\Domain\Work\Repository\WorkItemRepository;
 use Pet\Domain\Advisory\Entity\AdvisorySignal;
@@ -33,6 +41,9 @@ class WorkControllerTest extends TestCase
 
     protected function setUp(): void
     {
+        WPMocks::$currentUserId = 123;
+        WPMocks::$isUserLoggedIn = true;
+
         $this->workItemRepository = $this->createMock(WorkItemRepository::class);
         $this->signalRepository = $this->createMock(AdvisorySignalRepository::class);
         
@@ -40,6 +51,11 @@ class WorkControllerTest extends TestCase
             $this->workItemRepository,
             $this->signalRepository
         );
+    }
+
+    protected function tearDown(): void
+    {
+        WPMocks::reset();
     }
 
     public function testGetMyWorkItemsReturnsMappedItemsWithSignals(): void

@@ -37,8 +37,7 @@ final class QueueBillingExportForQuickBooksHandler
             $eventId = $this->events->append('billing_export', $export->id(), $version, 'BillingExportQueued', $payload);
             $this->outbox->enqueue($eventId, 'quickbooks');
             $this->tx->commit();
-            $table = $GLOBALS['wpdb']->prefix . 'pet_billing_exports';
-            $this->touched->mark($table, $export->id(), $export->createdByEmployeeId());
+            $this->touched->mark('billing_export', $export->id(), $export->createdByEmployeeId());
         } catch (\Throwable $e) {
             $this->tx->rollback();
             throw $e;

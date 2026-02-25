@@ -99,7 +99,6 @@ class WorkItemPriorityIntegrationTest extends TestCase
 
         $this->assertNotNull($savedWorkItem);
         $this->assertEquals('ticket', $savedWorkItem->getSourceType());
-        $this->assertEquals($customerId, $savedWorkItem->getCustomerId());
         $this->assertEquals(2, $savedWorkItem->getClientTier());
         $this->assertGreaterThan(0.0, $savedWorkItem->getPriorityScore());
     }

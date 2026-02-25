@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Ticket, Customer, WorkItem, ActivityLog, Employee } from '../types';
+import ConversationPanel from './ConversationPanel';
 
 interface TicketDetailsProps {
   ticket: Ticket;
   onBack: () => void;
+  initialShowConversation?: boolean;
 }
 
-const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack }) => {
+const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack, initialShowConversation = false }) => {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loadingCustomer, setLoadingCustomer] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [activeConversation, setActiveConversation] = useState<'ticket' | 'sla' | null>(initialShowConversation ? 'ticket' : null);
   const [status, setStatus] = useState(ticket.status);
   const [priority, setPriority] = useState(ticket.priority);
   const [saving, setSaving] = useState(false);
@@ -343,7 +346,16 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack }) => {
       <div style={{ marginBottom: '20px' }}>
         <button className="button" onClick={onBack}>&larr; Back to Tickets</button>
         {!isEditing && (
-          <button className="button" onClick={() => setIsEditing(true)} style={{ marginLeft: '10px' }}>Edit</button>
+          <>
+            <button className="button" onClick={() => setIsEditing(true)} style={{ marginLeft: '10px' }}>Edit</button>
+            <button 
+              className={`button ${activeConversation === 'ticket' ? 'button-primary' : ''}`} 
+              onClick={() => setActiveConversation(activeConversation === 'ticket' ? null : 'ticket')} 
+              style={{ marginLeft: '10px' }}
+            >
+              {activeConversation === 'ticket' ? 'Hide Discussion' : 'Discuss'}
+            </button>
+          </>
         )}
         {isEditing && (
           <>
@@ -398,6 +410,57 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack }) => {
           </div>
         </div>
       </div>
+
+      {activeConversation && (
+        <div style={{ marginBottom: '20px', border: '1px solid #ccd0d4', background: '#fff', padding: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <h3 style={{ margin: 0 }}>
+              {activeConversation === 'sla' ? 'SLA Discussion' : 'Ticket Discussion'}
+            </h3>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              {activeConversation === 'sla' && (
+                <button 
+                  className="button" 
+                  onClick={() => setActiveConversation('ticket')}
+                >
+                  Switch to Main Discussion
+                </button>
+              )}
+              {activeConversation === 'ticket' && ticket.slaId && (
+                <button 
+                  className="button" 
+                  onClick={() => setActiveConversation('sla')}
+                >
+                  Switch to SLA Discussion
+                </button>
+              )}
+              <button 
+                className="button" 
+                onClick={() => setActiveConversation(null)}
+                title="Close"
+              >
+                &times;
+              </button>
+            </div>
+          </div>
+          <ConversationPanel
+            key={activeConversation} // Force re-mount when switching
+            contextType="ticket"
+            contextId={String(ticket.id)}
+            defaultSubject={
+              activeConversation === 'sla' 
+                ? `SLA Discussion: Ticket #${ticket.id}` 
+                : `Ticket #${ticket.id}: ${ticket.subject}`
+            }
+            subjectKey={
+              activeConversation === 'sla'
+                ? `ticket_sla:${ticket.id}`
+                : `ticket:${ticket.id}`
+            }
+          />
+        </div>
+      )}
+
 
       <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '30px' }}>
           <div className="pet-ticket-main">

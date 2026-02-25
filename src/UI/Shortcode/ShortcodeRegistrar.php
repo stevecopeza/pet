@@ -16,6 +16,9 @@ use Pet\Domain\Support\Repository\TicketRepository;
 use Pet\Domain\Identity\Repository\CustomerRepository;
 use Pet\Domain\Feed\Repository\FeedEventRepository;
 use Pet\Domain\Work\Repository\AssignmentRepository;
+use Pet\Domain\Conversation\Repository\ConversationRepository;
+use Pet\Domain\Conversation\Repository\DecisionRepository;
+use Pet\Domain\Knowledge\Repository\ArticleRepository;
 use DateTimeImmutable;
 
 class ShortcodeRegistrar
@@ -29,6 +32,9 @@ class ShortcodeRegistrar
             add_shortcode('pet_activity_stream', [$this, 'renderActivityStream']);
             add_shortcode('pet_activity_wallboard', [$this, 'renderActivityWallboard']);
             add_shortcode('pet_helpdesk', [$this, 'renderHelpdeskOverview']);
+            add_shortcode('pet_my_conversations', [$this, 'renderMyConversations']);
+            add_shortcode('pet_my_approvals', [$this, 'renderMyApprovals']);
+            add_shortcode('pet_knowledge_base', [$this, 'renderKnowledgeBase']);
         });
     }
 
@@ -1489,6 +1495,203 @@ class ShortcodeRegistrar
 
         $html .= $this->renderActivityRefreshScript();
 
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    public function renderMyConversations(array $atts = [], ?string $content = null): string
+    {
+        if (!is_user_logged_in()) {
+            return '<div class="pet-shortcode pet-my-conversations"><p>' . esc_html__('Sign in required to view conversations.', 'pet') . '</p></div>';
+        }
+
+        $atts = shortcode_atts(
+            [
+                'limit' => '10',
+                'title' => 'My Conversations',
+            ],
+            $atts,
+            'pet_my_conversations'
+        );
+
+        $limit = (int) $atts['limit'];
+        if ($limit <= 0) {
+            $limit = 10;
+        }
+
+        $userId = get_current_user_id();
+        $conversations = [];
+
+        try {
+            $container = ContainerFactory::create();
+            $conversationRepo = $container->get(ConversationRepository::class);
+            $conversations = $conversationRepo->findRecentByUserId($userId, $limit);
+        } catch (\Throwable $e) {
+            error_log('PET [pet_my_conversations] error: ' . $e->getMessage());
+            return '<div class="pet-shortcode pet-error">' . esc_html__('Error loading conversations.', 'pet') . '</div>';
+        }
+
+        $html = '<div class="pet-shortcode pet-my-conversations">';
+        if (!empty($atts['title'])) {
+            $html .= '<h3 class="pet-shortcode-title">' . esc_html($atts['title']) . '</h3>';
+        }
+
+        if (empty($conversations)) {
+            $html .= '<p class="pet-empty-state">' . esc_html__('No recent conversations.', 'pet') . '</p>';
+        } else {
+            $html .= '<ul class="pet-list pet-conversation-list">';
+            foreach ($conversations as $conversation) {
+                $url = admin_url('admin.php?page=pet-conversations&id=' . $conversation->id());
+                $html .= '<li class="pet-list-item">';
+                $html .= '<a href="' . esc_url($url) . '" class="pet-list-link">';
+                $html .= '<span class="pet-item-title">' . esc_html($conversation->subject()) . '</span>';
+                $html .= '<span class="pet-item-meta">';
+                $html .= '<span class="pet-item-date">' . esc_html($conversation->createdAt()->format('M j, Y')) . '</span>';
+                $html .= '<span class="pet-item-status pet-status-' . esc_attr($conversation->state()) . '">' . esc_html(ucfirst($conversation->state())) . '</span>';
+                $html .= '</span>';
+                $html .= '</a>';
+                $html .= '</li>';
+            }
+            $html .= '</ul>';
+        }
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    public function renderMyApprovals(array $atts = [], ?string $content = null): string
+    {
+        if (!is_user_logged_in()) {
+            return '<div class="pet-shortcode pet-my-approvals"><p>' . esc_html__('Sign in required to view approvals.', 'pet') . '</p></div>';
+        }
+
+        $atts = shortcode_atts(
+            [
+                'title' => 'Pending Approvals',
+            ],
+            $atts,
+            'pet_my_approvals'
+        );
+
+        $userId = get_current_user_id();
+        $decisions = [];
+
+        try {
+            $container = ContainerFactory::create();
+            $decisionRepo = $container->get(DecisionRepository::class);
+            $decisions = $decisionRepo->findPendingByUserId($userId);
+        } catch (\Throwable $e) {
+            error_log('PET [pet_my_approvals] error: ' . $e->getMessage());
+            return '<div class="pet-shortcode pet-error">' . esc_html__('Error loading approvals.', 'pet') . '</div>';
+        }
+
+        $html = '<div class="pet-shortcode pet-my-approvals">';
+        if (!empty($atts['title'])) {
+            $html .= '<h3 class="pet-shortcode-title">' . esc_html($atts['title']) . '</h3>';
+        }
+
+        if (empty($decisions)) {
+            $html .= '<p class="pet-empty-state">' . esc_html__('No pending approvals.', 'pet') . '</p>';
+        } else {
+            $html .= '<ul class="pet-list pet-approval-list">';
+            foreach ($decisions as $decision) {
+                $url = admin_url('admin.php?page=pet-conversations&id=' . $decision->conversationId());
+                
+                $html .= '<li class="pet-list-item">';
+                $html .= '<div class="pet-approval-card">';
+                $html .= '<div class="pet-approval-header">';
+                $html .= '<span class="pet-approval-type">' . esc_html(ucwords(str_replace('_', ' ', $decision->decisionType()))) . '</span>';
+                $html .= '<span class="pet-item-date">' . esc_html($decision->requestedAt()->format('M j, Y')) . '</span>';
+                $html .= '</div>';
+                
+                $payload = $decision->payload();
+                $details = '';
+                if (!empty($payload['description'])) {
+                    $details = $payload['description'];
+                } elseif (!empty($payload['reason'])) {
+                    $details = $payload['reason'];
+                }
+                
+                if ($details) {
+                    $html .= '<div class="pet-approval-details">' . esc_html($details) . '</div>';
+                }
+
+                $html .= '<div class="pet-approval-actions">';
+                $html .= '<a href="' . esc_url($url) . '" class="button button-small">' . esc_html__('Review', 'pet') . '</a>';
+                $html .= '</div>';
+                
+                $html .= '</div>';
+                $html .= '</li>';
+            }
+            $html .= '</ul>';
+        }
+        $html .= '</div>';
+
+        return $html;
+    }
+
+    public function renderKnowledgeBase(array $atts = [], ?string $content = null): string
+    {
+        $atts = shortcode_atts(
+            [
+                'category' => '',
+                'limit' => '5',
+                'title' => 'Knowledge Base',
+            ],
+            $atts,
+            'pet_knowledge_base'
+        );
+
+        $limit = (int) $atts['limit'];
+        if ($limit <= 0) {
+            $limit = 5;
+        }
+
+        $articles = [];
+
+        try {
+            $container = ContainerFactory::create();
+            $articleRepo = $container->get(ArticleRepository::class);
+            
+            if (!empty($atts['category'])) {
+                $articles = $articleRepo->findByCategory($atts['category']);
+            } else {
+                $articles = $articleRepo->findAll();
+            }
+            
+            if (count($articles) > $limit) {
+                $articles = array_slice($articles, 0, $limit);
+            }
+            
+        } catch (\Throwable $e) {
+            error_log('PET [pet_knowledge_base] error: ' . $e->getMessage());
+            return '<div class="pet-shortcode pet-error">' . esc_html__('Error loading knowledge base.', 'pet') . '</div>';
+        }
+
+        $html = '<div class="pet-shortcode pet-knowledge-base">';
+        if (!empty($atts['title'])) {
+            $html .= '<h3 class="pet-shortcode-title">' . esc_html($atts['title']) . '</h3>';
+        }
+
+        if (empty($articles)) {
+            $html .= '<p class="pet-empty-state">' . esc_html__('No articles found.', 'pet') . '</p>';
+        } else {
+            $html .= '<ul class="pet-list pet-article-list">';
+            foreach ($articles as $article) {
+                $url = admin_url('admin.php?page=pet-knowledge&id=' . $article->id());
+                
+                $html .= '<li class="pet-list-item">';
+                $html .= '<a href="' . esc_url($url) . '" class="pet-list-link">';
+                $html .= '<span class="pet-item-title">' . esc_html($article->title()) . '</span>';
+                $html .= '<span class="pet-item-meta">';
+                $html .= '<span class="pet-item-category">' . esc_html(ucfirst($article->category())) . '</span>';
+                $html .= '</span>';
+                $html .= '</a>';
+                $html .= '</li>';
+            }
+            $html .= '</ul>';
+        }
         $html .= '</div>';
 
         return $html;

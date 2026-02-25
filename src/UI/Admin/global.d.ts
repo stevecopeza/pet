@@ -6,6 +6,7 @@ declare global {
       apiUrl: string;
       nonce: string;
       currentPage?: string;
+      currentUserId?: number;
     };
   }
 }

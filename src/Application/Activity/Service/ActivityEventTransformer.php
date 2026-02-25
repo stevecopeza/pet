@@ -22,8 +22,8 @@ final class ActivityEventTransformer
         $eventType = $this->mapEventType($event->getEventType());
         $severity = $this->mapSeverity($eventType, $event->getClassification());
 
-        $referenceType = $this->mapReferenceType($eventType, $event->getSourceEngine());
-        $referenceId = '#' . $event->getSourceEntityId();
+        $referenceType = $this->mapReferenceType($eventType, $event->getSourceEngine(), $metadata);
+        $referenceId = isset($metadata['context_id']) ? '#' . $metadata['context_id'] : '#' . $event->getSourceEntityId();
         $referenceUrl = isset($metadata['reference_url']) && is_string($metadata['reference_url']) ? $metadata['reference_url'] : null;
 
         $customerId = isset($metadata['customer_id']) && is_string($metadata['customer_id']) ? $metadata['customer_id'] : null;
@@ -97,6 +97,9 @@ final class ActivityEventTransformer
             'commercial.change_order_approved' => 'CHANGE_ORDER_APPROVED',
             'delivery.milestone_completed' => 'MILESTONE_COMPLETED',
             'support.ticket_created' => 'TICKET_CREATED',
+            'conversation.message_posted' => 'CONVERSATION_MESSAGE',
+            'conversation.decision_requested' => 'DECISION_REQUESTED',
+            'conversation.decision_recorded' => 'DECISION_RESPONDED',
         ];
 
         if (isset($map[$domainEventType])) {
@@ -121,6 +124,9 @@ final class ActivityEventTransformer
             'TICKET_COMMENT_ADDED' => 'info',
             'ANNOUNCEMENT_PUBLISHED' => 'info',
             'ANNOUNCEMENT_ACKNOWLEDGED' => 'info',
+            'CONVERSATION_MESSAGE' => 'info',
+            'DECISION_REQUESTED' => 'attention',
+            'DECISION_RESPONDED' => 'info',
         ];
 
         if (isset($matrix[$eventType])) {
@@ -138,8 +144,28 @@ final class ActivityEventTransformer
         return 'info';
     }
 
-    private function mapReferenceType(string $eventType, string $sourceEngine): string
+    private function mapReferenceType(string $eventType, string $sourceEngine, array $metadata = []): string
     {
+        // First check metadata for explicit context type
+        if (isset($metadata['context_type']) && is_string($metadata['context_type'])) {
+            $contextType = $metadata['context_type'];
+            if ($contextType === 'ticket') {
+                return 'ticket';
+            }
+            if ($contextType === 'project') {
+                return 'project';
+            }
+            if ($contextType === 'quote') {
+                return 'quote';
+            }
+            if ($contextType === 'knowledge_article') {
+                return 'knowledge';
+            }
+            if ($contextType === 'milestone') {
+                return 'milestone';
+            }
+        }
+
         if (str_starts_with($eventType, 'TICKET_') || str_starts_with($eventType, 'SLA_') || $eventType === 'ESCALATION_TRIGGERED') {
             return 'ticket';
         }
@@ -192,6 +218,16 @@ final class ActivityEventTransformer
             return 'quote';
         }
 
+        if ($sourceEngine === 'conversation') {
+             if (isset($metadata['context_type'])) {
+                 if ($metadata['context_type'] === 'knowledge_article') {
+                     return 'knowledge';
+                 }
+                 return $metadata['context_type'];
+             }
+             return 'conversation';
+        }
+
         return 'knowledge';
     }
 
@@ -210,6 +246,9 @@ final class ActivityEventTransformer
             'TICKET_COMMENT_ADDED' => 'Comment',
             'ANNOUNCEMENT_PUBLISHED' => 'Announcement',
             'ANNOUNCEMENT_ACKNOWLEDGED' => 'Acknowledged',
+            'CONVERSATION_MESSAGE' => 'Discussion',
+            'DECISION_REQUESTED' => 'Decision',
+            'DECISION_RESPONDED' => 'Decision',
         ];
 
         $tags = [];
