@@ -147,6 +147,11 @@ class SlaAutomationService
             $this->eventDispatcher->dispatch(new TicketWarningEvent($ticket->id(), new DateTimeImmutable()));
         } elseif ($newState === SlaState::BREACHED) {
             $this->eventDispatcher->dispatch(new TicketBreachedEvent($ticket->id(), new DateTimeImmutable()));
+
+            if ($this->featureFlags->isEscalationEngineEnabled() && $clockState->getEscalationStage() < 1) {
+                $this->eventDispatcher->dispatch(new EscalationTriggeredEvent($ticket->id(), 1));
+                $clockState->setEscalationStage(1);
+            }
         } elseif ($newState === SlaState::PAUSED) {
             // No event for pause currently required
         }

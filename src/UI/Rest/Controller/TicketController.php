@@ -12,6 +12,7 @@ use Pet\Application\Support\Command\DeleteTicketCommand;
 use Pet\Application\Support\Command\DeleteTicketHandler;
 use Pet\Domain\Support\Repository\TicketRepository;
 use Pet\Domain\Work\Repository\WorkItemRepository;
+use Pet\Application\System\Service\FeatureFlagService;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
@@ -26,23 +27,31 @@ class TicketController implements RestController
     private UpdateTicketHandler $updateTicketHandler;
     private DeleteTicketHandler $deleteTicketHandler;
     private WorkItemRepository $workItemRepository;
+    private FeatureFlagService $featureFlags;
 
     public function __construct(
         TicketRepository $ticketRepository,
         CreateTicketHandler $createTicketHandler,
         UpdateTicketHandler $updateTicketHandler,
         DeleteTicketHandler $deleteTicketHandler,
-        WorkItemRepository $workItemRepository
+        WorkItemRepository $workItemRepository,
+        FeatureFlagService $featureFlags
     ) {
         $this->ticketRepository = $ticketRepository;
         $this->createTicketHandler = $createTicketHandler;
         $this->updateTicketHandler = $updateTicketHandler;
         $this->deleteTicketHandler = $deleteTicketHandler;
         $this->workItemRepository = $workItemRepository;
+        $this->featureFlags = $featureFlags;
     }
 
     public function registerRoutes(): void
     {
+        // Gated by Feature Flag - Returns 404 if disabled (route not registered)
+        if (!$this->featureFlags->isHelpdeskEnabled()) {
+            return;
+        }
+
         register_rest_route(self::NAMESPACE, '/' . self::RESOURCE, [
             [
                 'methods' => WP_REST_Server::READABLE,

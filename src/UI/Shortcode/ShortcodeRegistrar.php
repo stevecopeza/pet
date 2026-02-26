@@ -19,6 +19,8 @@ use Pet\Domain\Work\Repository\AssignmentRepository;
 use Pet\Domain\Conversation\Repository\ConversationRepository;
 use Pet\Domain\Conversation\Repository\DecisionRepository;
 use Pet\Domain\Knowledge\Repository\ArticleRepository;
+use Pet\Application\System\Service\FeatureFlagService;
+use Pet\Application\Helpdesk\Query\HelpdeskOverviewQueryService;
 use DateTimeImmutable;
 
 class ShortcodeRegistrar
@@ -53,6 +55,8 @@ class ShortcodeRegistrar
             );
         }
 
+        $rawRefresh = isset($atts['refresh']) ? $atts['refresh'] : null;
+
         $atts = shortcode_atts(
             [
                 'mode' => 'manager',
@@ -81,8 +85,10 @@ class ShortcodeRegistrar
         if ($refresh < 0) {
             $refresh = 0;
         }
-        if ($mode === 'wallboard' && $refresh === 0) {
-            $refresh = 60;
+        
+        // Default wallboard refresh to 30s if not specified
+        if ($mode === 'wallboard' && $rawRefresh === null) {
+            $refresh = 30;
         }
 
         $limitCritical = (int) $atts['limit_critical'];
@@ -128,82 +134,22 @@ class ShortcodeRegistrar
 
         try {
             $container = ContainerFactory::create();
-            $ticketRepo = $container->get(TicketRepository::class);
-            $workItemRepo = $container->get(WorkItemRepository::class);
-            $employeeRepo = $container->get(EmployeeRepository::class);
-
-            $allowedDepartmentIds = null;
-            if ($atts['team'] === 'current') {
-                $userId = (int) get_current_user_id();
-                $employee = $employeeRepo->findByWpUserId($userId);
-                if ($employee && $employee->id() !== null) {
-                    $teamIds = $employee->teamIds();
-                    $allowedDepartmentIds = array_map('strval', $teamIds);
-                } else {
-                    $allowedDepartmentIds = [];
-                }
+            $featureFlags = $container->get(FeatureFlagService::class);
+            if (!$featureFlags->isHelpdeskShortcodeEnabled()) {
+                return '<!-- Helpdesk Overview disabled via feature flag -->';
+            }
+            if (!$featureFlags->isHelpdeskEnabled()) {
+                return '<!-- Helpdesk disabled via feature flag -->';
             }
 
-            $workItems = $workItemRepo->findActive();
-            $ticketWorkItems = [];
-            foreach ($workItems as $item) {
-                if ($item->getSourceType() !== 'ticket') {
-                    continue;
-                }
-                if (is_array($allowedDepartmentIds)) {
-                    if (!in_array((string) $item->getDepartmentId(), $allowedDepartmentIds, true)) {
-                        continue;
-                    }
-                }
-                $ticketId = (int) $item->getSourceId();
-                $ticketWorkItems[$ticketId] = $item;
-            }
-
-            $tickets = $ticketRepo->findActive();
-
-            foreach ($tickets as $ticket) {
-                $ticketId = $ticket->id();
-                if ($ticketId === null) {
-                    continue;
-                }
-
-                if (is_array($allowedDepartmentIds) && !isset($ticketWorkItems[$ticketId])) {
-                    continue;
-                }
-
-                $stats['open_tickets']++;
-
-                $workItem = $ticketWorkItems[$ticketId] ?? null;
-
-                $minutesRemaining = null;
-                if ($workItem) {
-                    $minutesRemaining = $workItem->getSlaTimeRemainingMinutes();
-                }
-
-                $band = 'normal';
-                if ($minutesRemaining !== null) {
-                    if ($minutesRemaining < 0) {
-                        $band = 'critical';
-                        $stats['breached_tickets']++;
-                    } elseif ($minutesRemaining < 60) {
-                        $band = 'risk';
-                    }
-                }
-
-                if ($band === 'critical') {
-                    $stats['critical_tickets']++;
-                } elseif ($band === 'risk') {
-                    $stats['at_risk_tickets']++;
-                }
-
-                $laneKey = $band === 'critical' ? 'critical' : ($band === 'risk' ? 'risk' : 'normal');
-
-                $lanes[$laneKey][] = [
-                    'ticket_id' => $ticketId,
-                    'subject' => $ticket->subject(),
-                    'band' => $band,
-                ];
-            }
+            $queryService = $container->get(HelpdeskOverviewQueryService::class);
+            $userId = (int) get_current_user_id();
+            
+            $data = $queryService->getOverview($atts['team'], $userId, $showFlow);
+            
+            $stats = $data['stats'];
+            $lanes = $data['lanes'];
+            $flow = $data['flow'];
         } catch (\Throwable $e) {
             error_log('PET [pet_helpdesk] data error: ' . $e->getMessage());
         }
@@ -235,6 +181,16 @@ class ShortcodeRegistrar
             $html .= '</div>';
             $html .= '</div>';
             $html .= '<div class="pet-helpdesk__context">' . esc_html__('SLA health across support tickets and projects.', 'pet') . '</div>';
+            
+            // Toolbar
+            $html .= '<div class="pet-helpdesk__toolbar" style="margin: 20px 0; display: flex; gap: 15px; align-items: center;">';
+            $html .= '<input type="text" id="pet-helpdesk-search" placeholder="' . esc_attr__('Search tickets...', 'pet') . '" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; flex: 1; max-width: 300px;">';
+            $html .= '<label class="pet-helpdesk__toggle" style="display: flex; align-items: center; gap: 5px; cursor: pointer;">';
+            $html .= '<input type="checkbox" id="pet-helpdesk-my-tickets"> ';
+            $html .= esc_html__('My Tickets', 'pet');
+            $html .= '</label>';
+            $html .= '</div>';
+
             $html .= '</div>';
 
             $html .= '<div class="pet-helpdesk__kpis">';
@@ -292,10 +248,7 @@ class ShortcodeRegistrar
                 if ($count >= $limitCritical) {
                     break;
                 }
-                $html .= '<article class="pet-helpdesk__card pet-helpdesk__card--danger">';
-                $html .= '<div class="pet-helpdesk__card-title">#' . esc_html((string) $card['ticket_id']) . ' ' . esc_html((string) $card['subject']) . '</div>';
-                $html .= '<div class="pet-helpdesk__card-meta">' . esc_html__('Breached SLA', 'pet') . '</div>';
-                $html .= '</article>';
+                $html .= $this->renderTicketCard($card, 'critical');
                 $count++;
             }
             if ($count === 0) {
@@ -317,14 +270,32 @@ class ShortcodeRegistrar
                 if ($count >= $limitRisk) {
                     break;
                 }
-                $html .= '<article class="pet-helpdesk__card pet-helpdesk__card--warn">';
-                $html .= '<div class="pet-helpdesk__card-title">#' . esc_html((string) $card['ticket_id']) . ' ' . esc_html((string) $card['subject']) . '</div>';
-                $html .= '<div class="pet-helpdesk__card-meta">' . esc_html__('Approaching SLA limit', 'pet') . '</div>';
-                $html .= '</article>';
+                $html .= $this->renderTicketCard($card, 'risk');
                 $count++;
             }
             if ($count === 0) {
                 $html .= '<div class="pet-helpdesk__card pet-helpdesk__card--neutral"><div class="pet-helpdesk__card-meta">' . esc_html__('No at-risk tickets.', 'pet') . '</div></div>';
+            }
+            $html .= '</div>';
+            $html .= '</section>';
+
+            $html .= '<section class="pet-helpdesk__panel pet-helpdesk__panel--normal">';
+            $html .= '<div class="pet-helpdesk__panel-head">';
+            $html .= '<h3 class="pet-helpdesk__panel-title">' . esc_html__('Normal', 'pet') . '</h3>';
+            $html .= '</div>';
+            $html .= '<div class="pet-helpdesk__cards">';
+            $count = 0;
+            // Limit normal tickets to avoid huge lists
+            $limitNormal = 10; 
+            foreach ($lanes['normal'] as $card) {
+                if ($count >= $limitNormal) {
+                    break;
+                }
+                $html .= $this->renderTicketCard($card, 'normal');
+                $count++;
+            }
+            if ($count === 0) {
+                $html .= '<div class="pet-helpdesk__card pet-helpdesk__card--neutral"><div class="pet-helpdesk__card-meta">' . esc_html__('No active tickets.', 'pet') . '</div></div>';
             }
             $html .= '</div>';
             $html .= '</section>';
@@ -345,11 +316,11 @@ class ShortcodeRegistrar
                     $html .= '<tr><td colspan="3">' . esc_html__('No recent flow events.', 'pet') . '</td></tr>';
                 } else {
                     foreach ($flow['recent_created'] as $event) {
-                        $headline = method_exists($event, 'getHeadline') ? $event->getHeadline() : '';
+                        $headline = method_exists($event, 'getHeadline') ? $event->getHeadline() : (method_exists($event, 'getTitle') ? $event->getTitle() : '');
                         $html .= '<tr><td>' . esc_html__('Created', 'pet') . '</td><td>' . esc_html((string) $headline) . '</td><td></td></tr>';
                     }
                     foreach ($flow['recent_resolved'] as $event) {
-                        $headline = method_exists($event, 'getHeadline') ? $event->getHeadline() : '';
+                        $headline = method_exists($event, 'getHeadline') ? $event->getHeadline() : (method_exists($event, 'getTitle') ? $event->getTitle() : '');
                         $html .= '<tr><td>' . esc_html__('Resolved', 'pet') . '</td><td>' . esc_html((string) $headline) . '</td><td></td></tr>';
                     }
                 }
@@ -359,6 +330,8 @@ class ShortcodeRegistrar
             }
 
             $html .= '</div>';
+            
+            $html .= $this->renderHelpdeskScripts();
         } else {
             $html .= '<div class="pet-helpdesk__wb-top">';
             $html .= '<div class="pet-helpdesk__wb-brand">' . esc_html__('Helpdesk', 'pet') . '</div>';
@@ -391,6 +364,7 @@ class ShortcodeRegistrar
 
             $html .= '<div class="pet-helpdesk__wb-cols">';
 
+            // Column 1: Critical
             $html .= '<div class="pet-helpdesk__wb-col">';
             $html .= '<h3 class="pet-helpdesk__panel-title">' . esc_html__('Critical', 'pet') . '</h3>';
             $html .= '<div class="pet-helpdesk__cards">';
@@ -399,9 +373,7 @@ class ShortcodeRegistrar
                 if ($count >= $limitCritical) {
                     break;
                 }
-                $html .= '<article class="pet-helpdesk__card pet-helpdesk__card--danger">';
-                $html .= '<div class="pet-helpdesk__card-title">#' . esc_html((string) $card['ticket_id']) . ' ' . esc_html((string) $card['subject']) . '</div>';
-                $html .= '</article>';
+                $html .= $this->renderTicketCard($card, 'critical');
                 $count++;
             }
             if ($count === 0) {
@@ -410,6 +382,7 @@ class ShortcodeRegistrar
             $html .= '</div>';
             $html .= '</div>';
 
+            // Column 2: At Risk
             $html .= '<div class="pet-helpdesk__wb-col">';
             $html .= '<h3 class="pet-helpdesk__panel-title">' . esc_html__('At Risk', 'pet') . '</h3>';
             $html .= '<div class="pet-helpdesk__cards">';
@@ -418,9 +391,7 @@ class ShortcodeRegistrar
                 if ($count >= $limitRisk) {
                     break;
                 }
-                $html .= '<article class="pet-helpdesk__card pet-helpdesk__card--warn">';
-                $html .= '<div class="pet-helpdesk__card-title">#' . esc_html((string) $card['ticket_id']) . ' ' . esc_html((string) $card['subject']) . '</div>';
-                $html .= '</article>';
+                $html .= $this->renderTicketCard($card, 'risk');
                 $count++;
             }
             if ($count === 0) {
@@ -429,31 +400,28 @@ class ShortcodeRegistrar
             $html .= '</div>';
             $html .= '</div>';
 
+            // Column 3: Normal
             $html .= '<div class="pet-helpdesk__wb-col">';
-            if ($showFlow) {
-                $html .= '<h3 class="pet-helpdesk__panel-title">' . esc_html__('Flow', 'pet') . '</h3>';
-                $html .= '<table class="pet-helpdesk__table">';
-                $html .= '<tbody>';
-                if (empty($flow['recent_created']) && empty($flow['recent_resolved'])) {
-                    $html .= '<tr><td>' . esc_html__('No recent flow events.', 'pet') . '</td></tr>';
-                } else {
-                    foreach ($flow['recent_created'] as $event) {
-                        $headline = method_exists($event, 'getHeadline') ? $event->getHeadline() : '';
-                        $html .= '<tr><td>' . esc_html((string) $headline) . '</td></tr>';
-                    }
-                    foreach ($flow['recent_resolved'] as $event) {
-                        $headline = method_exists($event, 'getHeadline') ? $event->getHeadline() : '';
-                        $html .= '<tr><td>' . esc_html((string) $headline) . '</td></tr>';
-                    }
+            $html .= '<h3 class="pet-helpdesk__panel-title">' . esc_html__('Normal', 'pet') . '</h3>';
+            $html .= '<div class="pet-helpdesk__cards">';
+            $count = 0;
+            $limitNormal = 15; // Higher limit for wallboard
+            foreach ($lanes['normal'] as $card) {
+                if ($count >= $limitNormal) {
+                    break;
                 }
-                $html .= '</tbody>';
-                $html .= '</table>';
+                $html .= $this->renderTicketCard($card, 'normal');
+                $count++;
+            }
+            if ($count === 0) {
+                $html .= '<div class="pet-helpdesk__card pet-helpdesk__card--neutral"><div class="pet-helpdesk__card-meta">' . esc_html__('No active tickets.', 'pet') . '</div></div>';
             }
             $html .= '</div>';
+            $html .= '</div>';
 
             $html .= '</div>';
 
-            $html .= '<div class="pet-helpdesk__wb-ticker">' . esc_html__('Helpdesk wallboard', 'pet') . '</div>';
+            $html .= '<div class="pet-helpdesk__wb-ticker">' . esc_html(sprintf(__('Helpdesk wallboard · Auto-refreshing every %ds', 'pet'), $refresh)) . '</div>';
         }
 
         if ($refresh > 0) {
@@ -1853,5 +1821,88 @@ class ShortcodeRegistrar
         $script .= '})();';
         $script .= '</script>';
         return $script;
+    }
+
+    private function renderTicketCard(array $card, string $lane): string
+    {
+        $classMap = [
+            'critical' => 'pet-helpdesk__card--danger',
+            'risk' => 'pet-helpdesk__card--warn',
+            'normal' => 'pet-helpdesk__card--normal',
+        ];
+        $class = $classMap[$lane] ?? 'pet-helpdesk__card--normal';
+
+        $assigneeName = $card['assignee_name'] ?? 'Unassigned';
+        $assigneeAvatar = $card['assignee_avatar_url'] ?? '';
+        $assigneeId = $card['assignee_user_id'] ?? '';
+        $customerName = $card['customer_name'] ?? 'Unknown';
+        $relativeDue = $card['relative_due'] ?? '';
+        $ticketId = $card['ticket_id'] ?? '';
+        $subject = $card['subject'] ?? '';
+
+        $html = '<article class="pet-helpdesk__card ' . esc_attr($class) . '" data-assignee-id="' . esc_attr($assigneeId) . '">';
+        
+        $html .= '<div class="pet-helpdesk__card-header" style="display: flex; justify-content: space-between; font-size: 0.8em; opacity: 0.8; margin-bottom: 5px;">';
+        $html .= '<span class="pet-ticket-id">#' . esc_html((string) $ticketId) . '</span>';
+        $html .= '<span class="pet-ticket-customer" style="font-weight: 500;">' . esc_html($customerName) . '</span>';
+        $html .= '</div>';
+        
+        $html .= '<div class="pet-helpdesk__card-title" style="font-weight: 600; margin-bottom: 8px;">' . esc_html($subject) . '</div>';
+        
+        $html .= '<div class="pet-helpdesk__card-footer" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.85em;">';
+        
+        $html .= '<div class="pet-ticket-assignee" style="display: flex; align-items: center; gap: 5px;">';
+        if ($assigneeAvatar) {
+            $html .= '<img src="' . esc_url($assigneeAvatar) . '" alt="" style="width: 20px; height: 20px; border-radius: 50%;">';
+        }
+        $html .= '<span class="pet-ticket-assignee-name">' . esc_html($assigneeName) . '</span>';
+        $html .= '</div>';
+        
+        if ($relativeDue) {
+            $dueClass = (strpos($relativeDue, 'overdue') !== false) ? 'color: #d32f2f;' : 'color: #666;';
+            $html .= '<div class="pet-ticket-due" style="' . $dueClass . '">' . esc_html($relativeDue) . '</div>';
+        }
+        
+        $html .= '</div>';
+        
+        $html .= '</article>';
+        
+        return $html;
+    }
+
+    private function renderHelpdeskScripts(): string
+    {
+        ob_start();
+        ?>
+        <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var searchInput = document.getElementById('pet-helpdesk-search');
+            var myTicketsCheckbox = document.getElementById('pet-helpdesk-my-tickets');
+            var currentUserId = '<?php echo esc_js((string) get_current_user_id()); ?>';
+
+            if (!searchInput || !myTicketsCheckbox) return;
+
+            function filterTickets() {
+                var term = searchInput.value.toLowerCase();
+                var showMy = myTicketsCheckbox.checked;
+                var cards = document.querySelectorAll('.pet-helpdesk__card');
+
+                cards.forEach(function(card) {
+                    var text = card.innerText.toLowerCase();
+                    var assigneeId = card.getAttribute('data-assignee-id');
+                    
+                    var matchesTerm = !term || text.includes(term);
+                    var matchesUser = !showMy || (assigneeId === currentUserId);
+                    
+                    card.style.display = (matchesTerm && matchesUser) ? 'block' : 'none';
+                });
+            }
+
+            searchInput.addEventListener('input', filterTickets);
+            myTicketsCheckbox.addEventListener('change', filterTickets);
+        });
+        </script>
+        <?php
+        return ob_get_clean();
     }
 }

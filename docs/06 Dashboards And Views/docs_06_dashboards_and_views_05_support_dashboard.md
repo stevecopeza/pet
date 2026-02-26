@@ -39,5 +39,15 @@ Provides real-time visibility into **support load and SLA risk**.
 
 ---
 
+## Wallboard Mode
+Designed for large screens/TVs in operational centers.
+
+- **High Contrast**: Dark theme for readability at a distance.
+- **Columns**: Critical (Breached), At Risk (Due Soon), Normal (Open).
+- **Auto-Refresh**: Reloads every 30s by default.
+- **Activation**: `[pet_helpdesk mode="wallboard"]`
+
+---
+
 **Authority**: Normative
 

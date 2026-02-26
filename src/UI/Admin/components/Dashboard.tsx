@@ -3,6 +3,7 @@ import { DashboardData } from '../types';
 import { DataTable, Column } from './DataTable';
 import { SkillHeatmapWidget } from './SkillHeatmapWidget';
 import { KpiPerformanceWidget } from './KpiPerformanceWidget';
+import { DemoWowPanel } from './DemoWowPanel';
 
 const Dashboard = () => {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -12,9 +13,17 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(`${window.petSettings.apiUrl}/dashboard`, {
+        const settings = window.petSettings as any;
+        const apiUrl = settings?.apiUrl;
+        const nonce = settings?.nonce;
+        
+        if (!apiUrl || !nonce) {
+             throw new Error('PET Settings not initialized');
+        }
+
+        const response = await fetch(`${apiUrl}/dashboard`, {
           headers: {
-            'X-WP-Nonce': window.petSettings.nonce,
+            'X-WP-Nonce': nonce,
           },
         });
 
@@ -67,6 +76,11 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {data.demoWow && (
+        <DemoWowPanel data={data.demoWow} />
+      )}
+
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginTop: '20px' }}>
           <SkillHeatmapWidget data={data.skillHeatmap || []} />

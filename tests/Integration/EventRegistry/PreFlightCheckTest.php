@@ -229,10 +229,19 @@ class PreFlightCheckTest extends TestCase
         
         $clockStateRepo->method('findByTicketIdForUpdate')->willReturn(null);
 
+        $featureFlags = $this->createMock(\Pet\Application\System\Service\FeatureFlagService::class);
+        $featureFlags->method('isSlaSchedulerEnabled')->willReturn(true);
+        $transaction = $this->createMock(\Pet\Infrastructure\Persistence\Transaction\SqlTransaction::class);
+        $transaction->method('begin');
+        $transaction->method('commit');
+        $transaction->method('rollback');
+
         $service = new SlaAutomationService(
             $ticketRepo,
             $clockStateRepo,
-            $this->eventBus
+            $this->eventBus,
+            $featureFlags,
+            $transaction
         );
 
         // Run automation

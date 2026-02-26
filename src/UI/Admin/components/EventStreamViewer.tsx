@@ -34,7 +34,7 @@ const EventStreamViewer: React.FC = () => {
         });
         if (!response.ok) throw new Error('Failed to fetch event stream');
         const data = await response.json();
-        setEvents(data);
+        setEvents(Array.isArray(data) ? data : []);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
       } finally {

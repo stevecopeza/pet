@@ -27,10 +27,16 @@ class SlaConcurrencyVerificationTest extends TestCase
         $this->ticketRepo = $this->createMock(TicketRepository::class);
         $this->clockStateRepo = $this->createMock(SlaClockStateRepository::class);
         $this->eventDispatcher = $this->createMock(EventBus::class);
+        $featureFlags = $this->createMock(\Pet\Application\System\Service\FeatureFlagService::class);
+        $featureFlags->method('isEscalationEngineEnabled')->willReturn(true);
+        $transaction = $this->createMock(\Pet\Infrastructure\Persistence\Transaction\SqlTransaction::class);
+        $transaction->method('begin');
+        $transaction->method('commit');
+        $transaction->method('rollback');
 
         // Create partial mock to control time
         $this->service = $this->getMockBuilder(SlaAutomationService::class)
-            ->setConstructorArgs([$this->ticketRepo, $this->clockStateRepo, $this->eventDispatcher])
+            ->setConstructorArgs([$this->ticketRepo, $this->clockStateRepo, $this->eventDispatcher, $featureFlags, $transaction])
             ->onlyMethods(['getNow'])
             ->getMock();
     }

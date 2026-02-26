@@ -24,8 +24,9 @@ const Feed = () => {
 
       const eventsData = await eventsRes.json();
       const annData = await annRes.json();
-      setEvents(eventsData);
-      setAnnouncements(annData);
+      
+      setEvents(Array.isArray(eventsData) ? eventsData : []);
+      setAnnouncements(Array.isArray(annData) ? annData : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
@@ -82,10 +83,10 @@ const Feed = () => {
   );
 
   const eventColumns: Column<FeedEvent>[] = [
-    { key: 'createdAt', header: 'Date/Time' },
-    { key: 'classification', header: 'Class', render: (val) => <span style={{ textTransform: 'uppercase', fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', background: '#eee', borderRadius: '3px' }}>{val}</span> },
-    { key: 'title', header: 'Title' },
-    { key: 'summary', header: 'Summary' },
+    { key: 'createdAt', header: 'Date/Time', render: (val) => String(val) },
+    { key: 'classification', header: 'Class', render: (val) => <span style={{ textTransform: 'uppercase', fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', background: '#eee', borderRadius: '3px' }}>{String(val)}</span> },
+    { key: 'title', header: 'Title', render: (val) => String(val) },
+    { key: 'summary', header: 'Summary', render: (val) => String(val) },
     { key: 'audienceScope', header: 'Scope', render: (val, item) => (scopeBadge(String(val), String((item as FeedEvent).audienceReferenceId || '')) as React.ReactNode) },
     { key: 'pinned', header: 'Pinned', render: (val) => (val ? 'Yes' : '-') },
     {
@@ -103,10 +104,10 @@ const Feed = () => {
   ];
 
   const annColumns: Column<Announcement>[] = [
-    { key: 'createdAt', header: 'Date/Time' },
+    { key: 'createdAt', header: 'Date/Time', render: (val) => String(val) },
     { key: 'priorityLevel', header: 'Priority', render: (val) => <span className={`pet-priority-badge priority-${val}`}>{val}</span> },
-    { key: 'title', header: 'Title' },
-    { key: 'body', header: 'Body' },
+    { key: 'title', header: 'Title', render: (val) => String(val) },
+    { key: 'body', header: 'Body', render: (val) => String(val) },
     { key: 'audienceScope', header: 'Scope', render: (val, item) => (scopeBadge(String(val), String((item as Announcement).audienceReferenceId || '')) as React.ReactNode) },
     { key: 'pinned', header: 'Pinned', render: (val) => (val ? 'Yes' : '-') },
     { key: 'acknowledgementRequired', header: 'Ack Req', render: (val) => (val ? 'Yes' : '-') },

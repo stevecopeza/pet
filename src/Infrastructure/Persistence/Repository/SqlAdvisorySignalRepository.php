@@ -68,6 +68,18 @@ class SqlAdvisorySignalRepository implements AdvisorySignalRepository
         return $this->findByWorkItemId($workItemId);
     }
 
+    public function findRecent(int $limit): array
+    {
+        $table = $this->wpdb->prefix . 'pet_advisory_signals';
+        
+        $rows = $this->wpdb->get_results($this->wpdb->prepare(
+            "SELECT * FROM $table ORDER BY created_at DESC LIMIT %d",
+            $limit
+        ));
+
+        return array_map([$this, 'mapRowToEntity'], $rows);
+    }
+
     public function clearForWorkItem(string $workItemId): void
     {
         $table = $this->wpdb->prefix . 'pet_advisory_signals';

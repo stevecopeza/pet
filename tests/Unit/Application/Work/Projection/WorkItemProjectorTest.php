@@ -33,13 +33,16 @@ class WorkItemProjectorTest extends TestCase
         $this->departmentResolver = $this->createMock(DepartmentResolver::class);
         $this->slaClockCalculator = $this->createMock(SlaClockCalculator::class);
         $this->customerRepository = $this->createMock(CustomerRepository::class);
+        $featureFlags = $this->createMock(\Pet\Application\System\Service\FeatureFlagService::class);
+        $featureFlags->method('isWorkProjectionEnabled')->willReturn(true);
 
         $this->projector = new WorkItemProjector(
             $this->workItemRepository,
             $this->departmentQueueRepository,
             $this->departmentResolver,
             $this->slaClockCalculator,
-            $this->customerRepository
+            $this->customerRepository,
+            $featureFlags
         );
     }
 

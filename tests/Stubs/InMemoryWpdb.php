@@ -400,6 +400,44 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
                 return $results;
             }
 
+            // Handle SELECT COUNT(*)
+            if (preg_match('/SELECT\s+COUNT\(\*\)\s+FROM\s+([^\s]+)(?:\s+WHERE\s+(.+))?/i', $query, $matches)) {
+                $table = trim($matches[1], '`');
+                $whereClause = isset($matches[2]) ? $matches[2] : '';
+                
+                if (!isset($this->table_data[$table])) {
+                    return [0];
+                }
+
+                $rows = array_filter($this->table_data[$table], function($row) use ($whereClause) {
+                    return $this->evaluateWhere($row, $whereClause);
+                });
+
+                return [count($rows)];
+            }
+
+            // Handle SELECT *
+            if (preg_match('/SELECT\s+\*\s+FROM\s+([^\s]+)\s+WHERE\s+(.+?)(?:\s+ORDER\s+BY.+)?$/i', $query, $matches)) {
+                $table = trim($matches[1], '`');
+                $whereClause = $matches[2];
+
+                if (!isset($this->table_data[$table])) {
+                    return [];
+                }
+
+                $rows = array_filter($this->table_data[$table], function($row) use ($whereClause) {
+                    return $this->evaluateWhere($row, $whereClause);
+                });
+                
+                // Reset keys
+                $rows = array_values($rows);
+
+                if ($output == OBJECT) {
+                    return array_map(function($r) { return (object)$r; }, $rows);
+                }
+                return $rows;
+            }
+
             // Check for SELECT * FROM table WHERE ...
             if (preg_match('/FROM\s+([^\s]+)/i', $query, $matches)) {
                 $table = trim($matches[1], '`'); // Remove backticks
@@ -610,18 +648,18 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
             return $val !== null;
         }
         
-        // 3. IN (...)
-        if (preg_match('/(.+?)\s+IN\s*\((.+)\)$/i', $condition, $m)) {
-            $val = $this->extractValue($row, $m[1]);
-            $options = $this->parseList($m[2]);
-            return in_array($val, $options);
-        }
-        
-        // 4. NOT IN (...)
+        // 3. NOT IN (...)
         if (preg_match('/(.+?)\s+NOT\s+IN\s*\((.+)\)$/i', $condition, $m)) {
             $val = $this->extractValue($row, $m[1]);
             $options = $this->parseList($m[2]);
             return !in_array($val, $options);
+        }
+
+        // 4. IN (...)
+        if (preg_match('/(.+?)\s+IN\s*\((.+)\)$/i', $condition, $m)) {
+            $val = $this->extractValue($row, $m[1]);
+            $options = $this->parseList($m[2]);
+            return in_array($val, $options);
         }
 
         // 5. >=

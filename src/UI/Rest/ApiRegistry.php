@@ -53,6 +53,7 @@ class ApiRegistry
             \Pet\UI\Rest\Controller\PerformanceReviewController::class,
             \Pet\UI\Rest\Controller\CalendarController::class,
             \Pet\UI\Rest\Controller\SlaController::class,
+            \Pet\UI\Rest\Controller\EscalationRuleController::class,
             \Pet\UI\Rest\Controller\SystemController::class,
             \Pet\UI\Rest\Controller\WorkController::class,
             \Pet\UI\Rest\Controller\WorkItemController::class,

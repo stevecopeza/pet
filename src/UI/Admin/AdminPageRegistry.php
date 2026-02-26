@@ -23,6 +23,10 @@ class AdminPageRegistry
 
     public function addMenuPage(): void
     {
+        // Feature Flag Check
+        $container = \Pet\Infrastructure\DependencyInjection\ContainerFactory::create();
+        $featureFlags = $container->get(\Pet\Application\System\Service\FeatureFlagService::class);
+
         // Top Level Menu
         add_menu_page(
             'PET Overview',
@@ -54,6 +58,14 @@ class AdminPageRegistry
             'pet-demo-tools' => 'Demo Tools',
         ];
 
+        if ($featureFlags->isAdvisoryReportsEnabled()) {
+            $submenus['pet-advisory'] = 'Advisory';
+        }
+
+        if ($featureFlags->isEscalationEngineEnabled()) {
+            $submenus['pet-escalation-rules'] = 'Escalation Rules';
+        }
+
         foreach ($submenus as $slug => $title) {
             add_submenu_page(
                 'pet-dashboard',
@@ -69,6 +81,7 @@ class AdminPageRegistry
     public function renderPage(): void
     {
         $page = $_GET['page'] ?? 'pet-dashboard';
+        
         if ($page === 'pet-demo-tools') {
             $nonce = wp_create_nonce('wp_rest');
             echo '<div class="wrap"><h1>Demo Tools</h1>';

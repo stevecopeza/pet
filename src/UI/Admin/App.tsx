@@ -14,6 +14,18 @@ import WorkItems from './components/WorkItems';
 import Finance from './components/Finance';
 import Conversations from './components/Conversations';
 import Approvals from './components/Approvals';
+import EscalationRules from './components/EscalationRules';
+
+declare global {
+  interface Window {
+    petSettings: {
+      currentPage?: string;
+      apiUrl: string;
+      nonce: string;
+      currentUserId?: number;
+    };
+  }
+}
 
 const App = () => {
   const currentPage = window.petSettings?.currentPage || 'pet-dashboard';
@@ -34,6 +46,7 @@ const App = () => {
       case 'pet-settings': return 'Settings';
       case 'pet-finance': return 'Finance';
       case 'pet-conversations': return 'Conversations';
+      case 'pet-escalation-rules': return 'Escalation Rules';
       default: return 'PET';
     }
   };
@@ -70,6 +83,8 @@ const App = () => {
         return <Settings />;
       case 'pet-finance':
         return <Finance />;
+      case 'pet-escalation-rules':
+        return <EscalationRules />;
       default:
         return (
           <div className="pet-card" style={{ padding: '40px', textAlign: 'center', color: '#666' }}>

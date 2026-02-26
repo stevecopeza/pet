@@ -36,7 +36,7 @@ Ticket card severity modifiers:
 ## Wallboard mode structure (required)
 - Top brand strip
 - Big KPI tiles row
-- 3 columns: Critical / At Risk / Flow
+- 3 columns: Critical / At Risk / Normal
 - Bottom ticker line
 
 Required wallboard classes:
@@ -44,6 +44,7 @@ Required wallboard classes:
 - `pet-helpdesk__wb-kpis`
 - `pet-helpdesk__wb-cols`, `pet-helpdesk__wb-col`
 - `pet-helpdesk__wb-ticker`
+- `.pet-helpdesk--mode-wallboard` (high contrast dark theme)
 
 ## CSS token strategy (required)
 Define variables on `.pet-helpdesk`:

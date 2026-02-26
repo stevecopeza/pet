@@ -10,6 +10,10 @@ use Pet\Domain\Activity\Repository\ActivityLogRepository;
 use Pet\Domain\Time\Repository\TimeEntryRepository;
 use Pet\Domain\Work\Repository\PersonSkillRepository;
 use Pet\Domain\Work\Repository\PersonKpiRepository;
+use Pet\Domain\Sla\Repository\EscalationRuleRepository;
+use Pet\Domain\Support\Repository\SlaClockStateRepository;
+use Pet\Domain\Support\Repository\TicketRepository;
+use Pet\Application\System\Service\FeatureFlagService;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -24,6 +28,10 @@ class DashboardController implements RestController
     private $timeEntryRepository;
     private $personSkillRepository;
     private $personKpiRepository;
+    private $escalationRuleRepository;
+    private $slaClockStateRepository;
+    private $ticketRepository;
+    private $featureFlagService;
 
     public function __construct(
         ProjectRepository $projectRepository,
@@ -31,7 +39,11 @@ class DashboardController implements RestController
         ActivityLogRepository $activityLogRepository,
         TimeEntryRepository $timeEntryRepository,
         PersonSkillRepository $personSkillRepository,
-        PersonKpiRepository $personKpiRepository
+        PersonKpiRepository $personKpiRepository,
+        EscalationRuleRepository $escalationRuleRepository,
+        SlaClockStateRepository $slaClockStateRepository,
+        TicketRepository $ticketRepository,
+        FeatureFlagService $featureFlagService
     ) {
         $this->projectRepository = $projectRepository;
         $this->quoteRepository = $quoteRepository;
@@ -39,6 +51,10 @@ class DashboardController implements RestController
         $this->timeEntryRepository = $timeEntryRepository;
         $this->personSkillRepository = $personSkillRepository;
         $this->personKpiRepository = $personKpiRepository;
+        $this->escalationRuleRepository = $escalationRuleRepository;
+        $this->slaClockStateRepository = $slaClockStateRepository;
+        $this->ticketRepository = $ticketRepository;
+        $this->featureFlagService = $featureFlagService;
     }
 
     public function registerRoutes(): void
@@ -95,6 +111,32 @@ class DashboardController implements RestController
             'skillHeatmap' => $skillHeatmap,
             'kpiPerformance' => $kpiPerformance,
         ];
+
+        // Demo Wow Panel Data
+        if ($this->featureFlagService->isEscalationEngineEnabled() || $this->featureFlagService->isHelpdeskEnabled()) {
+            $escalationStats = $this->escalationRuleRepository->getDashboardStats();
+            $slaStats = $this->slaClockStateRepository->getDashboardStats();
+            
+            $unassignedCount = $this->ticketRepository->countActiveUnassigned();
+
+            $data['demoWow'] = [
+                'escalationRules' => [
+                    'enabledCount' => $escalationStats['enabledCount'],
+                    'totalCount' => $escalationStats['totalCount'],
+                ],
+                'slaRisk' => [
+                    'warningCount' => $slaStats['warningCount'],
+                    'breachedCount' => $slaStats['breachedCount'],
+                ],
+                'workload' => [
+                    'unassignedTicketsCount' => $unassignedCount,
+                ],
+                'actions' => [
+                    'escalationRulesUrl' => admin_url('admin.php?page=pet-escalation-rules'),
+                    'helpdeskUrl' => admin_url('admin.php?page=pet-helpdesk'),
+                ],
+            ];
+        }
 
         return new WP_REST_Response($data, 200);
     }

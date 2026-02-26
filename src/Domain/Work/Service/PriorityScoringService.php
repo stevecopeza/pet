@@ -52,16 +52,6 @@ class PriorityScoringService
         $score += $this->calculateWaitingPenalty($workItem);
         $score += $this->calculateRoleWeightComponent($workItem);
 
-        // Tie-breaker: FIFO (Older items get slightly higher score)
-        // Add a tiny fraction based on inverse timestamp to ensure stable ordering.
-        $created = $workItem->getCreatedAt();
-        $ts = $created->getTimestamp();
-        if ($ts > 0) {
-            // Max timestamp is ~2e9. 1 / 2e9 is ~5e-10.
-            // This is safe for float precision and ensures older items (smaller timestamp) get larger bonus.
-            $score += (1.0 / $ts);
-        }
-        
         return $score;
     }
 

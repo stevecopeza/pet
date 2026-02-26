@@ -46,10 +46,13 @@ class WorkControllerTest extends TestCase
 
         $this->workItemRepository = $this->createMock(WorkItemRepository::class);
         $this->signalRepository = $this->createMock(AdvisorySignalRepository::class);
+        $featureFlags = $this->createMock(\Pet\Application\System\Service\FeatureFlagService::class);
+        $featureFlags->method('isQueueVisibilityEnabled')->willReturn(true);
         
         $this->controller = new WorkController(
             $this->workItemRepository,
-            $this->signalRepository
+            $this->signalRepository,
+            $featureFlags
         );
     }
 

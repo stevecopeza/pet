@@ -294,8 +294,40 @@
  .pet-helpdesk__wb-col {
   border-radius: var(--pet-helpdesk-radius-md);
   border: 1px solid var(--pet-helpdesk-border);
-  background-color: #ffffff;
+  background-color: var(--pet-helpdesk-card-bg);
   padding: var(--pet-helpdesk-spacing-3);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+ }
+ 
+ .pet-helpdesk--mode-wallboard .pet-helpdesk__wb-col {
+     background-color: transparent;
+     border: none;
+     padding: 0;
+ }
+
+ .pet-helpdesk--mode-wallboard .pet-helpdesk__cards {
+     max-height: none;
+     overflow-y: visible;
+ }
+
+ .pet-helpdesk--mode-wallboard .pet-helpdesk__card {
+     background-color: #1e293b;
+     border-color: #334155;
+     margin-bottom: 8px;
+ }
+ 
+ .pet-helpdesk--mode-wallboard .pet-helpdesk__card--danger {
+     border-left: 4px solid var(--pet-helpdesk-danger);
+ }
+
+ .pet-helpdesk--mode-wallboard .pet-helpdesk__card--warn {
+     border-left: 4px solid var(--pet-helpdesk-warn);
+ }
+ 
+ .pet-helpdesk--mode-wallboard .pet-helpdesk__card--normal {
+     border-left: 4px solid var(--pet-helpdesk-neutral);
  }
 
  .pet-helpdesk__wb-ticker {

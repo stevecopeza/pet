@@ -86,6 +86,7 @@ add_action('plugins_loaded', function () {
             \Pet\Infrastructure\Persistence\Migration\Definition\AddParticipantTypesToConversationParticipants::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddVersionToConversations::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddFeatureFlags::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddDemoCriticalFeatureFlags::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddSystemSettings::class,
         ]);
 

@@ -43,6 +43,23 @@ export interface DashboardData {
     kpi_name: string;
     avg_score: number;
   }>;
+  demoWow?: {
+    escalationRules: {
+      enabledCount: number;
+      totalCount: number;
+    };
+    slaRisk: {
+      warningCount: number;
+      breachedCount: number;
+    };
+    workload: {
+      unassignedTicketsCount: number;
+    };
+    actions: {
+      escalationRulesUrl: string;
+      helpdeskUrl: string;
+    };
+  };
 }
 
 export interface Project {
@@ -366,12 +383,17 @@ export interface Article {
 
 export interface ActivityLog {
   id: number;
-  type: string;
-  description: string;
-  userId: number | null;
-  relatedEntityType: string | null;
-  relatedEntityId: number | null;
-  createdAt: string;
+  occurred_at: string;
+  actor_type: string;
+  actor_id: string | null;
+  actor_display_name: string;
+  event_type: string;
+  severity: string;
+  reference_type: string | null;
+  reference_id: string | null;
+  headline: string;
+  subline: string;
+  tags: string[];
 }
 
 export interface Setting {

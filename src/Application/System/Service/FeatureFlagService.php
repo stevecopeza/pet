@@ -35,6 +35,39 @@ class FeatureFlagService
         return $this->isEnabled('pet_priority_engine_enabled');
     }
 
+    public function isEscalationEngineEnabled(): bool
+    {
+        return $this->isEnabled('pet_escalation_engine_enabled');
+    }
+
+    public function isHelpdeskEnabled(): bool
+    {
+        // Map legacy shortcode flag if new flag not set?
+        // For strict gating, we use the new flag 'pet_helpdesk_enabled'.
+        // If the user wants to enable helpdesk, they must set this flag.
+        return $this->isEnabled('pet_helpdesk_enabled');
+    }
+
+    public function isHelpdeskShortcodeEnabled(): bool
+    {
+        return $this->isEnabled('pet_helpdesk_shortcode_enabled');
+    }
+
+    public function isAdvisoryEnabled(): bool
+    {
+        return $this->isEnabled('pet_advisory_enabled');
+    }
+
+    public function isAdvisoryReportsEnabled(): bool
+    {
+        return $this->isEnabled('pet_advisory_reports_enabled');
+    }
+
+    public function isResilienceIndicatorsEnabled(): bool
+    {
+        return $this->isEnabled('pet_resilience_indicators_enabled');
+    }
+
     private function isEnabled(string $key): bool
     {
         $setting = $this->settings->findByKey($key);

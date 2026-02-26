@@ -88,6 +88,11 @@ class ContainerFactory
                 return new \Pet\Application\System\Service\TouchedTracker($wpdb);
             },
 
+            \Pet\Domain\Sla\Repository\EscalationRuleRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlEscalationRuleRepository($wpdb);
+            },
+
             \Pet\Application\Conversation\Command\CreateConversationHandler::class => function (\Psr\Container\ContainerInterface $c) {
                 return new \Pet\Application\Conversation\Command\CreateConversationHandler(
                     $c->get(\Pet\Domain\Conversation\Repository\ConversationRepository::class),
@@ -293,6 +298,8 @@ class ContainerFactory
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlPersonKpiRepository($wpdb);
             },
+            
+            \Pet\Application\Identity\Directory\UserDirectory::class => \DI\autowire(\Pet\Infrastructure\Identity\Directory\WordPressUserDirectory::class),
             \Pet\Domain\Work\Repository\PerformanceReviewRepository::class => function () {
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlPerformanceReviewRepository($wpdb);

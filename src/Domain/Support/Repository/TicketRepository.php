@@ -13,5 +13,6 @@ interface TicketRepository
     public function findAll(): array;
     public function findByCustomerId(int $customerId): array;
     public function findActive(): array;
+    public function countActiveUnassigned(): int;
     public function delete(int $id): void;
 }

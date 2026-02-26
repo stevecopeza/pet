@@ -23,7 +23,15 @@ const Activity = () => {
         }
 
         const data = await response.json();
-        setLogs(data);
+        // Handle both array and paginated response format
+        if (data && Array.isArray(data.items)) {
+          setLogs(data.items);
+        } else if (Array.isArray(data)) {
+          setLogs(data);
+        } else {
+          console.warn('Activity: Unexpected response format', data);
+          setLogs([]);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
       } finally {
@@ -35,14 +43,14 @@ const Activity = () => {
   }, []);
 
   const columns: Column<ActivityLog>[] = [
-    { key: 'createdAt', header: 'Date/Time', render: (val) => val },
-    { key: 'type', header: 'Type', render: (val) => <span style={{ textTransform: 'uppercase', fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', background: '#eee', borderRadius: '3px' }}>{val}</span> },
-    { key: 'description', header: 'Description', render: (val) => val },
-    { key: 'userId', header: 'User ID', render: (val) => val || '-' },
+    { key: 'occurred_at', header: 'Date/Time', render: (val) => val },
+    { key: 'event_type', header: 'Type', render: (val) => <span style={{ textTransform: 'uppercase', fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', background: '#eee', borderRadius: '3px' }}>{val}</span> },
+    { key: 'headline', header: 'Description', render: (val) => val },
+    { key: 'actor_display_name', header: 'User', render: (val) => val || '-' },
     { 
-      key: 'relatedEntityType', 
+      key: 'reference_type', 
       header: 'Related Entity', 
-      render: (val, item) => val ? `${val} #${item.relatedEntityId}` : '-' 
+      render: (val, item) => val ? `${val} #${item.reference_id}` : '-' 
     },
   ];
 

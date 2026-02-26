@@ -46,13 +46,15 @@ class WorkController implements RestController
         }
 
         // Daily Utilization
-        register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/utilization', [
-            [
-                'methods' => WP_REST_Server::READABLE,
-                'callback' => [$this, 'getUtilization'],
-                'permission_callback' => [$this, 'checkPermission'],
-            ],
-        ]);
+        if ($this->featureFlags->isResilienceIndicatorsEnabled()) {
+            register_rest_route(self::NAMESPACE, '/' . self::RESOURCE . '/utilization', [
+                [
+                    'methods' => WP_REST_Server::READABLE,
+                    'callback' => [$this, 'getUtilization'],
+                    'permission_callback' => [$this, 'checkPermission'],
+                ],
+            ]);
+        }
     }
 
     public function checkPermission(): bool
@@ -64,7 +66,7 @@ class WorkController implements RestController
     {
         $userId = (string)get_current_user_id();
         $items = $this->workItemRepository->findByAssignedUser($userId);
-        return new WP_REST_Response($this->mapItems($items));
+        return new WP_REST_Response($this->mapItemsWithSignals($items));
     }
 
     public function getDepartmentQueue(WP_REST_Request $request): WP_REST_Response
@@ -76,7 +78,7 @@ class WorkController implements RestController
 
         $departmentId = $request->get_param('id');
         $items = $this->workItemRepository->findByDepartmentUnassigned($departmentId);
-        return new WP_REST_Response($this->mapItems($items));
+        return new WP_REST_Response($this->mapItemsWithSignals($items));
     }
 
     public function getUtilization(WP_REST_Request $request): WP_REST_Response
@@ -101,26 +103,45 @@ class WorkController implements RestController
         return new WP_REST_Response($data, 200);
     }
 
-    private function mapItems(array $items): array
+    private function mapItemsWithSignals(array $items): array
     {
         if (empty($items)) {
             return [];
         }
-        // Assuming WorkItem has toArray or similar, or manual mapping
-        // For now returning empty or simple array as implementation detail of mapItems wasn't fully visible
-        // But let's check the previous file content for mapItems implementation
-        // It wasn't fully visible in previous Read call (ended at line 99)
-        // I should read the rest of the file first to preserve mapItems
-        return array_map(function($item) {
-             return [
-                 'id' => $item->getId(),
-                 'source_type' => $item->getSourceType(),
-                 'source_id' => $item->getSourceId(),
-                 'priority_score' => $item->getPriorityScore(),
-                 'status' => $item->getStatus(),
-                 'sla_time_remaining' => $item->getSlaTimeRemainingMinutes(),
-                 'created_at' => $item->getCreatedAt()->format('Y-m-d H:i:s'),
-             ];
+
+        $byWorkId = [];
+        if ($this->featureFlags->isAdvisoryEnabled()) {
+            $ids = array_map(fn($i) => $i->getId(), $items);
+            $signals = $this->signalRepository->findByWorkItemIds($ids);
+            foreach ($signals as $sig) {
+                $byWorkId[$sig->getWorkItemId()][] = [
+                    'id' => $sig->getId(),
+                    'type' => $sig->getSignalType(),
+                    'severity' => $sig->getSeverity(),
+                    'message' => $sig->getMessage(),
+                    'created_at' => $sig->getCreatedAt()->format('Y-m-d H:i:s'),
+                ];
+            }
+        }
+
+        return array_map(function($item) use ($byWorkId) {
+            $wid = $item->getId();
+            $data = [
+                'id' => $wid,
+                'sourceType' => $item->getSourceType(),
+                'sourceId' => $item->getSourceId(),
+                'departmentId' => $item->getDepartmentId(),
+                'priorityScore' => $item->getPriorityScore(),
+                'status' => $item->getStatus(),
+                'slaTimeRemaining' => $item->getSlaTimeRemainingMinutes(),
+                'createdAt' => $item->getCreatedAt()->format('Y-m-d H:i:s'),
+            ];
+
+            if ($this->featureFlags->isAdvisoryEnabled()) {
+                $data['signals'] = $byWorkId[$wid] ?? [];
+            }
+
+            return $data;
         }, $items);
     }
 }

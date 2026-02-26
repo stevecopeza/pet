@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Pet\Infrastructure\Persistence\Transaction;
 
-final class SqlTransaction
+class SqlTransaction
 {
     private $wpdb;
 

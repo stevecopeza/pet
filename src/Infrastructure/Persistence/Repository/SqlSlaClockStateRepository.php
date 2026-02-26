@@ -80,6 +80,19 @@ class SqlSlaClockStateRepository implements SlaClockStateRepository
         }
     }
 
+    public function getDashboardStats(): array
+    {
+        $table = $this->wpdb->prefix . 'pet_sla_clock_state';
+        
+        $warning = $this->wpdb->get_var("SELECT COUNT(*) FROM $table WHERE last_event_dispatched = 'warning'");
+        $breached = $this->wpdb->get_var("SELECT COUNT(*) FROM $table WHERE last_event_dispatched = 'breached'");
+        
+        return [
+            'warningCount' => (int)$warning,
+            'breachedCount' => (int)$breached,
+        ];
+    }
+
     private function mapRowToEntity(object $row): SlaClockState
     {
         return new SlaClockState(

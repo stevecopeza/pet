@@ -57,12 +57,16 @@ class WorkItemProjectorTest extends TestCase
         );
         $this->customerRepository = new SqlCustomerRepository($this->wpdb);
 
+        $featureFlags = $this->createMock(\Pet\Application\System\Service\FeatureFlagService::class);
+        $featureFlags->method('isWorkProjectionEnabled')->willReturn(true);
+
         $this->projector = new WorkItemProjector(
             $this->workItemRepository,
             $this->departmentQueueRepository,
             $this->departmentResolver,
             $this->slaClockCalculator,
-            $this->customerRepository
+            $this->customerRepository,
+            $featureFlags
         );
     }
 

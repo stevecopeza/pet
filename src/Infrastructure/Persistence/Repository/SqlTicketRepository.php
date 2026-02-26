@@ -127,6 +127,19 @@ class SqlTicketRepository implements TicketRepository
         return array_map([$this, 'hydrate'], $rows);
     }
 
+    public function countActiveUnassigned(): int
+    {
+        $table = $this->wpdb->prefix . 'pet_tickets';
+        // Unassigned = owner_user_id IS NULL AND queue_id IS NULL
+        // Only among "active" tickets (same active filter as current demoWow uses).
+        return (int) $this->wpdb->get_var(
+            "SELECT COUNT(*) FROM $table 
+            WHERE status NOT IN ('resolved', 'closed') 
+            AND owner_user_id IS NULL 
+            AND queue_id IS NULL"
+        );
+    }
+
     public function delete(int $id): void
     {
         $table = $this->wpdb->prefix . 'pet_tickets';
