@@ -53,7 +53,9 @@ class PostMessageHandler
         );
 
         // Spec: "Implicit Participant: Any user who posts, requests, or responds is auto-added as a participant."
-        $conversation->addParticipant($command->actorId(), $command->actorId());
+        if (!$this->conversationRepository->isParticipant((int)$conversation->id(), $command->actorId())) {
+            $conversation->addParticipant($command->actorId(), $command->actorId());
+        }
 
         // Handle @mentions to auto-add participants
         $this->handleMentions($conversation, $command->mentions(), $command->actorId());

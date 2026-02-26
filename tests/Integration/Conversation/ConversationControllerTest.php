@@ -21,32 +21,6 @@ if (!function_exists('get_current_user_id')) {
     }
 }
 
-if (!class_exists('WP_REST_Request')) {
-    class WP_REST_Request {
-        private $params = [];
-        private $json_params = [];
-        public function get_param($key) { return $this->params[$key] ?? null; }
-        public function set_param($key, $val) { 
-            $this->params[$key] = $val; 
-            $this->json_params[$key] = $val; 
-        }
-        public function get_json_params() { return $this->json_params; }
-    }
-}
-
-if (!class_exists('WP_REST_Response')) {
-    class WP_REST_Response {
-        public $data;
-        public $status;
-        public function __construct($data = null, $status = 200) { 
-            $this->data = $data; 
-            $this->status = $status; 
-        }
-        public function get_data() { return $this->data; }
-        public function get_status() { return $this->status; }
-    }
-}
-
 class ConversationControllerTest extends TestCase
 {
     private $conversationRepo;

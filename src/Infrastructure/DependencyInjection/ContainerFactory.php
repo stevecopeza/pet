@@ -27,6 +27,11 @@ class ContainerFactory
         return self::$instance;
     }
 
+    public static function reset(): void
+    {
+        self::$instance = null;
+    }
+
     private static function getDefinitions(): array
     {
         return [

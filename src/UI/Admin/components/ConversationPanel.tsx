@@ -2,11 +2,12 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Conversation, Decision } from '../types';
 
 interface ConversationPanelProps {
-  contextType: string;
-  contextId: string;
+  uuid?: string;
+  contextType?: string;
+  contextId?: string;
   contextVersion?: string;
-  defaultSubject: string;
-  subjectKey: string;
+  defaultSubject?: string;
+  subjectKey?: string;
 }
 
 interface PetSettings {
@@ -39,6 +40,7 @@ type TimelineItemType =
   | { id: string; kind: 'decision_res'; occurred_at: string; payload: Decision };
 
 const ConversationPanel: React.FC<ConversationPanelProps> = ({ 
+  uuid,
   contextType, 
   contextId, 
   contextVersion,
@@ -66,9 +68,19 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
         setLoading(true);
       }
 
-      let url = `${getSettings().apiUrl}/conversations?context_type=${contextType}&context_id=${contextId}&limit=20`;
-      if (contextVersion) url += `&context_version=${contextVersion}`;
-      if (subjectKey) url += `&subject_key=${subjectKey}`;
+      let url = `${getSettings().apiUrl}/conversations?limit=20`;
+      
+      if (uuid) {
+        url += `&uuid=${uuid}`;
+      } else if (contextType && contextId) {
+        url += `&context_type=${contextType}&context_id=${contextId}`;
+        if (contextVersion) url += `&context_version=${contextVersion}`;
+        if (subjectKey) url += `&subject_key=${subjectKey}`;
+      } else {
+         // Should not happen if props are correct, but handle safely
+         setLoading(false);
+         return;
+      }
 
       // If loading more, use the ID of the oldest event we have
       if (loadMore && conversation && conversation.timeline.length > 0) {
@@ -155,7 +167,7 @@ const ConversationPanel: React.FC<ConversationPanelProps> = ({
 
   useEffect(() => {
     fetchConversation();
-  }, [contextType, contextId, contextVersion, subjectKey]);
+  }, [uuid, contextType, contextId, contextVersion, subjectKey]);
 
   // Process timeline whenever conversation changes
   useEffect(() => {

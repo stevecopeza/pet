@@ -36,6 +36,9 @@ class SqlForecastRepository implements ForecastRepository
             KEY quote_id (quote_id)
         ) $charset_collate;";
 
+        if (!defined('ABSPATH')) {
+            throw new \RuntimeException('ABSPATH not defined');
+        }
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         dbDelta($sql);
     }

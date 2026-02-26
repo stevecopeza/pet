@@ -219,10 +219,10 @@ final class DemoSeedService
         $c = $this->wpdb->prefix . 'pet_customers';
         $s = $this->wpdb->prefix . 'pet_sites';
         $p = $this->wpdb->prefix . 'pet_contacts';
-        $this->wpdb->insert($c, ['name' => 'RPM Resources (Pty) Ltd', 'created_at' => $seededAt]);
+        $this->wpdb->insert($c, ['name' => 'RPM Resources (Pty) Ltd', 'contact_email' => 'info@rpm.example', 'created_at' => $seededAt]);
         $rpmId = (int)$this->wpdb->insert_id;
         $this->registryAdd($seedRunId, $c, (string)$rpmId);
-        $this->wpdb->insert($c, ['name' => 'Acme Manufacturing SA (Pty) Ltd', 'created_at' => $seededAt]);
+        $this->wpdb->insert($c, ['name' => 'Acme Manufacturing SA (Pty) Ltd', 'contact_email' => 'info@acme.example', 'created_at' => $seededAt]);
         $acmeId = (int)$this->wpdb->insert_id;
         $this->registryAdd($seedRunId, $c, (string)$acmeId);
         $this->wpdb->insert($s, ['customer_id' => $rpmId, 'name' => 'RPM Cape Town', 'created_at' => $seededAt]);
@@ -700,10 +700,13 @@ final class DemoSeedService
             ]));
         }
         $acceptedAt = $this->wpdb->get_var($this->wpdb->prepare("SELECT accepted_at FROM $quotesTable WHERE id = %d", $q1Id));
-        if (!$acceptedAt) {
-            $sendQuote->handle(new \Pet\Application\Commercial\Command\SendQuoteCommand($q1Id));
-            $acceptQuote->handle(new \Pet\Application\Commercial\Command\AcceptQuoteCommand($q1Id));
-        }
+            
+            if (!$acceptedAt) {
+                $sendQuote->handle(new \Pet\Application\Commercial\Command\SendQuoteCommand($q1Id));
+                $acceptQuote->handle(new \Pet\Application\Commercial\Command\AcceptQuoteCommand($q1Id));
+            } else {
+                fwrite(STDERR, "DemoSeedService: Q1 already accepted.\n");
+            }
         $contractsTable = $this->wpdb->prefix . 'pet_contracts';
         $contractId = (int)$this->wpdb->get_var($this->wpdb->prepare("SELECT id FROM $contractsTable WHERE quote_id = %d ORDER BY id DESC LIMIT 1", $q1Id));
         if ($acceptedAt && $contractId <= 0) {

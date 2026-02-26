@@ -20,6 +20,14 @@ final class QueueBillingExportTransactionalityTest extends TestCase
 
     protected function setUp(): void
     {
+        global $wpdb;
+        $wpdb = new \Pet\Tests\Stubs\InMemoryWpdb();
+        $wpdb->table_data[$wpdb->prefix . 'pet_billing_exports'] = [];
+        $wpdb->table_data[$wpdb->prefix . 'pet_billing_export_items'] = [];
+        $wpdb->table_data[$wpdb->prefix . 'pet_outbox'] = [];
+        $wpdb->table_data[$wpdb->prefix . 'pet_event_stream'] = [];
+        
+        \Pet\Infrastructure\DependencyInjection\ContainerFactory::reset();
         $this->c = \Pet\Infrastructure\DependencyInjection\ContainerFactory::create();
         $this->outbox = $this->c->get(SqlOutboxRepository::class);
         $this->events = $this->c->get(SqlEventStreamRepository::class);

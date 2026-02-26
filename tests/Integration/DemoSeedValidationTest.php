@@ -13,6 +13,31 @@ final class DemoSeedValidationTest extends TestCase
 
     protected function setUp(): void
     {
+        global $wpdb;
+        // Always use InMemoryWpdb for this test as it requires stateful storage
+        $wpdb = new \Pet\Tests\Stubs\InMemoryWpdb();
+        
+        // Initialize registry table to bypass SHOW TABLES check
+        $registryTable = $wpdb->prefix . 'pet_demo_seed_registry';
+        $wpdb->table_data[$registryTable] = [];
+        $wpdb->table_schema[$registryTable] = ['seed_run_id', 'table_name', 'row_id', 'purge_status', 'created_at', 'purged_at'];
+        
+        $entriesTable = $wpdb->prefix . 'pet_time_entries';
+        $wpdb->table_data[$entriesTable] = [];
+        $wpdb->table_schema[$entriesTable] = ['id', 'ticket_id', 'malleable_data', 'status', 'submitted_at', 'employee_id', 'start_time', 'end_time', 'billable_flag', 'description'];
+
+        $workItemsTable = $wpdb->prefix . 'pet_work_items';
+        $wpdb->table_data[$workItemsTable] = [];
+        $wpdb->table_schema[$workItemsTable] = ['id', 'type', 'reference_id', 'context', 'weight', 'status', 'created_at', 'escalation_level'];
+
+        $queuesTable = $wpdb->prefix . 'pet_department_queues';
+        $wpdb->table_data[$queuesTable] = [];
+        $wpdb->table_schema[$queuesTable] = ['id', 'department', 'work_item_id', 'entered_queue_at', 'picked_up_at'];
+        
+        $runsTable = $wpdb->prefix . 'pet_integration_runs';
+        $wpdb->table_data[$runsTable] = [];
+        
+        ContainerFactory::reset();
         $this->c = ContainerFactory::create();
         $eventBus = $this->c->get(\Pet\Domain\Event\EventBus::class);
 
@@ -263,6 +288,7 @@ final class DemoSeedValidationTest extends TestCase
         $queueCountAfter = (int)$wpdb->get_var("SELECT COUNT(*) FROM $queuesTable");
         $invCountAfter = (int)$wpdb->get_var("SELECT COUNT(*) FROM $qbInvTable");
         $registryCountAfter = (int)$wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM $registryTable WHERE seed_run_id = %s AND purge_status = %s", $seedRunId, 'ACTIVE'));
+        
         $this->assertLessThanOrEqual($ticketCountBefore, $ticketCountAfter);
         $this->assertLessThanOrEqual($workCountBefore, $workCountAfter);
         $this->assertLessThanOrEqual($queueCountBefore, $queueCountAfter);

@@ -10,6 +10,12 @@ final class CreateRoleHandlerReturnsIntTest extends TestCase
 
     protected function setUp(): void
     {
+        global $wpdb;
+        $wpdb = new \Pet\Tests\Stubs\InMemoryWpdb();
+        $wpdb->table_data[$wpdb->prefix . 'pet_roles'] = [];
+        $wpdb->table_data[$wpdb->prefix . 'pet_role_skills'] = [];
+        
+        \Pet\Infrastructure\DependencyInjection\ContainerFactory::reset();
         $this->container = \Pet\Infrastructure\DependencyInjection\ContainerFactory::create();
     }
 

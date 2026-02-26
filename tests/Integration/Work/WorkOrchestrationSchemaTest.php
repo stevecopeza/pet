@@ -8,6 +8,7 @@ use Pet\Infrastructure\Persistence\Migration\Definition\CreateWorkOrchestrationT
 class WorkOrchestrationSchemaTest extends TestCase
 {
     private $wpdb;
+    private $originalWpdb;
 
     protected function setUp(): void
     {
@@ -15,9 +16,23 @@ class WorkOrchestrationSchemaTest extends TestCase
             define('ABSPATH', dirname(dirname(__DIR__)) . '/fixtures/');
         }
 
+        if (isset($GLOBALS['wpdb'])) {
+            $this->originalWpdb = $GLOBALS['wpdb'];
+        }
         $this->wpdb = $this->createMock(\wpdb::class);
         $this->wpdb->prefix = 'wp_';
         $this->wpdb->method('get_charset_collate')->willReturn('DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+        $this->wpdb->method('tables')->willReturn([]);
+        $GLOBALS['wpdb'] = $this->wpdb;
+    }
+
+    protected function tearDown(): void
+    {
+        if (isset($this->originalWpdb)) {
+            $GLOBALS['wpdb'] = $this->originalWpdb;
+        } else {
+            unset($GLOBALS['wpdb']);
+        }
     }
 
     public function testWorkOrchestrationTablesAreCreated(): void

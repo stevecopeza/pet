@@ -79,8 +79,10 @@ class ConversationVisibilityTest extends TestCase
     private function setCurrentUser(int $id) {
         if (function_exists('wp_set_current_user')) {
             wp_set_current_user($id);
-        } else {
-            self::$currentUserId = $id;
+        }
+        $GLOBALS['wp_current_user_id'] = $id;
+        if (class_exists('\Pet\Tests\Stubs\WPMocks')) {
+            \Pet\Tests\Stubs\WPMocks::$currentUserId = $id;
         }
     }
 

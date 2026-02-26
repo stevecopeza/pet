@@ -73,14 +73,14 @@ class SqlCustomerRepository implements CustomerRepository
     {
         return new Customer(
             $row->name,
-            $row->contact_email,
+            isset($row->contact_email) ? $row->contact_email : '',
             (int) $row->id,
             isset($row->legal_name) ? $row->legal_name : null,
             isset($row->status) ? $row->status : 'active',
             isset($row->malleable_schema_version) ? (int) $row->malleable_schema_version : null,
             isset($row->malleable_data) ? (json_decode($row->malleable_data, true) ?: []) : [],
             new \DateTimeImmutable($row->created_at),
-            $row->archived_at ? new \DateTimeImmutable($row->archived_at) : null
+            isset($row->archived_at) && $row->archived_at ? new \DateTimeImmutable($row->archived_at) : null
         );
     }
 

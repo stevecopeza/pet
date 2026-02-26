@@ -136,6 +136,7 @@ final class QbMockPullServiceTest extends TestCase
             }
         };
 
+        \Pet\Infrastructure\DependencyInjection\ContainerFactory::reset();
         $this->c = \Pet\Infrastructure\DependencyInjection\ContainerFactory::create();
     }
 

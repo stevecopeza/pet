@@ -18,6 +18,7 @@ final class OutboxDispatcherQuickBooksMockTest extends TestCase
 
     protected function setUp(): void
     {
+        \Pet\Infrastructure\DependencyInjection\ContainerFactory::reset();
         $this->c = \Pet\Infrastructure\DependencyInjection\ContainerFactory::create();
     }
 

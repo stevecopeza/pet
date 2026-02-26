@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { DataTable, Column } from './DataTable';
+import ConversationPanel from './ConversationPanel';
 
 interface ConversationSummary {
   id: string; // Mapped from uuid
@@ -15,8 +16,15 @@ const Conversations = () => {
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    if (id) {
+        setSelectedConversationId(id);
+    }
+
     const fetchConversations = async () => {
       try {
         setLoading(true);
@@ -59,14 +67,9 @@ const Conversations = () => {
   const columns: Column<ConversationSummary>[] = [
     { key: 'subject', header: 'Subject', render: (val, item) => (
       <a href={`admin.php?page=pet-conversations&id=${item.uuid}`} onClick={(e) => {
-          // Ideally we should have a router here, but for now let's just use the href if we are not in a SPA fully
-          // Actually, if we want to stay in the SPA, we need a way to navigate.
-          // But ConversationPanel takes contextType/Id props.
-          // Maybe we just link to the context?
-          // For now let's just show the subject.
           e.preventDefault();
-          alert('To be implemented: Open conversation ' + item.uuid);
-      }} style={{ fontWeight: 'bold' }}>{val}</a>
+          setSelectedConversationId(item.uuid);
+      }} style={{ fontWeight: 'bold', cursor: 'pointer' }}>{val}</a>
     )},
     { key: 'context_type', header: 'Context', render: (val, item) => `${val} #${item.context_id}` },
     { key: 'state', header: 'Status', render: (val) => (
@@ -74,6 +77,22 @@ const Conversations = () => {
     )},
     { key: 'created_at', header: 'Created', render: (val) => new Date(val).toLocaleString() },
   ];
+
+  if (selectedConversationId) {
+    return (
+      <div className="pet-conversations-detail">
+        <div style={{ marginBottom: '15px' }}>
+            <button 
+                className="button" 
+                onClick={() => setSelectedConversationId(null)}
+            >
+                &larr; Back to list
+            </button>
+        </div>
+        <ConversationPanel uuid={selectedConversationId} />
+      </div>
+    );
+  }
 
   if (loading) return <div>Loading conversations...</div>;
   if (error) return <div style={{ color: 'red' }}>Error: {error}</div>;
