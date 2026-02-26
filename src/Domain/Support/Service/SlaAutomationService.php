@@ -13,21 +13,30 @@ use Pet\Domain\Support\Event\TicketBreachedEvent;
 use Pet\Domain\Support\Event\EscalationTriggeredEvent;
 use Pet\Domain\Event\EventBus;
 use Pet\Domain\Support\Entity\SlaClockState;
+use Pet\Application\System\Service\FeatureFlagService;
+use Pet\Infrastructure\Persistence\Transaction\SqlTransaction;
+use DateTimeImmutable;
 
 class SlaAutomationService
 {
     private TicketRepository $ticketRepo;
     private SlaClockStateRepository $clockStateRepo;
     private EventBus $eventDispatcher;
+    private FeatureFlagService $featureFlags;
+    private SqlTransaction $transaction;
 
     public function __construct(
         TicketRepository $ticketRepo,
         SlaClockStateRepository $clockStateRepo,
-        EventBus $eventDispatcher
+        EventBus $eventDispatcher,
+        FeatureFlagService $featureFlags,
+        SqlTransaction $transaction
     ) {
         $this->ticketRepo = $ticketRepo;
         $this->clockStateRepo = $clockStateRepo;
         $this->eventDispatcher = $eventDispatcher;
+        $this->featureFlags = $featureFlags;
+        $this->transaction = $transaction;
     }
 
     /**
@@ -36,7 +45,22 @@ class SlaAutomationService
      */
     public function runSlaCheck(): void
     {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[PET SlaAutomation] Starting SLA check run...');
+        }
+
+        if (!$this->featureFlags->isSlaSchedulerEnabled()) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[PET SlaAutomation] Skipped: SLA Scheduler disabled');
+            }
+            return;
+        }
+
         $activeTickets = $this->ticketRepo->findActive();
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log(sprintf('[PET SlaAutomation] Found %d active tickets to evaluate', count($activeTickets)));
+        }
+
         foreach ($activeTickets as $ticket) {
             $this->evaluate($ticket);
         }
@@ -48,36 +72,39 @@ class SlaAutomationService
      */
     public function evaluate(Ticket $ticket): void
     {
-        // 1. Calculate current state based on business time
-        // Note: In a real implementation, we would use a BusinessTimeCalculator here.
-        // For this skeleton, we assume the ticket entity has the necessary timestamps.
-        
-        // 2. Load persisted state with row locking
-        $clockState = $this->clockStateRepo->findByTicketIdForUpdate($ticket->id());
-        
-        if (!$clockState) {
-            // First evaluation, initialize state
-            $clockState = $this->clockStateRepo->initialize($ticket);
-        }
-
-        // 3. Determine new state
-        $newState = $this->determineState($ticket, $clockState);
-        
-        // 4. Compare and Transition
-        if ($newState !== $clockState->getLastEventDispatched()) {
-            $this->handleTransition($ticket, $newState, $clockState);
+        $this->transaction->begin();
+        try {
+            // 2. Load persisted state with row locking
+            $clockState = $this->clockStateRepo->findByTicketIdForUpdate($ticket->id());
             
-            // 5. Persist new state
-            $clockState->setLastEventDispatched($newState);
-            $clockState->setLastEvaluatedAt(new \DateTimeImmutable());
-            $this->clockStateRepo->save($clockState);
+            if (!$clockState) {
+                // First evaluation, initialize state
+                $clockState = $this->clockStateRepo->initialize($ticket);
+            }
+
+            // 3. Determine new state
+            $newState = $this->determineState($ticket, $clockState);
+            
+            // 4. Compare and Transition
+            if ($newState !== $clockState->getLastEventDispatched()) {
+                $this->handleTransition($ticket, $newState, $clockState);
+                
+                // 5. Persist new state
+                $clockState->setLastEventDispatched($newState);
+                $clockState->setLastEvaluatedAt(new DateTimeImmutable());
+                $this->clockStateRepo->save($clockState);
+            }
+            $this->transaction->commit();
+        } catch (\Exception $e) {
+            $this->transaction->rollback();
+            throw $e;
         }
     }
 
     /**
      * Protected for testing purposes to simulate different time states
      */
-    protected function determineState(Ticket $ticket, $clockState): string
+    protected function determineState(Ticket $ticket, SlaClockState $clockState): string
     {
         $now = $this->getNow();
         
@@ -99,19 +126,11 @@ class SlaAutomationService
             return SlaState::BREACHED;
         }
 
-        // 4. Check Warning (e.g., < 1 hour to breach)
-        // Check Resolution Warning
+        // 4. Check Warning (e.g. 1 hour before breach)
+        // Hardcoded 1 hour warning for now as per requirements/simplicity
         if ($ticket->resolutionDueAt()) {
             $warningThreshold = $ticket->resolutionDueAt()->modify('-1 hour');
-            if ($now > $warningThreshold) {
-                return SlaState::WARNING;
-            }
-        }
-
-        // Check Response Warning
-        if ($ticket->responseDueAt() && !$ticket->respondedAt()) {
-            $warningThreshold = $ticket->responseDueAt()->modify('-1 hour');
-            if ($now > $warningThreshold) {
+            if ($now >= $warningThreshold) {
                 return SlaState::WARNING;
             }
         }
@@ -121,20 +140,20 @@ class SlaAutomationService
 
     private function handleTransition(Ticket $ticket, string $newState, SlaClockState $clockState): void
     {
+        // Only dispatch if transitioning to a worse state or explicitly handled
+        // Transitions: Active -> Warning -> Breached
+        
         if ($newState === SlaState::WARNING) {
-            $this->eventDispatcher->dispatch(new TicketWarningEvent($ticket->id()));
+            $this->eventDispatcher->dispatch(new TicketWarningEvent($ticket->id(), new DateTimeImmutable()));
         } elseif ($newState === SlaState::BREACHED) {
-            $this->eventDispatcher->dispatch(new TicketBreachedEvent($ticket->id()));
-
-            if ($clockState->getEscalationStage() === 0) {
-                $clockState->setEscalationStage(1);
-                $this->eventDispatcher->dispatch(new EscalationTriggeredEvent($ticket->id(), 1));
-            }
+            $this->eventDispatcher->dispatch(new TicketBreachedEvent($ticket->id(), new DateTimeImmutable()));
+        } elseif ($newState === SlaState::PAUSED) {
+            // No event for pause currently required
         }
     }
 
-    protected function getNow(): \DateTimeImmutable
+    protected function getNow(): DateTimeImmutable
     {
-        return new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        return new DateTimeImmutable();
     }
 }

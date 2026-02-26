@@ -85,6 +85,8 @@ add_action('plugins_loaded', function () {
             \Pet\Infrastructure\Persistence\Migration\Definition\AddReplyToMessageIdToConversationEvents::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddParticipantTypesToConversationParticipants::class,
             \Pet\Infrastructure\Persistence\Migration\Definition\AddVersionToConversations::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddFeatureFlags::class,
+            \Pet\Infrastructure\Persistence\Migration\Definition\AddSystemSettings::class,
         ]);
 
         $uiRegistry = new \Pet\UI\Admin\AdminPageRegistry(
@@ -295,6 +297,8 @@ if (\defined('WP_CLI') && \constant('WP_CLI')) {
                 \Pet\Infrastructure\Persistence\Migration\Definition\CreateDemoSeedRegistryTable::class,
                 \Pet\Infrastructure\Persistence\Migration\Definition\CreateAdminAuditLog::class,
                 \Pet\Infrastructure\Persistence\Migration\Definition\UpdateQuoteBlocksAddPayloadAndCreatedAt::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddFeatureFlags::class,
+                \Pet\Infrastructure\Persistence\Migration\Definition\AddSystemSettings::class,
             ]);
             \call_user_func('WP_CLI::success', 'PET migrations executed');
         } catch (\Throwable $e) {

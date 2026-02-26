@@ -12,6 +12,7 @@ use Pet\Domain\Identity\Repository\CustomerRepository;
 use Pet\Domain\Support\Event\TicketCreated;
 use Pet\Domain\Support\Event\TicketAssigned;
 use Pet\Domain\Delivery\Event\ProjectTaskCreated;
+use Pet\Application\System\Service\FeatureFlagService;
 
 /**
  * WorkItem Projector.
@@ -26,14 +27,35 @@ class WorkItemProjector
         private DepartmentQueueRepository $departmentQueueRepository,
         private DepartmentResolver $departmentResolver,
         private SlaClockCalculator $slaClockCalculator,
-        private CustomerRepository $customerRepository
+        private CustomerRepository $customerRepository,
+        private FeatureFlagService $featureFlags
     ) {
     }
 
     public function onTicketCreated(TicketCreated $event): void
     {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[PET WorkProjection] TicketCreated event received for ticket: ' . $event->ticket()->id());
+        }
+
+        if (!$this->featureFlags->isWorkProjectionEnabled()) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[PET WorkProjection] Skipped: Work Projection disabled');
+            }
+            return;
+        }
+
         $ticket = $event->ticket();
         
+        // Idempotency Check: Prevent duplicate projection
+        $existing = $this->workItemRepository->findBySource('ticket', (string)$ticket->id());
+        if ($existing) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[PET WorkProjection] Skipped: WorkItem already exists for ticket ' . $ticket->id());
+            }
+            return;
+        }
+
         // 1. Determine Department
         $departmentId = $this->departmentResolver->resolveForTicket($ticket);
 
@@ -96,6 +118,10 @@ class WorkItemProjector
 
     public function onTicketAssigned(TicketAssigned $event): void
     {
+        if (!$this->featureFlags->isWorkProjectionEnabled()) {
+            return;
+        }
+
         $ticket = $event->ticket();
         $workItem = $this->workItemRepository->findBySource('ticket', (string)$ticket->id());
         
@@ -107,5 +133,6 @@ class WorkItemProjector
 
     public function onProjectTaskCreated(ProjectTaskCreated $event): void
     {
+        // Not implemented yet
     }
 }

@@ -51,6 +51,16 @@ class PriorityScoringService
         $score += $this->calculateManagerOverride($workItem);
         $score += $this->calculateWaitingPenalty($workItem);
         $score += $this->calculateRoleWeightComponent($workItem);
+
+        // Tie-breaker: FIFO (Older items get slightly higher score)
+        // Add a tiny fraction based on inverse timestamp to ensure stable ordering.
+        $created = $workItem->getCreatedAt();
+        $ts = $created->getTimestamp();
+        if ($ts > 0) {
+            // Max timestamp is ~2e9. 1 / 2e9 is ~5e-10.
+            // This is safe for float precision and ensures older items (smaller timestamp) get larger bonus.
+            $score += (1.0 / $ts);
+        }
         
         return $score;
     }
@@ -70,14 +80,11 @@ class PriorityScoringService
         }
 
         // 3. Resolve dependencies
-        // If repositories are not injected, we can't calculate this component.
-        // This allows using the service in lightweight contexts (like tests without mocks).
         if (!$this->employeeRepository || !$this->assignmentRepository) {
             return 0.0;
         }
 
         // 4. Find Employee and their Active Assignment
-        // assignedUserId is string (WP User ID)
         if (!is_numeric($assignedUserId)) {
             return 0.0; 
         }
@@ -87,18 +94,7 @@ class PriorityScoringService
             return 0.0;
         }
 
-        // Find active assignment
-        // Assuming findActiveByEmployeeId returns single assignment or null
-        // But Repository interface usually returns array? Let's check.
-        // If findActiveByEmployeeId doesn't exist, we might need to use findAll and filter.
-        // AssignmentRepository interface check required.
-        // For now, let's assume we need to fetch assignments.
-        
-        // Let's assume finding all assignments for employee and filtering for active.
-        // But AssignmentRepository likely has findByEmployeeId.
-        
-        // Let's check AssignmentRepository interface.
-        // For now, I'll use findByEmployeeId and filter in memory.
+        // Find active assignments for employee
         $assignments = $this->assignmentRepository->findByEmployeeId($employee->id());
         
         $now = $this->getNow();

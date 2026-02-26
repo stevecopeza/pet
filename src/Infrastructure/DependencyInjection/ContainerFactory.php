@@ -216,6 +216,16 @@ class ContainerFactory
                 return new \Pet\Infrastructure\Persistence\Repository\SqlSettingRepository($wpdb);
             },
 
+            \Pet\Application\System\Service\FeatureFlagService::class => function (\Psr\Container\ContainerInterface $c) {
+                return new \Pet\Application\System\Service\FeatureFlagService(
+                    $c->get(\Pet\Domain\Configuration\Repository\SettingRepository::class)
+                );
+            },
+            
+            \Pet\Infrastructure\System\Service\LogService::class => function () {
+                return new \Pet\Infrastructure\System\Service\LogService();
+            },
+
             \Pet\Domain\Configuration\Repository\SchemaDefinitionRepository::class => function () {
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlSchemaDefinitionRepository($wpdb);

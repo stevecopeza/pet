@@ -5,21 +5,35 @@ declare(strict_types=1);
 namespace Pet\Application\Work\Cron;
 
 use Pet\Domain\Work\Service\SlaClockCalculator;
+use Pet\Application\System\Service\FeatureFlagService;
 
 class WorkItemPriorityUpdateJob
 {
     public function __construct(
-        private SlaClockCalculator $calculator
+        private SlaClockCalculator $calculator,
+        private FeatureFlagService $featureFlags
     ) {}
 
     public function run(): void
     {
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[PET PriorityEngine] Starting priority update job...');
+        }
+
+        if (!$this->featureFlags->isPriorityEngineEnabled()) {
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[PET PriorityEngine] Skipped: Priority Engine disabled');
+            }
+            return;
+        }
+
         try {
             $count = $this->calculator->recalculateAllActive();
-            // Optional logging if needed, or silent success
-            // error_log("Updated $count work items priority/SLA.");
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log(sprintf('[PET PriorityEngine] Recalculated priority for %d items', $count));
+            }
         } catch (\Throwable $e) {
-            error_log('WorkItem Priority Update Failed: ' . $e->getMessage());
+            error_log('[PET PriorityEngine] Update Failed: ' . $e->getMessage());
         }
     }
 }

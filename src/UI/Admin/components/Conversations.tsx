@@ -25,6 +25,14 @@ const Conversations = () => {
         setSelectedConversationId(id);
     }
 
+    const handlePopState = () => {
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get('id');
+        setSelectedConversationId(id);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
     const fetchConversations = async () => {
       try {
         setLoading(true);
@@ -62,13 +70,28 @@ const Conversations = () => {
     };
 
     fetchConversations();
+
+    return () => {
+        window.removeEventListener('popstate', handlePopState);
+    };
   }, []);
+
+  const updateUrl = (id: string | null) => {
+      const url = new URL(window.location.href);
+      if (id) {
+          url.searchParams.set('id', id);
+      } else {
+          url.searchParams.delete('id');
+      }
+      window.history.pushState({}, '', url.toString());
+  };
 
   const columns: Column<ConversationSummary>[] = [
     { key: 'subject', header: 'Subject', render: (val, item) => (
       <a href={`admin.php?page=pet-conversations&id=${item.uuid}`} onClick={(e) => {
           e.preventDefault();
           setSelectedConversationId(item.uuid);
+          updateUrl(item.uuid);
       }} style={{ fontWeight: 'bold', cursor: 'pointer' }}>{val}</a>
     )},
     { key: 'context_type', header: 'Context', render: (val, item) => `${val} #${item.context_id}` },
@@ -84,7 +107,10 @@ const Conversations = () => {
         <div style={{ marginBottom: '15px' }}>
             <button 
                 className="button" 
-                onClick={() => setSelectedConversationId(null)}
+                onClick={() => {
+                    setSelectedConversationId(null);
+                    updateUrl(null);
+                }}
             >
                 &larr; Back to list
             </button>

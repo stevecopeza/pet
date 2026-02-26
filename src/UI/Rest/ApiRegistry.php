@@ -62,6 +62,7 @@ class ApiRegistry
             \Pet\UI\Rest\Controller\QuickBooksController::class,
             \Pet\UI\Rest\Controller\LeaveController::class,
             \Pet\UI\Rest\Controller\ConversationController::class,
+            \Pet\UI\Rest\Controller\LogController::class,
         ];
 
         foreach ($controllers as $controllerClass) {

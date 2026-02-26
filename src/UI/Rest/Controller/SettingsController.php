@@ -64,6 +64,10 @@ class SettingsController implements RestController
     {
         $params = $request->get_json_params();
         
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[PET Settings] Update request: ' . json_encode($params));
+        }
+
         if (!isset($params['key']) || !isset($params['value'])) {
             return new WP_REST_Response(['error' => 'Key and value are required'], 400);
         }
