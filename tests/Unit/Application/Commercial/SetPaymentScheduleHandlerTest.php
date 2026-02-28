@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pet\Tests\Unit\Application\Commercial;
 
 use PHPUnit\Framework\TestCase;
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Application\Commercial\Command\SetPaymentScheduleCommand;
 use Pet\Application\Commercial\Command\SetPaymentScheduleHandler;
 use Pet\Domain\Commercial\Entity\Quote;
@@ -49,7 +50,12 @@ class SetPaymentScheduleHandlerTest extends TestCase
             $capturedEvents[] = $event;
         });
 
-        $handler = new SetPaymentScheduleHandler($quoteRepository, $eventBus);
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
+        $handler = new SetPaymentScheduleHandler($transactionManager, $quoteRepository, $eventBus);
 
         $command = new SetPaymentScheduleCommand(10, [
             ['title' => 'Deposit', 'amount' => 100.0, 'dueDate' => null],
@@ -99,11 +105,16 @@ class SetPaymentScheduleHandlerTest extends TestCase
         $quoteRepository->expects($this->never())->method('save');
 
         $eventBus = $this->createMock(EventBus::class);
-        $handler = new SetPaymentScheduleHandler($quoteRepository, $eventBus);
+        $eventBus->expects($this->never())->method('dispatch');
 
-        $command = new SetPaymentScheduleCommand(10, [
-            ['title' => 'Deposit', 'amount' => 100.0, 'dueDate' => null],
-        ]);
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
+        $handler = new SetPaymentScheduleHandler($transactionManager, $quoteRepository, $eventBus);
+
+        $command = new SetPaymentScheduleCommand(10, []);
 
         $this->expectException(\DomainException::class);
         $handler->handle($command);

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Work\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Work\Entity\Assignment;
 use Pet\Domain\Work\Repository\AssignmentRepository;
 use Pet\Domain\Work\Repository\RoleRepository;
@@ -11,15 +13,17 @@ use Pet\Domain\Identity\Repository\EmployeeRepository;
 
 class AssignRoleToPersonHandler
 {
+    private TransactionManager $transactionManager;
     private $assignmentRepository;
     private $roleRepository;
     private $employeeRepository;
 
-    public function __construct(
+    public function __construct(TransactionManager $transactionManager, 
         AssignmentRepository $assignmentRepository,
         RoleRepository $roleRepository,
         EmployeeRepository $employeeRepository
     ) {
+        $this->transactionManager = $transactionManager;
         $this->assignmentRepository = $assignmentRepository;
         $this->roleRepository = $roleRepository;
         $this->employeeRepository = $employeeRepository;
@@ -27,6 +31,7 @@ class AssignRoleToPersonHandler
 
     public function handle(AssignRoleToPersonCommand $command): int
     {
+        return $this->transactionManager->transactional(function () use ($command) {
         $role = $this->roleRepository->findById($command->roleId());
         if (!$role) {
             throw new \InvalidArgumentException('Role not found.');
@@ -60,5 +65,7 @@ class AssignRoleToPersonHandler
         // Correction: SqlAssignmentRepository does NOT update the object ID after insert (unlike Doctrine). 
         // We should fix the repo or just accept that for now.
         // Let's stick to returning void or update repo.
+    
+        });
     }
 }

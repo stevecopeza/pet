@@ -35,6 +35,7 @@ namespace Pet\Tests\Integration\Conversation {
         private $controller;
         private $addParticipantHandler;
         private $removeParticipantHandler;
+        private $tx;
 
         protected function setUp(): void
         {
@@ -48,8 +49,13 @@ namespace Pet\Tests\Integration\Conversation {
             $this->accessControl = $this->createMock(ConversationAccessControl::class);
 
             // Real Handlers for Participants
-            $this->addParticipantHandler = new AddParticipantHandler($this->conversationRepo);
-            $this->removeParticipantHandler = new RemoveParticipantHandler($this->conversationRepo);
+            $this->tx = new class implements \Pet\Application\System\Service\TransactionManager {
+                public function transactional(callable $operation) {
+                    return $operation();
+                }
+            };
+            $this->addParticipantHandler = new AddParticipantHandler($this->tx, $this->conversationRepo);
+            $this->removeParticipantHandler = new RemoveParticipantHandler($this->tx, $this->conversationRepo);
 
             // Mock other handlers
             $createHandler = $this->createMock(CreateConversationHandler::class);

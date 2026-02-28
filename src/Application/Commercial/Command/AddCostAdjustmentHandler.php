@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Commercial\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Commercial\Entity\CostAdjustment;
 use Pet\Domain\Commercial\Repository\CostAdjustmentRepository;
 use Pet\Domain\Commercial\Repository\QuoteRepository;
@@ -13,15 +15,17 @@ use RuntimeException;
 
 class AddCostAdjustmentHandler
 {
+    private TransactionManager $transactionManager;
     private CostAdjustmentRepository $costAdjustmentRepository;
     private QuoteRepository $quoteRepository;
     private EventBus $eventBus;
 
-    public function __construct(
+    public function __construct(TransactionManager $transactionManager, 
         CostAdjustmentRepository $costAdjustmentRepository,
         QuoteRepository $quoteRepository,
         EventBus $eventBus
     ) {
+        $this->transactionManager = $transactionManager;
         $this->costAdjustmentRepository = $costAdjustmentRepository;
         $this->quoteRepository = $quoteRepository;
         $this->eventBus = $eventBus;
@@ -29,6 +33,7 @@ class AddCostAdjustmentHandler
 
     public function handle(AddCostAdjustmentCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $quote = $this->quoteRepository->findById($command->quoteId());
         if (!$quote) {
             throw new RuntimeException("Quote not found: " . $command->quoteId());
@@ -49,5 +54,7 @@ class AddCostAdjustmentHandler
         $this->costAdjustmentRepository->save($adjustment);
         
         $this->eventBus->dispatch(new ChangeOrderApprovedEvent($adjustment));
+    
+        });
     }
 }

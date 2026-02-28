@@ -23,10 +23,6 @@ class AdminPageRegistry
 
     public function addMenuPage(): void
     {
-        // Feature Flag Check
-        $container = \Pet\Infrastructure\DependencyInjection\ContainerFactory::create();
-        $featureFlags = $container->get(\Pet\Application\System\Service\FeatureFlagService::class);
-
         // Top Level Menu
         add_menu_page(
             'PET Overview',
@@ -58,14 +54,6 @@ class AdminPageRegistry
             'pet-demo-tools' => 'Demo Tools',
         ];
 
-        if ($featureFlags->isAdvisoryReportsEnabled()) {
-            $submenus['pet-advisory'] = 'Advisory';
-        }
-
-        if ($featureFlags->isEscalationEngineEnabled()) {
-            $submenus['pet-escalation-rules'] = 'Escalation Rules';
-        }
-
         foreach ($submenus as $slug => $title) {
             add_submenu_page(
                 'pet-dashboard',
@@ -81,7 +69,6 @@ class AdminPageRegistry
     public function renderPage(): void
     {
         $page = $_GET['page'] ?? 'pet-dashboard';
-        
         if ($page === 'pet-demo-tools') {
             $nonce = wp_create_nonce('wp_rest');
             echo '<div class="wrap"><h1>Demo Tools</h1>';
@@ -175,6 +162,20 @@ class AdminPageRegistry
             return;
         }
         echo '<div id="pet-admin-root"></div>';
+        if ($page === 'pet-support') {
+            echo '<script>';
+            echo '(function(){';
+            echo 'function setHashFromRow(el){try{var row=el.closest("tr");if(!row)return;var cells=Array.prototype.slice.call(row.children||[]);var idVal=null;for(var i=0;i<cells.length;i++){var txt=(cells[i].textContent||"").trim();var m=txt.match(/^(\\d{1,})$/);if(m&&m[1]){idVal=m[1];break;}}if(idVal){history.replaceState(null,"",location.pathname+location.search+"#ticket="+idVal);}}catch(_){}}';
+            echo 'document.addEventListener("click",function(e){';
+            echo 'var t=e.target;if(!t||!t.closest)return;';
+            echo 'var a=t.closest(".pet-support a[href=\"#\"]");';
+            echo 'if(a){setHashFromRow(a);e.preventDefault();}';
+            echo 'var b=t.closest(".pet-support button");';
+            echo 'if(b){var ty=(b.getAttribute("type")||"").toLowerCase();setHashFromRow(b);if(!ty||ty==="submit"){b.setAttribute("type","button");}}';
+            echo '});';
+            echo '})();';
+            echo '</script>';
+        }
     }
 
     public function enqueueScripts(string $hook): void
@@ -209,6 +210,48 @@ class AdminPageRegistry
                 '1.0.2.' . time(), // Force cache bust
                 true
             );
+
+            // Inline safety: prevent accidental submits/navigation inside PET Support.
+            // Ensures old cached bundles cannot trigger full-page reloads when clicking action buttons/links.
+            $inline = <<<'JS'
+document.addEventListener('click', function(e){
+  var root = document.getElementById('pet-admin-root');
+  if(!root) return;
+  var t = e.target;
+  if(!(t instanceof Element)) return;
+  function setHashFromRow(el){
+    try{
+      var row = el.closest('tr');
+      if(!row) return;
+      var cells = Array.prototype.slice.call(row.children || []);
+      var idVal = null;
+      for(var i=0;i<cells.length;i++){
+        var txt = (cells[i].textContent||'').trim();
+        var m = txt.match(/^(\d{1,})$/);
+        if(m && m[1]){
+          idVal = m[1];
+          break;
+        }
+      }
+      if(idVal){
+        history.replaceState(null,'',location.pathname+location.search+'#ticket='+idVal);
+      }
+    }catch(_){}
+  }
+  // Neutralize anchor hashes inside Support UI
+  var a = t.closest('.pet-support a[href="#"]');
+  if(a){ setHashFromRow(a); e.preventDefault(); }
+  // Ensure all buttons inside Support act as non-submit buttons
+  var b = t.closest('.pet-support button');
+  if(b){
+    var ty = (b.getAttribute('type')||'').toLowerCase();
+    // Set hash for any button inside Support rows to allow restore if reload happens
+    setHashFromRow(b);
+    if(!ty || ty === 'submit'){ b.setAttribute('type','button'); }
+  }
+}, false);
+JS;
+            wp_add_inline_script('pet-admin-app', $inline, 'after');
 
             // Get current page slug from $_GET['page']
             $currentPage = $_GET['page'] ?? 'pet-dashboard';

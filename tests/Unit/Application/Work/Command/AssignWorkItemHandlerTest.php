@@ -6,6 +6,7 @@ namespace Pet\Tests\Unit\Application\Work\Command;
 
 use Pet\Application\Work\Command\AssignWorkItemCommand;
 use Pet\Application\Work\Command\AssignWorkItemHandler;
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Domain\Work\Entity\WorkItem;
 use Pet\Domain\Work\Repository\WorkItemRepository;
 use Pet\Domain\Activity\Repository\ActivityLogRepository;
@@ -15,13 +16,18 @@ class AssignWorkItemHandlerTest extends TestCase
 {
     private $repository;
     private $activityLogRepository;
+    private $transactionManager;
     private $handler;
 
     protected function setUp(): void
     {
+        $this->transactionManager = $this->createMock(TransactionManager::class);
+        $this->transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
         $this->repository = $this->createMock(WorkItemRepository::class);
         $this->activityLogRepository = $this->createMock(ActivityLogRepository::class);
-        $this->handler = new AssignWorkItemHandler($this->repository, $this->activityLogRepository);
+        $this->handler = new AssignWorkItemHandler($this->transactionManager, $this->repository, $this->activityLogRepository);
     }
 
     public function testAssignsUserToWorkItem()

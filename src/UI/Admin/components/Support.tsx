@@ -18,6 +18,28 @@ const Support = () => {
   const [assignmentFilter, setAssignmentFilter] = useState<string>('all');
   const [customerFilter, setCustomerFilter] = useState<string>('');
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [pendingSelectId, setPendingSelectId] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Restore selection from URL hash (e.g., #ticket=123)
+    try {
+      const hash = window.location.hash || '';
+      const m = hash.match(/ticket=(\d+)/);
+      if (m) {
+        setPendingSelectId(Number(m[1]));
+      }
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    if (pendingSelectId && tickets.length > 0) {
+      const found = tickets.find(t => Number(t.id) === Number(pendingSelectId));
+      if (found) {
+        setSelectedTicket(found);
+        setPendingSelectId(null);
+      }
+    }
+  }, [pendingSelectId, tickets]);
 
   useEffect(() => {
     const fetchEmployees = async () => {
@@ -95,6 +117,11 @@ const Support = () => {
       });
 
       if (!response.ok) {
+        if (response.status === 404) {
+          setError('Helpdesk is disabled (feature flag off)');
+          setTickets([]);
+          return;
+        }
         throw new Error('Failed to fetch tickets');
       }
 
@@ -105,6 +132,14 @@ const Support = () => {
       }
 
       setTickets(data);
+      // If we have a pending selection and it exists in the new data, select it
+      if (pendingSelectId) {
+        const found = data.find(t => Number(t.id) === Number(pendingSelectId));
+        if (found) {
+          setSelectedTicket(found);
+          setPendingSelectId(null);
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unknown error occurred');
     } finally {
@@ -182,16 +217,22 @@ const Support = () => {
   const columns: Column<Ticket>[] = [
     { key: 'id', header: 'ID' },
     { key: 'subject', header: 'Subject', render: (val, item) => (
-      <a 
-        href="#" 
+      <button 
+        type="button"
         onClick={(e) => { 
           e.preventDefault(); 
+          e.stopPropagation();
           setSelectedTicket(item); 
+          try {
+            window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#ticket=${item.id}`);
+          } catch (_) {}
         }}
-        style={{ fontWeight: 'bold' }}
+        style={{ fontWeight: 'bold', background: 'none', border: 'none', padding: 0, margin: 0, color: '#2271b1', cursor: 'pointer' }}
+        className="button-link"
+        aria-label={`View ticket ${String(val)}`}
       >
         {String(val)}
-      </a>
+      </button>
     ) },
     { 
       key: 'malleableData', 
@@ -254,7 +295,7 @@ const Support = () => {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2>Support (Tickets)</h2>
         {!showAddForm && (
-          <button className="button button-primary" onClick={() => setShowAddForm(true)}>
+          <button type="button" className="button button-primary" onClick={() => setShowAddForm(true)}>
             Create New Ticket
           </button>
         )}
@@ -301,6 +342,7 @@ const Support = () => {
         </div>
         <div style={{ alignSelf: 'flex-end' }}>
           <button
+            type="button"
             className="button"
             onClick={() => {
               setStatusFilter('');
@@ -325,7 +367,7 @@ const Support = () => {
       {selectedIds.length > 0 && (
         <div style={{ padding: '10px', background: '#e5f5fa', border: '1px solid #b5e1ef', marginBottom: '15px', display: 'flex', alignItems: 'center', gap: '15px' }}>
           <strong>{selectedIds.length} items selected</strong>
-          <button className="button" onClick={handleBulkArchive}>Archive Selected</button>
+          <button type="button" className="button" onClick={handleBulkArchive}>Archive Selected</button>
         </div>
       )}
 
@@ -340,9 +382,14 @@ const Support = () => {
         actions={(item) => (
           <div style={{ display: 'flex', gap: '5px', justifyContent: 'flex-end' }}>
             <button 
+              type="button"
               className="button button-small"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 setSelectedTicket(item);
+                try {
+                  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#ticket=${item.id}`);
+                } catch (_) {}
                 setShowConversation(true);
               }}
               title="Discuss"
@@ -350,21 +397,36 @@ const Support = () => {
               💬
             </button>
             <button 
+              type="button"
               className="button button-small"
-              onClick={() => setSelectedTicket(item)}
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                setSelectedTicket(item); 
+                try {
+                  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#ticket=${item.id}`);
+                } catch (_) {}
+              }}
             >
               View
             </button>
             <button 
+              type="button"
               className="button button-small"
-              onClick={() => handleEdit(item)}
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                try {
+                  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}#ticket=${item.id}`);
+                } catch (_) {}
+                handleEdit(item); 
+              }}
             >
               Edit
             </button>
             <button 
+              type="button"
               className="button button-small button-link-delete"
               style={{ color: '#a00', borderColor: '#a00' }}
-              onClick={() => handleArchive(item.id)}
+              onClick={(e) => { e.stopPropagation(); handleArchive(item.id); }}
             >
               Archive
             </button>

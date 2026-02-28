@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Commercial\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Commercial\Repository\QuoteRepository;
 use Pet\Domain\Commercial\Event\QuoteAccepted;
 use Pet\Domain\Commercial\Event\PaymentScheduleItemBecameDueEvent;
@@ -18,19 +20,21 @@ use Pet\Application\Conversation\Service\ActionGatingService;
 
 class AcceptQuoteHandler
 {
+    private TransactionManager $transactionManager;
     private QuoteRepository $quoteRepository;
     private EventBus $eventBus;
     private ?TouchedTracker $touched;
     private ?CreateTicketHandler $createTicketHandler;
     private ?ActionGatingService $gatingService;
 
-    public function __construct(
+    public function __construct(TransactionManager $transactionManager, 
         QuoteRepository $quoteRepository,
         EventBus $eventBus,
         ?TouchedTracker $touched = null,
         ?CreateTicketHandler $createTicketHandler = null,
         ?ActionGatingService $gatingService = null
     ) {
+        $this->transactionManager = $transactionManager;
         $this->quoteRepository = $quoteRepository;
         $this->eventBus = $eventBus;
         $this->touched = $touched;
@@ -40,7 +44,8 @@ class AcceptQuoteHandler
 
     public function handle(AcceptQuoteCommand $command): void
     {
-        $quote = $this->quoteRepository->findById($command->id());
+        $this->transactionManager->transactional(function () use ($command) {
+        $quote = $this->quoteRepository->findById($command->id(), true);
 
         if (!$quote) {
             throw new \RuntimeException('Quote not found');
@@ -78,6 +83,8 @@ class AcceptQuoteHandler
         }
 
         $this->createTicketsFromQuote($quote);
+    
+        });
     }
 
     private function createTicketsFromQuote(Quote $quote): void

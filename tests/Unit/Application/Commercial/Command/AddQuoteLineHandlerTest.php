@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pet\Tests\Unit\Application\Commercial\Command;
 
+use Pet\Application\System\Service\TransactionManager;
 use PHPUnit\Framework\TestCase;
 use Pet\Application\Commercial\Command\AddQuoteLineCommand;
 use Pet\Application\Commercial\Command\AddQuoteLineHandler;
@@ -13,12 +14,17 @@ use Pet\Domain\Commercial\Repository\QuoteRepository;
 class AddQuoteLineHandlerTest extends TestCase
 {
     private $quoteRepository;
+    private $transactionManager;
     private $handler;
 
     protected function setUp(): void
     {
+        $this->transactionManager = $this->createMock(TransactionManager::class);
+        $this->transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
         $this->quoteRepository = $this->createMock(QuoteRepository::class);
-        $this->handler = new AddQuoteLineHandler($this->quoteRepository);
+        $this->handler = new AddQuoteLineHandler($this->transactionManager, $this->quoteRepository);
     }
 
     public function testHandleAddsLineToQuote()

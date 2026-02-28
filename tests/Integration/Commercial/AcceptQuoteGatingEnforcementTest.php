@@ -20,6 +20,7 @@ use Pet\Infrastructure\Persistence\Repository\Conversation\SqlDecisionRepository
 use Pet\Domain\Conversation\Entity\Conversation;
 use Pet\Domain\Conversation\Entity\Decision;
 use Pet\Application\Conversation\Exception\ActionGatedByDecisionException;
+use Pet\Application\System\Service\TransactionManager;
 
 class AcceptQuoteGatingEnforcementTest extends TestCase
 {
@@ -30,6 +31,7 @@ class AcceptQuoteGatingEnforcementTest extends TestCase
     private $eventBus;
     private $gatingService;
     private $handler;
+    private $tx;
 
     protected function setUp(): void
     {
@@ -53,13 +55,13 @@ class AcceptQuoteGatingEnforcementTest extends TestCase
             $this->decisionRepo
         );
 
-        $this->handler = new AcceptQuoteHandler(
-            $this->quoteRepo,
-            $this->eventBus,
-            null,
-            null,
-            $this->gatingService
-        );
+        $this->tx = new class implements TransactionManager {
+            public function transactional(callable $operation) {
+                return $operation();
+            }
+        };
+
+        $this->handler = new AcceptQuoteHandler($this->tx, $this->quoteRepo, $this->eventBus, null, null, $this->gatingService);
     }
 
     private function createQuote(int $id): Quote

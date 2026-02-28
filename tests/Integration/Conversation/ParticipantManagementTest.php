@@ -3,6 +3,7 @@
 namespace Pet\Tests\Integration\Conversation;
 
 use PHPUnit\Framework\TestCase;
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Application\Conversation\Command\CreateConversationHandler;
 use Pet\Application\Conversation\Command\CreateConversationCommand;
 use Pet\Domain\Conversation\Entity\Conversation;
@@ -26,6 +27,7 @@ class ParticipantManagementTest extends TestCase
     private $contactRepo;
     private $teamRepo;
     private $quoteRepo;
+    private $transactionManager;
     private $createHandler;
     private $addHandler;
     private $removeHandler;
@@ -37,8 +39,13 @@ class ParticipantManagementTest extends TestCase
         $this->contactRepo = $this->createMock(ContactRepository::class);
         $this->teamRepo = $this->createMock(TeamRepository::class);
         $this->quoteRepo = $this->createMock(QuoteRepository::class);
+        $this->transactionManager = $this->createMock(TransactionManager::class);
+        $this->transactionManager->method('transactional')->willReturnCallback(function ($fn) {
+            return $fn();
+        });
 
         $this->createHandler = new CreateConversationHandler(
+            $this->transactionManager,
             $this->conversationRepo,
             $this->employeeRepo,
             $this->contactRepo,
@@ -46,8 +53,8 @@ class ParticipantManagementTest extends TestCase
             $this->quoteRepo
         );
         
-        $this->addHandler = new AddParticipantHandler($this->conversationRepo);
-        $this->removeHandler = new RemoveParticipantHandler($this->conversationRepo);
+        $this->addHandler = new AddParticipantHandler($this->transactionManager, $this->conversationRepo);
+        $this->removeHandler = new RemoveParticipantHandler($this->transactionManager, $this->conversationRepo);
 
         // Mock wp_generate_uuid4 if needed, but since it's a WP function, 
         // we might need to rely on the existing mock or define it if running in isolation.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pet\Tests\Integration\Conversation;
 
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Application\Conversation\Command\CreateConversationCommand;
 use Pet\Application\Conversation\Command\CreateConversationHandler;
 use Pet\Domain\Commercial\Entity\Quote;
@@ -24,6 +25,7 @@ class CreateQuoteConversationTest extends TestCase
     private $contactRepo;
     private $employeeRepo;
     private $teamRepo;
+    private $transactionManager;
     private $handler;
 
     protected function setUp(): void
@@ -33,8 +35,13 @@ class CreateQuoteConversationTest extends TestCase
         $this->contactRepo = $this->createMock(ContactRepository::class);
         $this->employeeRepo = $this->createMock(EmployeeRepository::class);
         $this->teamRepo = $this->createMock(TeamRepository::class);
+        $this->transactionManager = $this->createMock(TransactionManager::class);
+        $this->transactionManager->method('transactional')->willReturnCallback(function ($fn) {
+            return $fn();
+        });
 
         $this->handler = new CreateConversationHandler(
+            $this->transactionManager,
             $this->conversationRepo,
             $this->employeeRepo,
             $this->contactRepo,

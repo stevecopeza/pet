@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Commercial\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Commercial\Entity\Lead;
 use Pet\Domain\Commercial\Repository\LeadRepository;
 use Pet\Domain\Identity\Repository\CustomerRepository;
@@ -13,17 +15,19 @@ use InvalidArgumentException;
 
 class CreateLeadHandler
 {
+    private TransactionManager $transactionManager;
     private LeadRepository $leadRepository;
     private CustomerRepository $customerRepository;
     private SchemaDefinitionRepository $schemaRepository;
     private SchemaValidator $schemaValidator;
 
-    public function __construct(
+    public function __construct(TransactionManager $transactionManager, 
         LeadRepository $leadRepository,
         CustomerRepository $customerRepository,
         SchemaDefinitionRepository $schemaRepository,
         SchemaValidator $schemaValidator
     ) {
+        $this->transactionManager = $transactionManager;
         $this->leadRepository = $leadRepository;
         $this->customerRepository = $customerRepository;
         $this->schemaRepository = $schemaRepository;
@@ -32,6 +36,7 @@ class CreateLeadHandler
 
     public function handle(CreateLeadCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $customer = $this->customerRepository->findById($command->customerId());
         if (!$customer) {
             throw new \DomainException("Customer not found: {$command->customerId()}");
@@ -63,5 +68,7 @@ class CreateLeadHandler
         );
 
         $this->leadRepository->save($lead);
+    
+        });
     }
 }

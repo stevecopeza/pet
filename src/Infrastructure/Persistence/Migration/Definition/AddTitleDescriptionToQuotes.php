@@ -19,11 +19,14 @@ class AddTitleDescriptionToQuotes implements Migration
     {
         $table_name = $this->wpdb->prefix . 'pet_quotes';
         
-        // Add title column
-        $this->wpdb->query("ALTER TABLE $table_name ADD COLUMN title VARCHAR(255) NOT NULL DEFAULT '' AFTER customer_id");
-        
-        // Add description column
-        $this->wpdb->query("ALTER TABLE $table_name ADD COLUMN description TEXT NULL AFTER title");
+        $row = $this->wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'title'");
+        if (empty($row)) {
+            $this->wpdb->query("ALTER TABLE $table_name ADD COLUMN title VARCHAR(255) NOT NULL DEFAULT '' AFTER customer_id");
+        }
+        $row = $this->wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'description'");
+        if (empty($row)) {
+            $this->wpdb->query("ALTER TABLE $table_name ADD COLUMN description TEXT NULL AFTER title");
+        }
     }
 
     public function getDescription(): string

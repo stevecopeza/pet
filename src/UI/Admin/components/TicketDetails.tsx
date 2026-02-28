@@ -147,7 +147,13 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack, initialSh
           throw new Error('Failed to fetch activity');
         }
         const data = await response.json();
-        setActivityLogs(data);
+        if (data && Array.isArray(data.items)) {
+          setActivityLogs(data.items);
+        } else if (Array.isArray(data)) {
+          setActivityLogs(data);
+        } else {
+          setActivityLogs([]);
+        }
       } catch (err) {
         setActivityError(
           err instanceof Error ? err.message : 'Failed to load activity'
@@ -344,11 +350,23 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack, initialSh
   return (
     <div className="pet-ticket-details">
       <div style={{ marginBottom: '20px' }}>
-        <button className="button" onClick={onBack}>&larr; Back to Tickets</button>
+        <button 
+          type="button" 
+          className="button" 
+          onClick={() => {
+            try {
+              window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
+            } catch (_) {}
+            onBack();
+          }}
+        >
+          &larr; Back to Tickets
+        </button>
         {!isEditing && (
           <>
-            <button className="button" onClick={() => setIsEditing(true)} style={{ marginLeft: '10px' }}>Edit</button>
+            <button type="button" className="button" onClick={() => setIsEditing(true)} style={{ marginLeft: '10px' }}>Edit</button>
             <button 
+              type="button"
               className={`button ${activeConversation === 'ticket' ? 'button-primary' : ''}`} 
               onClick={() => setActiveConversation(activeConversation === 'ticket' ? null : 'ticket')} 
               style={{ marginLeft: '10px' }}
@@ -359,10 +377,10 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack, initialSh
         )}
         {isEditing && (
           <>
-            <button className="button button-primary" onClick={handleSave} disabled={saving} style={{ marginLeft: '10px' }}>
+            <button type="button" className="button button-primary" onClick={handleSave} disabled={saving} style={{ marginLeft: '10px' }}>
               {saving ? 'Saving...' : 'Save Changes'}
             </button>
-            <button className="button" onClick={() => setIsEditing(false)} disabled={saving} style={{ marginLeft: '10px' }}>Cancel</button>
+            <button type="button" className="button" onClick={() => setIsEditing(false)} disabled={saving} style={{ marginLeft: '10px' }}>Cancel</button>
           </>
         )}
       </div>
@@ -420,6 +438,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack, initialSh
             <div style={{ display: 'flex', gap: '10px' }}>
               {activeConversation === 'sla' && (
                 <button 
+                  type="button"
                   className="button" 
                   onClick={() => setActiveConversation('ticket')}
                 >
@@ -428,6 +447,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack, initialSh
               )}
               {activeConversation === 'ticket' && ticket.slaId && (
                 <button 
+                  type="button"
                   className="button" 
                   onClick={() => setActiveConversation('sla')}
                 >
@@ -435,6 +455,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack, initialSh
                 </button>
               )}
               <button 
+                type="button"
                 className="button" 
                 onClick={() => setActiveConversation(null)}
                 title="Close"
@@ -506,10 +527,8 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack, initialSh
                 >
                   {activityLogs.map((log) => (
                     <li key={log.id} style={{ marginBottom: '8px' }}>
-                      <div style={{ fontSize: '12px', color: '#666' }}>
-                        {log.createdAt}
-                      </div>
-                      <div>{log.description}</div>
+                      <div style={{ fontSize: '12px', color: '#666' }}>{log.occurred_at}</div>
+                      <div>{log.headline}</div>
                     </li>
                   ))}
                 </ul>
@@ -592,6 +611,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack, initialSh
                         ))}
                     </select>
                     <button
+                      type="button"
                       className="button"
                       style={{ marginTop: '6px', width: '100%' }}
                       disabled={updatingAssignment || !selectedAssignee}
@@ -612,6 +632,7 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack, initialSh
                 {!workItem.assigned_user_id &&
                   (window as any).petSettings?.currentUserId && (
                     <button
+                      type="button"
                       className="button button-large button-primary"
                       onClick={handleAssignToMe}
                       disabled={assigning}
@@ -622,10 +643,10 @@ const TicketDetails: React.FC<TicketDetailsProps> = ({ ticket, onBack, initialSh
                   )}
               </>
             )}
-            <button className="button button-large" disabled style={{ width: '100%', marginBottom: '10px' }}>
+            <button type="button" className="button button-large" disabled style={{ width: '100%', marginBottom: '10px' }}>
               Reply
             </button>
-            <button className="button button-large" disabled style={{ width: '100%' }}>
+            <button type="button" className="button button-large" disabled style={{ width: '100%' }}>
               Close Ticket
             </button>
           </div>

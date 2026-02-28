@@ -4,19 +4,24 @@ declare(strict_types=1);
 
 namespace Pet\Application\Work\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Work\Repository\PersonKpiRepository;
 
 class UpdatePersonKpiHandler
 {
+    private TransactionManager $transactionManager;
     private PersonKpiRepository $personKpiRepository;
 
-    public function __construct(PersonKpiRepository $personKpiRepository)
+    public function __construct(TransactionManager $transactionManager, PersonKpiRepository $personKpiRepository)
     {
+        $this->transactionManager = $transactionManager;
         $this->personKpiRepository = $personKpiRepository;
     }
 
     public function handle(UpdatePersonKpiCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $personKpi = $this->personKpiRepository->findById($command->id());
 
         if (!$personKpi) {
@@ -29,5 +34,7 @@ class UpdatePersonKpiHandler
         $personKpi->updateActual($command->actualValue(), $command->score());
 
         $this->personKpiRepository->save($personKpi);
+    
+        });
     }
 }

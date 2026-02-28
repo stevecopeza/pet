@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Support\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Support\Entity\Ticket;
 use Pet\Domain\Support\Repository\TicketRepository;
 use Pet\Domain\Identity\Repository\CustomerRepository;
@@ -16,6 +18,7 @@ use InvalidArgumentException;
 
 class CreateTicketHandler
 {
+    private TransactionManager $transactionManager;
     private TicketRepository $ticketRepository;
     private CustomerRepository $customerRepository;
     private EventBus $eventBus;
@@ -23,7 +26,7 @@ class CreateTicketHandler
     private SchemaValidator $schemaValidator;
     private DepartmentResolver $departmentResolver;
 
-    public function __construct(
+    public function __construct(TransactionManager $transactionManager, 
         TicketRepository $ticketRepository,
         CustomerRepository $customerRepository,
         EventBus $eventBus,
@@ -31,6 +34,7 @@ class CreateTicketHandler
         SchemaValidator $schemaValidator,
         DepartmentResolver $departmentResolver
     ) {
+        $this->transactionManager = $transactionManager;
         $this->ticketRepository = $ticketRepository;
         $this->customerRepository = $customerRepository;
         $this->eventBus = $eventBus;
@@ -41,6 +45,7 @@ class CreateTicketHandler
 
     public function handle(CreateTicketCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $customer = $this->customerRepository->findById($command->customerId());
         if (!$customer) {
             throw new \DomainException("Customer not found: {$command->customerId()}");
@@ -107,5 +112,7 @@ class CreateTicketHandler
 
         // Dispatch event
         $this->eventBus->dispatch(new TicketCreated($ticket));
+    
+        });
     }
 }

@@ -23,6 +23,8 @@ use Pet\Domain\Conversation\Entity\Conversation;
 use Pet\Domain\Conversation\Entity\Decision;
 use Pet\Application\Conversation\Exception\ActionGatedByDecisionException;
 
+use Pet\Application\System\Service\TransactionManager;
+
 class ActionGatingIntegrationTest extends TestCase
 {
     private $quoteRepo;
@@ -45,7 +47,13 @@ class ActionGatingIntegrationTest extends TestCase
             $this->decisionRepo
         );
 
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
         $this->acceptHandler = new AcceptQuoteHandler(
+            $transactionManager,
             $this->quoteRepo,
             $this->eventBus,
             null,
@@ -54,6 +62,7 @@ class ActionGatingIntegrationTest extends TestCase
         );
 
         $this->sendHandler = new SendQuoteHandler(
+            $transactionManager,
             $this->quoteRepo,
             $this->gatingService
         );

@@ -4,19 +4,24 @@ declare(strict_types=1);
 
 namespace Pet\Application\Support\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Support\Repository\TicketRepository;
 
 class UpdateTicketHandler
 {
+    private TransactionManager $transactionManager;
     private TicketRepository $ticketRepository;
 
-    public function __construct(TicketRepository $ticketRepository)
+    public function __construct(TransactionManager $transactionManager, TicketRepository $ticketRepository)
     {
+        $this->transactionManager = $transactionManager;
         $this->ticketRepository = $ticketRepository;
     }
 
     public function handle(UpdateTicketCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $ticket = $this->ticketRepository->findById($command->id());
 
         if (!$ticket) {
@@ -34,5 +39,7 @@ class UpdateTicketHandler
         );
 
         $this->ticketRepository->save($ticket);
+    
+        });
     }
 }

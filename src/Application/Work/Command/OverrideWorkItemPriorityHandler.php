@@ -4,19 +4,24 @@ declare(strict_types=1);
 
 namespace Pet\Application\Work\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Work\Repository\WorkItemRepository;
 use Pet\Domain\Work\Service\PriorityScoringService;
 use InvalidArgumentException;
 
 class OverrideWorkItemPriorityHandler
 {
-    public function __construct(
+    private TransactionManager $transactionManager;
+    public function __construct(TransactionManager $transactionManager, 
         private WorkItemRepository $repository,
         private PriorityScoringService $scoringService
-    ) {}
+    ) {
+        $this->transactionManager = $transactionManager;}
 
     public function handle(OverrideWorkItemPriorityCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $workItem = $this->repository->findById($command->workItemId());
 
         if (!$workItem) {
@@ -30,5 +35,7 @@ class OverrideWorkItemPriorityHandler
         $workItem->updatePriorityScore($newScore);
 
         $this->repository->save($workItem);
+    
+        });
     }
 }

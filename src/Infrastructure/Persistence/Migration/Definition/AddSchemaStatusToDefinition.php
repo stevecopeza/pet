@@ -4,11 +4,18 @@ declare(strict_types=1);
 
 namespace Pet\Infrastructure\Persistence\Migration\Definition;
 
-class AddSchemaStatusToDefinition
+use Pet\Infrastructure\Persistence\Migration\Migration;
+
+class AddSchemaStatusToDefinition implements Migration
 {
     public function getVersion(): string
     {
         return '1.0.3';
+    }
+
+    public function getDescription(): string
+    {
+        return 'Add status, published_at, published_by to schema definitions table.';
     }
 
     public function up(): void

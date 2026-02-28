@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pet\Tests\Unit\Application\Commercial\Command;
 
+use Pet\Application\System\Service\TransactionManager;
 use PHPUnit\Framework\TestCase;
 use Pet\Application\Commercial\Command\AcceptQuoteCommand;
 use Pet\Application\Commercial\Command\AcceptQuoteHandler;
@@ -94,7 +95,13 @@ final class AcceptQuoteHandlerOnceOffServiceTest extends TestCase
                 ]
             );
 
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
         $handler = new AcceptQuoteHandler(
+            $transactionManager,
             $quoteRepository,
             $eventBus,
             null,
@@ -201,7 +208,13 @@ final class AcceptQuoteHandlerOnceOffServiceTest extends TestCase
                 ]
             );
 
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
         $handler = new AcceptQuoteHandler(
+            $transactionManager,
             $quoteRepository,
             $eventBus,
             null,

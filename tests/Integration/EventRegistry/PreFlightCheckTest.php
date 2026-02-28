@@ -11,6 +11,11 @@ use Pet\Domain\Delivery\Event\ProjectCreated;
 use Pet\Domain\Support\Event\TicketCreated;
 use Pet\Domain\Support\Event\TicketWarningEvent;
 use Pet\Domain\Support\Event\TicketBreachedEvent;
+use Pet\Application\System\Service\TransactionManager;
+use Pet\Domain\Sla\Repository\SlaRepository;
+use Pet\Application\System\Service\FeatureFlagService;
+use Pet\Infrastructure\Persistence\Transaction\SqlTransaction;
+use Pet\Domain\Work\Service\DepartmentResolver;
 use Pet\Application\Commercial\Command\AcceptQuoteHandler;
 use Pet\Application\Commercial\Command\AcceptQuoteCommand;
 use Pet\Application\Delivery\Command\CreateProjectHandler;
@@ -112,7 +117,12 @@ class PreFlightCheckTest extends TestCase
 
         $quoteRepo->method('findById')->willReturn($quote);
 
-        $handler = new AcceptQuoteHandler($quoteRepo, $this->eventBus);
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
+        $handler = new AcceptQuoteHandler($transactionManager, $quoteRepo, $this->eventBus);
         $command = new AcceptQuoteCommand($quoteId, 123, 'John Doe');
 
         $handler->handle($command);
@@ -131,7 +141,13 @@ class PreFlightCheckTest extends TestCase
         $customer = new Customer('Acme', 'email@acme.com', 1);
         $customerRepo->method('findById')->willReturn($customer);
 
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
         $handler = new CreateProjectHandler(
+            $transactionManager,
             $projectRepo,
             $customerRepo,
             $schemaRepo,
@@ -163,10 +179,16 @@ class PreFlightCheckTest extends TestCase
         $schemaValidator = $this->createMock(SchemaValidator::class);
         $departmentResolver = $this->createMock(\Pet\Domain\Work\Service\DepartmentResolver::class);
 
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
         $customer = new Customer('Acme', 'email@acme.com', 1);
         $customerRepo->method('findById')->willReturn($customer);
 
         $handler = new CreateTicketHandler(
+            $transactionManager,
             $ticketRepo,
             $customerRepo,
             $this->eventBus,
@@ -229,9 +251,11 @@ class PreFlightCheckTest extends TestCase
         
         $clockStateRepo->method('findByTicketIdForUpdate')->willReturn(null);
 
-        $featureFlags = $this->createMock(\Pet\Application\System\Service\FeatureFlagService::class);
+        $slaRepo = $this->createMock(SlaRepository::class);
+
+        $featureFlags = $this->createMock(FeatureFlagService::class);
         $featureFlags->method('isSlaSchedulerEnabled')->willReturn(true);
-        $transaction = $this->createMock(\Pet\Infrastructure\Persistence\Transaction\SqlTransaction::class);
+        $transaction = $this->createMock(SqlTransaction::class);
         $transaction->method('begin');
         $transaction->method('commit');
         $transaction->method('rollback');
@@ -239,6 +263,7 @@ class PreFlightCheckTest extends TestCase
         $service = new SlaAutomationService(
             $ticketRepo,
             $clockStateRepo,
+            $slaRepo,
             $this->eventBus,
             $featureFlags,
             $transaction

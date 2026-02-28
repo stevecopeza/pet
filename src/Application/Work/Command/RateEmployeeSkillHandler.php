@@ -4,20 +4,25 @@ declare(strict_types=1);
 
 namespace Pet\Application\Work\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Work\Entity\PersonSkill;
 use Pet\Domain\Work\Repository\PersonSkillRepository;
 
 class RateEmployeeSkillHandler
 {
+    private TransactionManager $transactionManager;
     private $personSkillRepository;
 
-    public function __construct(PersonSkillRepository $personSkillRepository)
+    public function __construct(TransactionManager $transactionManager, PersonSkillRepository $personSkillRepository)
     {
+        $this->transactionManager = $transactionManager;
         $this->personSkillRepository = $personSkillRepository;
     }
 
     public function handle(RateEmployeeSkillCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         // Check if a rating already exists for this date? 
         // The business rule usually implies a new rating creates a new history record or updates the current snapshot.
         // Our SQL repo `findByEmployeeAndSkill` gets the latest.
@@ -40,5 +45,7 @@ class RateEmployeeSkillHandler
         );
 
         $this->personSkillRepository->save($personSkill);
+    
+        });
     }
 }

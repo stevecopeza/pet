@@ -4,17 +4,22 @@ declare(strict_types=1);
 
 namespace Pet\Application\Work\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Work\Repository\LeaveRequestRepository;
 use DateTimeImmutable;
 
 final class DecideLeaveRequestHandler
 {
-    public function __construct(private LeaveRequestRepository $repo)
+    private TransactionManager $transactionManager;
+    public function __construct(TransactionManager $transactionManager, private LeaveRequestRepository $repo)
     {
+        $this->transactionManager = $transactionManager;
     }
 
     public function handle(DecideLeaveRequestCommand $c): void
     {
+        $this->transactionManager->transactional(function () use ($c) {
         $req = $this->repo->findById($c->requestId());
         if (!$req) {
             throw new \DomainException('Leave request not found');
@@ -37,6 +42,8 @@ final class DecideLeaveRequestHandler
             new DateTimeImmutable(),
             $c->reason()
         );
+    
+        });
     }
 }
 

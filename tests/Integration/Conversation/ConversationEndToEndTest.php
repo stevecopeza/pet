@@ -52,6 +52,11 @@ final class ConversationEndToEndTest extends TestCase
         $employeesTable = $wpdb->prefix . 'pet_employees';
         $wpdb->table_data[$employeesTable] = [];
         $wpdb->table_schema[$employeesTable] = ['id', 'wp_user_id', 'first_name', 'last_name'];
+        
+        // Team members table for participant access checks
+        $teamMembersTable = $wpdb->prefix . 'pet_team_members';
+        $wpdb->table_data[$teamMembersTable] = [];
+        $wpdb->table_schema[$teamMembersTable] = ['team_id', 'employee_id', 'removed_at'];
 
         ContainerFactory::reset();
         $this->c = ContainerFactory::create();

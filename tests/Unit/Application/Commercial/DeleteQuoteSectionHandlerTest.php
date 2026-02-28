@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pet\Tests\Unit\Application\Commercial;
 
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Application\Commercial\Command\DeleteQuoteSectionCommand;
 use Pet\Application\Commercial\Command\DeleteQuoteSectionHandler;
 use Pet\Domain\Commercial\Entity\Block\QuoteBlock;
@@ -62,7 +63,13 @@ final class DeleteQuoteSectionHandlerTest extends TestCase
             ->with(10)
             ->willReturn([$hardwareBlock]);
 
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
         $handler = new DeleteQuoteSectionHandler(
+            $transactionManager,
             $quoteRepository,
             $quoteSectionRepository,
             $quoteBlockRepository
@@ -97,16 +104,17 @@ final class DeleteQuoteSectionHandlerTest extends TestCase
             true,
             false,
             false,
+            100,
             2
         );
 
         $quoteSectionRepository = $this->createMock(QuoteSectionRepository::class);
         $quoteSectionRepository
-            ->expects($this->once())
-            ->method('delete')
-            ->with(2);
+            ->method('findByQuoteId')
+            ->with(20)
+            ->willReturn([$section]);
 
-        $textBlock1 = new QuoteBlock(
+        $textBlock = new QuoteBlock(
             0,
             QuoteBlock::TYPE_TEXT,
             null,
@@ -114,34 +122,33 @@ final class DeleteQuoteSectionHandlerTest extends TestCase
             0.0,
             false,
             2,
-            ['text' => 'One'],
+            [],
             200
-        );
-
-        $textBlock2 = new QuoteBlock(
-            1,
-            QuoteBlock::TYPE_TEXT,
-            null,
-            0.0,
-            0.0,
-            false,
-            2,
-            ['text' => 'Two'],
-            201
         );
 
         $quoteBlockRepository = $this->createMock(QuoteBlockRepository::class);
         $quoteBlockRepository
             ->method('findByQuoteId')
             ->with(20)
-            ->willReturn([$textBlock1, $textBlock2]);
+            ->willReturn([$textBlock]);
 
         $quoteBlockRepository
-            ->expects($this->exactly(2))
+            ->expects($this->once())
             ->method('delete')
-            ->withConsecutive([200], [201]);
+            ->with(200);
+
+        $quoteSectionRepository
+            ->expects($this->once())
+            ->method('delete')
+            ->with(2);
+
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
 
         $handler = new DeleteQuoteSectionHandler(
+            $transactionManager,
             $quoteRepository,
             $quoteSectionRepository,
             $quoteBlockRepository

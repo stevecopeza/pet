@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Identity\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Identity\Repository\EmployeeRepository;
 use Pet\Domain\Identity\Entity\Employee;
 
@@ -13,15 +15,17 @@ use InvalidArgumentException;
 
 class UpdateEmployeeHandler
 {
+    private TransactionManager $transactionManager;
     private EmployeeRepository $employeeRepository;
     private SchemaDefinitionRepository $schemaRepository;
     private SchemaValidator $schemaValidator;
 
-    public function __construct(
+    public function __construct(TransactionManager $transactionManager, 
         EmployeeRepository $employeeRepository,
         SchemaDefinitionRepository $schemaRepository,
         SchemaValidator $schemaValidator
     ) {
+        $this->transactionManager = $transactionManager;
         $this->employeeRepository = $employeeRepository;
         $this->schemaRepository = $schemaRepository;
         $this->schemaValidator = $schemaValidator;
@@ -29,6 +33,7 @@ class UpdateEmployeeHandler
 
     public function handle(UpdateEmployeeCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $employee = $this->employeeRepository->findById($command->id());
 
         if (!$employee) {
@@ -71,5 +76,7 @@ class UpdateEmployeeHandler
         );
 
         $this->employeeRepository->save($updatedEmployee);
+    
+        });
     }
 }

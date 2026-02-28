@@ -14,6 +14,7 @@ use Pet\Domain\Commercial\Entity\Component\ImplementationComponent;
 use Pet\Domain\Commercial\Entity\Component\QuoteMilestone;
 use Pet\Domain\Commercial\Entity\Component\QuoteTask;
 use Pet\Domain\Commercial\Entity\Component\CatalogComponent;
+use Pet\Domain\Delivery\Repository\ProjectRepository;
 
 class CreateProjectFromQuoteListenerTest extends TestCase
 {
@@ -42,8 +43,11 @@ class CreateProjectFromQuoteListenerTest extends TestCase
                     && $command->soldValue() === 1000.0 // 10 * 100
                     && $command->sourceQuoteId() === 123;
             }));
-            
-        $listener = new CreateProjectFromQuoteListener($handler);
+        
+        $projectRepository = $this->createMock(ProjectRepository::class);
+        $projectRepository->method('findByQuoteId')->with(123)->willReturn(null);
+
+        $listener = new CreateProjectFromQuoteListener($handler, $projectRepository);
         $listener($event);
     }
     
@@ -51,13 +55,17 @@ class CreateProjectFromQuoteListenerTest extends TestCase
     {
         $quote = $this->createMock(Quote::class);
         $quote->method('components')->willReturn([]);
+        $quote->method('id')->willReturn(123);
         
         $event = new QuoteAccepted($quote);
         
         $handler = $this->createMock(CreateProjectHandler::class);
         $handler->expects($this->never())->method('handle');
-            
-        $listener = new CreateProjectFromQuoteListener($handler);
+        
+        $projectRepository = $this->createMock(ProjectRepository::class);
+        $projectRepository->method('findByQuoteId')->with(123)->willReturn(null);
+
+        $listener = new CreateProjectFromQuoteListener($handler, $projectRepository);
         $listener($event);
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pet\Tests\Unit\Application\Delivery\Command;
 
 use PHPUnit\Framework\TestCase;
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Application\Delivery\Command\CreateProjectCommand;
 use Pet\Application\Delivery\Command\CreateProjectHandler;
 use Pet\Domain\Delivery\Entity\Project;
@@ -19,6 +20,10 @@ class CreateProjectHandlerTest extends TestCase
 {
     public function testHandleCreatesAndSavesProject()
     {
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
         $projectRepository = $this->createMock(ProjectRepository::class);
         $customerRepository = $this->createMock(CustomerRepository::class);
         $schemaRepository = $this->createMock(SchemaDefinitionRepository::class);
@@ -39,6 +44,7 @@ class CreateProjectHandlerTest extends TestCase
             }));
 
         $handler = new CreateProjectHandler(
+            $transactionManager,
             $projectRepository,
             $customerRepository,
             $schemaRepository,
@@ -52,6 +58,10 @@ class CreateProjectHandlerTest extends TestCase
 
     public function testHandleThrowsExceptionIfCustomerNotFound()
     {
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
         $projectRepository = $this->createMock(ProjectRepository::class);
         $customerRepository = $this->createMock(CustomerRepository::class);
         $schemaRepository = $this->createMock(SchemaDefinitionRepository::class);
@@ -63,6 +73,7 @@ class CreateProjectHandlerTest extends TestCase
         $this->expectException(\DomainException::class);
 
         $handler = new CreateProjectHandler(
+            $transactionManager,
             $projectRepository,
             $customerRepository,
             $schemaRepository,

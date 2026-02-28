@@ -13,6 +13,7 @@ use Pet\Domain\Support\Event\TicketBreachedEvent;
 use Pet\Domain\Support\Event\EscalationTriggeredEvent;
 use Pet\Domain\Event\EventBus;
 use Pet\Domain\Support\Entity\SlaClockState;
+use Pet\Domain\Sla\Repository\SlaRepository;
 use Pet\Application\System\Service\FeatureFlagService;
 use Pet\Infrastructure\Persistence\Transaction\SqlTransaction;
 use DateTimeImmutable;
@@ -21,6 +22,7 @@ class SlaAutomationService
 {
     private TicketRepository $ticketRepo;
     private SlaClockStateRepository $clockStateRepo;
+    private SlaRepository $slaRepo;
     private EventBus $eventDispatcher;
     private FeatureFlagService $featureFlags;
     private SqlTransaction $transaction;
@@ -28,12 +30,14 @@ class SlaAutomationService
     public function __construct(
         TicketRepository $ticketRepo,
         SlaClockStateRepository $clockStateRepo,
+        SlaRepository $slaRepo,
         EventBus $eventDispatcher,
         FeatureFlagService $featureFlags,
         SqlTransaction $transaction
     ) {
         $this->ticketRepo = $ticketRepo;
         $this->clockStateRepo = $clockStateRepo;
+        $this->slaRepo = $slaRepo;
         $this->eventDispatcher = $eventDispatcher;
         $this->featureFlags = $featureFlags;
         $this->transaction = $transaction;
@@ -79,7 +83,15 @@ class SlaAutomationService
             
             if (!$clockState) {
                 // First evaluation, initialize state
-                $clockState = $this->clockStateRepo->initialize($ticket);
+                $slaVersionId = 0;
+                if ($ticket->slaId()) {
+                    $sla = $this->slaRepo->findById($ticket->slaId());
+                    if ($sla) {
+                        $slaVersionId = $sla->versionNumber();
+                    }
+                }
+                
+                $clockState = $this->clockStateRepo->initialize($ticket, $slaVersionId);
             }
 
             // 3. Determine new state

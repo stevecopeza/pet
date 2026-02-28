@@ -4,25 +4,30 @@ declare(strict_types=1);
 
 namespace Pet\Application\Conversation\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Conversation\Entity\Decision;
 use Pet\Domain\Conversation\Repository\ConversationRepository;
 use Pet\Domain\Conversation\Repository\DecisionRepository;
 
 class RequestDecisionHandler
 {
+    private TransactionManager $transactionManager;
     private ConversationRepository $conversationRepository;
     private DecisionRepository $decisionRepository;
 
-    public function __construct(
+    public function __construct(TransactionManager $transactionManager, 
         ConversationRepository $conversationRepository,
         DecisionRepository $decisionRepository
     ) {
+        $this->transactionManager = $transactionManager;
         $this->conversationRepository = $conversationRepository;
         $this->decisionRepository = $decisionRepository;
     }
 
     public function handle(RequestDecisionCommand $command): string
     {
+        return $this->transactionManager->transactional(function () use ($command) {
         $conversation = $this->conversationRepository->findByUuid($command->conversationUuid());
         if (!$conversation) {
             throw new \RuntimeException('Conversation not found');
@@ -54,5 +59,7 @@ class RequestDecisionHandler
         $this->conversationRepository->save($conversation);
 
         return $uuid;
+    
+        });
     }
 }

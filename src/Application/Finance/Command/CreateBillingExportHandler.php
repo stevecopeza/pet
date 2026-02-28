@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Finance\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Finance\Entity\BillingExport;
 use Pet\Domain\Finance\Repository\BillingExportRepository;
 use Pet\Domain\Event\Repository\EventStreamRepository;
@@ -12,16 +14,19 @@ use Pet\Domain\Finance\Event\BillingExportCreated;
 
 final class CreateBillingExportHandler
 {
-    public function __construct(
+    private TransactionManager $transactionManager;
+    public function __construct(TransactionManager $transactionManager, 
         private BillingExportRepository $repository,
         private EventStreamRepository $events,
         private SqlTransaction $tx
     )
     {
+        $this->transactionManager = $transactionManager;
     }
 
     public function handle(CreateBillingExportCommand $command): int
     {
+        return $this->transactionManager->transactional(function () use ($command) {
         $uuid = function_exists('wp_generate_uuid4') ? wp_generate_uuid4() : bin2hex(random_bytes(16));
         $export = BillingExport::draft(
             $uuid,
@@ -49,5 +54,7 @@ final class CreateBillingExportHandler
             $this->tx->rollback();
             throw $e;
         }
+    
+        });
     }
 }

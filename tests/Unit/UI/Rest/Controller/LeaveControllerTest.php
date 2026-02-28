@@ -2,13 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Pet\UI\Rest\Controller;
-
-function current_user_can($capability) { return true; }
-
 namespace Pet\Tests\Unit\UI\Rest\Controller;
 
 require_once __DIR__ . '/../../../../Stubs/WP_REST_Classes.php';
+require_once __DIR__ . '/WPMocks.php';
+
+use Pet\UI\Rest\Controller\WPMocks;
 
 use Pet\Domain\Work\Entity\LeaveType;
 use Pet\Domain\Work\Entity\LeaveRequest;
@@ -21,10 +20,13 @@ use Pet\UI\Rest\Controller\LeaveController;
 use PHPUnit\Framework\TestCase;
 use WP_REST_Request;
 
+use Pet\Application\System\Service\TransactionManager;
+
 class LeaveControllerTest extends TestCase
 {
     private $types;
     private $requests;
+    private $transactionManager;
     private $submitHandler;
     private $decideHandler;
     private $overrideHandler;
@@ -32,12 +34,20 @@ class LeaveControllerTest extends TestCase
 
     protected function setUp(): void
     {
+        WPMocks::reset();
+        WPMocks::$currentUserCan['manage_options'] = true; // Example capability
+        
+        $this->transactionManager = $this->createMock(TransactionManager::class);
+        $this->transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
         $this->types = $this->createMock(LeaveTypeRepository::class);
         $this->requests = $this->createMock(LeaveRequestRepository::class);
-        $this->submitHandler = new \Pet\Application\Work\Command\SubmitLeaveRequestHandler($this->requests);
-        $this->decideHandler = new \Pet\Application\Work\Command\DecideLeaveRequestHandler($this->requests);
+        $this->submitHandler = new \Pet\Application\Work\Command\SubmitLeaveRequestHandler($this->transactionManager, $this->requests);
+        $this->decideHandler = new \Pet\Application\Work\Command\DecideLeaveRequestHandler($this->transactionManager, $this->requests);
         $capacityRepo = $this->createMock(\Pet\Domain\Work\Repository\CapacityOverrideRepository::class);
-        $this->overrideHandler = new \Pet\Application\Work\Command\SetCapacityOverrideHandler($capacityRepo);
+        $this->overrideHandler = new \Pet\Application\Work\Command\SetCapacityOverrideHandler($this->transactionManager, $capacityRepo);
 
         $this->controller = new LeaveController(
             $this->types,

@@ -13,6 +13,8 @@ use Pet\Domain\Support\Event\TicketBreachedEvent;
 use Pet\Domain\Support\Event\TicketWarningEvent;
 use Pet\Domain\Support\Repository\SlaClockStateRepository;
 use Pet\Domain\Support\Repository\TicketRepository;
+use Pet\Domain\Sla\Repository\SlaRepository;
+use Pet\Domain\Sla\Entity\SlaDefinition;
 use Pet\Domain\Support\Service\SlaAutomationService;
 use Pet\Domain\Support\ValueObject\SlaState;
 use Pet\Infrastructure\Persistence\Transaction\SqlTransaction;
@@ -22,6 +24,7 @@ class SlaAutomationServiceTest extends TestCase
 {
     private $ticketRepo;
     private $clockStateRepo;
+    private $slaRepo;
     private $eventDispatcher;
     private $featureFlags;
     private $transaction;
@@ -31,6 +34,7 @@ class SlaAutomationServiceTest extends TestCase
     {
         $this->ticketRepo = $this->createMock(TicketRepository::class);
         $this->clockStateRepo = $this->createMock(SlaClockStateRepository::class);
+        $this->slaRepo = $this->createMock(SlaRepository::class);
         $this->eventDispatcher = $this->createMock(EventBus::class);
         $this->featureFlags = $this->createMock(FeatureFlagService::class);
         $this->transaction = $this->createMock(SqlTransaction::class);
@@ -68,6 +72,7 @@ class SlaAutomationServiceTest extends TestCase
             ->setConstructorArgs([
                 $this->ticketRepo, 
                 $this->clockStateRepo, 
+                $this->slaRepo,
                 $this->eventDispatcher, 
                 $this->featureFlags, 
                 $this->transaction
@@ -99,6 +104,7 @@ class SlaAutomationServiceTest extends TestCase
             ->setConstructorArgs([
                 $this->ticketRepo, 
                 $this->clockStateRepo, 
+                $this->slaRepo,
                 $this->eventDispatcher, 
                 $this->featureFlags, 
                 $this->transaction
@@ -108,6 +114,49 @@ class SlaAutomationServiceTest extends TestCase
 
         $service->method('determineState')->willReturn(SlaState::ACTIVE);
 
+        $service->evaluate($ticket);
+    }
+    
+    public function testInitializesWithCorrectSlaVersion(): void
+    {
+        $ticketId = 123;
+        $slaId = 456;
+        $slaVersion = 2;
+        
+        $ticket = $this->createMock(Ticket::class);
+        $ticket->method('id')->willReturn($ticketId);
+        $ticket->method('slaId')->willReturn($slaId);
+        
+        // Mock clock state not found (first run)
+        $this->clockStateRepo->method('findByTicketIdForUpdate')->willReturn(null);
+        
+        // Mock SLA lookup
+        $slaDef = $this->createMock(SlaDefinition::class);
+        $slaDef->method('versionNumber')->willReturn($slaVersion);
+        
+        $this->slaRepo->expects($this->once())
+            ->method('findById')
+            ->with($slaId)
+            ->willReturn($slaDef);
+            
+        // Expect initialize called with correct version
+        $this->clockStateRepo->expects($this->once())
+            ->method('initialize')
+            ->with($ticket, $slaVersion)
+            ->willReturn(new SlaClockState($ticketId, 'none', null, $slaVersion));
+            
+        $service = $this->getMockBuilder(SlaAutomationService::class)
+            ->setConstructorArgs([
+                $this->ticketRepo, 
+                $this->clockStateRepo, 
+                $this->slaRepo,
+                $this->eventDispatcher, 
+                $this->featureFlags, 
+                $this->transaction
+            ])
+            ->onlyMethods(['determineState'])
+            ->getMock();
+            
         $service->evaluate($ticket);
     }
 
@@ -125,7 +174,8 @@ class SlaAutomationServiceTest extends TestCase
 
         $service = new SlaAutomationService(
             $this->ticketRepo, 
-            $this->clockStateRepo, 
+            $this->clockStateRepo,
+            $this->slaRepo,
             $this->eventDispatcher, 
             $this->featureFlags, 
             $this->transaction
@@ -174,7 +224,8 @@ class SlaAutomationServiceTest extends TestCase
         $service = $this->getMockBuilder(SlaAutomationService::class)
             ->setConstructorArgs([
                 $this->ticketRepo, 
-                $this->clockStateRepo, 
+                $this->clockStateRepo,
+                $this->slaRepo,
                 $this->eventDispatcher, 
                 $this->featureFlags, 
                 $this->transaction

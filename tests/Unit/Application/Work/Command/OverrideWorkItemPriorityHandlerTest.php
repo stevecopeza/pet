@@ -6,6 +6,7 @@ namespace Pet\Tests\Unit\Application\Work\Command;
 
 use Pet\Application\Work\Command\OverrideWorkItemPriorityCommand;
 use Pet\Application\Work\Command\OverrideWorkItemPriorityHandler;
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Domain\Work\Entity\WorkItem;
 use Pet\Domain\Work\Repository\WorkItemRepository;
 use Pet\Domain\Work\Service\PriorityScoringService;
@@ -15,13 +16,18 @@ class OverrideWorkItemPriorityHandlerTest extends TestCase
 {
     private $repository;
     private $scoringService;
+    private $transactionManager;
     private $handler;
 
     protected function setUp(): void
     {
+        $this->transactionManager = $this->createMock(TransactionManager::class);
+        $this->transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
         $this->repository = $this->createMock(WorkItemRepository::class);
         $this->scoringService = $this->createMock(PriorityScoringService::class);
-        $this->handler = new OverrideWorkItemPriorityHandler($this->repository, $this->scoringService);
+        $this->handler = new OverrideWorkItemPriorityHandler($this->transactionManager, $this->repository, $this->scoringService);
     }
 
     public function testOverridesPriorityAndRecalculatesScore()

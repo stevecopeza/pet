@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pet\Tests\Unit\Application\Commercial\Command;
 
+use Pet\Application\System\Service\TransactionManager;
 use PHPUnit\Framework\TestCase;
 use Pet\Application\Commercial\Command\AddComponentCommand;
 use Pet\Application\Commercial\Command\AddComponentHandler;
@@ -11,6 +12,7 @@ use Pet\Domain\Commercial\Entity\Component\OnceOffServiceComponent;
 use Pet\Domain\Commercial\Entity\Quote;
 use Pet\Domain\Commercial\Repository\CatalogItemRepository;
 use Pet\Domain\Commercial\Repository\QuoteRepository;
+use Pet\Domain\Sla\Repository\SlaRepository;
 
 final class AddComponentHandlerOnceOffServiceTest extends TestCase
 {
@@ -50,7 +52,13 @@ final class AddComponentHandlerOnceOffServiceTest extends TestCase
 
         $catalogItemRepository = $this->createMock(CatalogItemRepository::class);
 
-        $handler = new AddComponentHandler($quoteRepository, $catalogItemRepository);
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
+        $slaRepository = $this->createMock(SlaRepository::class);
+        $handler = new AddComponentHandler($transactionManager, $quoteRepository, $catalogItemRepository, $slaRepository);
 
         $command = new AddComponentCommand(
             42,
@@ -120,7 +128,13 @@ final class AddComponentHandlerOnceOffServiceTest extends TestCase
 
         $catalogItemRepository = $this->createMock(CatalogItemRepository::class);
 
-        $handler = new AddComponentHandler($quoteRepository, $catalogItemRepository);
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
+        $slaRepository = $this->createMock(SlaRepository::class);
+        $handler = new AddComponentHandler($transactionManager, $quoteRepository, $catalogItemRepository, $slaRepository);
 
         $command = new AddComponentCommand(
             43,

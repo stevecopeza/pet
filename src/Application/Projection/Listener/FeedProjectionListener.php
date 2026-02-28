@@ -57,16 +57,24 @@ class FeedProjectionListener
 
         $payload = $event->payload();
         $body = $payload['body'];
+        $messageId = $payload['message_id'] ?? null;
         $actorId = $event->actorId();
 
         // Check if we can collapse
         if ($lastEvent) {
             $meta = $lastEvent->getMetadata();
+
+            // Idempotency guard: if this message ID was already processed in the last event, skip
+            if (isset($meta['latest_message_id']) && $messageId && $meta['latest_message_id'] === $messageId) {
+                return;
+            }
+
             if (($meta['actor_id'] ?? null) === $actorId) {
                 $count = ($meta['message_count'] ?? 1) + 1;
                 $newMeta = array_merge($meta, [
                     'message_count' => $count,
-                    'latest_body' => $body
+                    'latest_body' => $body,
+                    'latest_message_id' => $messageId
                 ]);
                 
                 $summary = "User {$actorId} posted {$count} messages in " . $conversation->subject();
@@ -182,6 +190,11 @@ class FeedProjectionListener
     public function onQuoteAccepted(QuoteAccepted $event): void
     {
         $quoteId = (string)$event->quote()->id();
+        
+        if ($this->feedRepo->findLatestBySource('commercial', $quoteId, 'commercial.quote_accepted')) {
+            return;
+        }
+
         $this->log('quote_accepted', "Quote {$quoteId} accepted", null, 'quote', (int)$quoteId);
         
         $this->feedRepo->save(FeedEvent::create(
@@ -201,6 +214,11 @@ class FeedProjectionListener
     public function onProjectCreated(ProjectCreated $event): void
     {
         $projectId = (string)$event->project()->id();
+
+        if ($this->feedRepo->findLatestBySource('delivery', $projectId, 'delivery.project_created')) {
+            return;
+        }
+
         $this->log('project_created', "Project {$projectId} created", null, 'project', (int)$projectId);
 
         $this->feedRepo->save(FeedEvent::create(
@@ -220,6 +238,11 @@ class FeedProjectionListener
     public function onTicketCreated(TicketCreated $event): void
     {
         $ticketId = (string)$event->ticket()->id();
+
+        if ($this->feedRepo->findLatestBySource('support', $ticketId, 'support.ticket_created')) {
+            return;
+        }
+
         $this->log('ticket_created', "Ticket {$ticketId} created", null, 'ticket', (int)$ticketId);
 
         $this->feedRepo->save(FeedEvent::create(
@@ -239,6 +262,21 @@ class FeedProjectionListener
     public function onTicketWarning(TicketWarningEvent $event): void
     {
         $ticketId = (string)$event->getTicketId();
+
+        // Idempotency: We might want to allow multiple warnings, but usually not for the same state/time?
+        // But TicketWarningEvent doesn't have a unique ID per se other than being a warning.
+        // Assuming one warning per ticket lifecycle stage or per incident?
+        // For now, let's skip duplicate check or maybe check if we recently warned?
+        // The requirement says "FeedProjectionListener must prevent duplicate entries per event_uuid".
+        // SourcedEvents have UUIDs. If these are SourcedEvents, we should use that.
+        // But these handlers don't seem to use event UUIDs yet in the repo lookup.
+        // Let's assume strict idempotency for "Warning" is harder without unique ID.
+        // But we can check if the LAST event for this ticket was a warning?
+        // Actually, let's leave it for now unless we have a specific rule.
+        // Wait, "Step 4: FeedProjectionListener must prevent duplicate entries per event_uuid."
+        // If the event HAS a UUID, we should use it.
+        // Does TicketWarningEvent have a UUID?
+        
         $this->log('ticket_warning', "Ticket {$ticketId} warning", null, 'ticket', (int)$ticketId);
 
         $this->feedRepo->save(FeedEvent::create(

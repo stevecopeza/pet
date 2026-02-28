@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Application\Work\Command;
 
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Application\Work\Command\RateEmployeeSkillCommand;
 use Pet\Application\Work\Command\RateEmployeeSkillHandler;
 use Pet\Domain\Work\Repository\PersonSkillRepository;
@@ -14,6 +15,10 @@ class RateEmployeeSkillHandlerTest extends TestCase
     public function testHandleSavesPersonSkillRating(): void
     {
         // Mock repository
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
         $personSkillRepository = $this->createMock(PersonSkillRepository::class);
 
         // Expect save to be called
@@ -29,7 +34,7 @@ class RateEmployeeSkillHandlerTest extends TestCase
             }));
 
         // Execute handler
-        $handler = new RateEmployeeSkillHandler($personSkillRepository);
+        $handler = new RateEmployeeSkillHandler($transactionManager, $personSkillRepository);
         
         $command = new RateEmployeeSkillCommand(
             1, // employeeId

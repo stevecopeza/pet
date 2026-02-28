@@ -15,13 +15,15 @@ test.describe('Support Ticket Form', () => {
   test('shows category, subcategory, source, contact and assignment fields', async ({ page }) => {
     await page.goto('/wp-admin/admin.php?page=pet-support');
 
-    await expect(page.locator('h1:has-text("Support (Tickets)")')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Support (Tickets)' })).toBeVisible();
 
-    await expect(page.locator('label:has-text("Category:")')).toBeVisible();
-    await expect(page.locator('label:has-text("Subcategory:")')).toBeVisible();
-    await expect(page.locator('label:has-text("Source:")')).toBeVisible();
-    await expect(page.locator('label:has-text("Contact (Optional):")')).toBeVisible();
-    await expect(page.locator('label:has-text("Assignment:")')).toBeVisible();
+    // Open the create ticket form
+    await page.getByRole('button', { name: 'Create New Ticket' }).click();
+
+    await expect(page.getByText('Category:', { exact: true })).toBeVisible();
+    await expect(page.getByText('Subcategory:', { exact: true })).toBeVisible();
+    await expect(page.getByText('Source:', { exact: true })).toBeVisible();
+    await expect(page.getByText('Contact (Optional):', { exact: true })).toBeVisible();
+    await expect(page.getByText('Assignment:', { exact: true })).toBeVisible();
   });
 });
-

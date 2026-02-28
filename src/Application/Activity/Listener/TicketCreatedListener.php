@@ -20,6 +20,15 @@ class TicketCreatedListener
     public function __invoke(TicketCreated $event): void
     {
         $ticket = $event->ticket();
+        
+        // Idempotency Guard
+        $existingLogs = $this->activityLogRepository->findByRelatedEntity('ticket', $ticket->id());
+        foreach ($existingLogs as $log) {
+            if ($log->type() === 'ticket_created') {
+                return;
+            }
+        }
+
         $userId = get_current_user_id(); // WordPress function
 
         $log = new ActivityLog(

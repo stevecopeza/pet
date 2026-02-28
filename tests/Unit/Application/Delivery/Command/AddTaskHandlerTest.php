@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pet\Tests\Unit\Application\Delivery\Command;
 
 use PHPUnit\Framework\TestCase;
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Application\Delivery\Command\AddTaskCommand;
 use Pet\Application\Delivery\Command\AddTaskHandler;
 use Pet\Domain\Delivery\Entity\Project;
@@ -16,13 +17,18 @@ class AddTaskHandlerTest extends TestCase
 {
     private $projectRepository;
     private $eventBus;
+    private $transactionManager;
     private $handler;
 
     protected function setUp(): void
     {
+        $this->transactionManager = $this->createMock(TransactionManager::class);
+        $this->transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
         $this->projectRepository = $this->createMock(ProjectRepository::class);
         $this->eventBus = $this->createMock(EventBus::class);
-        $this->handler = new AddTaskHandler($this->projectRepository, $this->eventBus);
+        $this->handler = new AddTaskHandler($this->transactionManager, $this->projectRepository, $this->eventBus);
     }
 
     public function testHandleAddsTaskToProjectAndDispatchesEvent()

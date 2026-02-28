@@ -95,6 +95,17 @@ class SqlProjectRepository implements ProjectRepository
         return array_map([$this, 'hydrate'], $results);
     }
 
+    public function findByQuoteId(int $quoteId): ?Project
+    {
+        $sql = $this->wpdb->prepare(
+            "SELECT * FROM {$this->projectsTable} WHERE source_quote_id = %d LIMIT 1",
+            $quoteId
+        );
+        $row = $this->wpdb->get_row($sql);
+
+        return $row ? $this->hydrate($row) : null;
+    }
+
     public function countActive(): int
     {
         $sql = $this->wpdb->prepare(

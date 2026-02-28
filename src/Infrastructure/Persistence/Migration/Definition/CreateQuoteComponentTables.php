@@ -21,7 +21,10 @@ class CreateQuoteComponentTables implements Migration
 
         // Update Quotes Table
         $quotesTable = $this->wpdb->prefix . 'pet_quotes';
-        $this->wpdb->query("ALTER TABLE $quotesTable ADD COLUMN total_internal_cost decimal(14, 2) NOT NULL DEFAULT 0.00 AFTER total_value");
+        $col = $this->wpdb->get_results("SHOW COLUMNS FROM $quotesTable LIKE 'total_internal_cost'");
+        if (empty($col)) {
+            $this->wpdb->query("ALTER TABLE $quotesTable ADD COLUMN total_internal_cost decimal(14, 2) NOT NULL DEFAULT 0.00 AFTER total_value");
+        }
         $this->wpdb->query("ALTER TABLE $quotesTable MODIFY COLUMN total_value decimal(14, 2) NOT NULL DEFAULT 0.00");
 
         // Quote Components

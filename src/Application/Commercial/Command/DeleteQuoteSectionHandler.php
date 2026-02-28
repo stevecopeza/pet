@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Commercial\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Commercial\Entity\Block\QuoteBlock;
 use Pet\Domain\Commercial\Repository\QuoteRepository;
 use Pet\Domain\Commercial\Repository\QuoteSectionRepository;
@@ -11,15 +13,17 @@ use Pet\Domain\Commercial\Repository\QuoteBlockRepository;
 
 final class DeleteQuoteSectionHandler
 {
+    private TransactionManager $transactionManager;
     private QuoteRepository $quoteRepository;
     private QuoteSectionRepository $quoteSectionRepository;
     private QuoteBlockRepository $quoteBlockRepository;
 
-    public function __construct(
+    public function __construct(TransactionManager $transactionManager, 
         QuoteRepository $quoteRepository,
         QuoteSectionRepository $quoteSectionRepository,
         QuoteBlockRepository $quoteBlockRepository
     ) {
+        $this->transactionManager = $transactionManager;
         $this->quoteRepository = $quoteRepository;
         $this->quoteSectionRepository = $quoteSectionRepository;
         $this->quoteBlockRepository = $quoteBlockRepository;
@@ -27,6 +31,7 @@ final class DeleteQuoteSectionHandler
 
     public function handle(DeleteQuoteSectionCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $quote = $this->quoteRepository->findById($command->quoteId());
 
         if ($quote === null) {
@@ -64,5 +69,7 @@ final class DeleteQuoteSectionHandler
         }
 
         $this->quoteSectionRepository->delete($command->sectionId());
+    
+        });
     }
 }

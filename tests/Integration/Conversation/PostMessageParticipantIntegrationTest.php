@@ -3,6 +3,7 @@
 namespace Pet\Tests\Integration\Conversation;
 
 use PHPUnit\Framework\TestCase;
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Application\Conversation\Command\PostMessageCommand;
 use Pet\Application\Conversation\Command\PostMessageHandler;
 use Pet\Domain\Conversation\Entity\Conversation;
@@ -20,6 +21,7 @@ class PostMessageParticipantIntegrationTest extends TestCase
     private $employeeRepo;
     private $contactRepo;
     private $teamRepo;
+    private $transactionManager;
     private $handler;
 
     protected function setUp(): void
@@ -28,8 +30,13 @@ class PostMessageParticipantIntegrationTest extends TestCase
         $this->employeeRepo = $this->createMock(EmployeeRepository::class);
         $this->contactRepo = $this->createMock(ContactRepository::class);
         $this->teamRepo = $this->createMock(TeamRepository::class);
+        $this->transactionManager = $this->createMock(TransactionManager::class);
+        $this->transactionManager->method('transactional')->willReturnCallback(function ($fn) {
+            return $fn();
+        });
 
         $this->handler = new PostMessageHandler(
+            $this->transactionManager,
             $this->conversationRepo,
             $this->employeeRepo,
             $this->contactRepo,
