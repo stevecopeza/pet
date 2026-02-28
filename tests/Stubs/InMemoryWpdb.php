@@ -2,17 +2,42 @@
 
 namespace Pet\Tests\Stubs;
 
+/** 
+ * UNIT TEST STUB ONLY. 
+ * 
+ * This stub parses SQL via regex. It supports basic SELECT, INSERT, 
+ * UPDATE, DELETE patterns only. It does not and cannot support: 
+ *   - SELECT ... FOR UPDATE 
+ *   - JOIN of any kind 
+ *   - Subqueries 
+ *   - OFFSET 
+ *   - IN (...) with multiple values 
+ *   - IS NULL / IS NOT NULL 
+ *   - ON DUPLICATE KEY UPDATE 
+ * 
+ * Any test that requires the above must use a real database connection. 
+ * Do not add regex patterns for the above to this file. 
+ */
+
 use wpdb;
 
 if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
     class InMemoryWpdb extends wpdb
     {
         public $table_data = [];
-        public $table_schema = []; // key = table name, value = array of column names
-        public $insert_id = 0;
-        public $prefix = 'wp_';
-        public $last_error = '';
-        public $last_query = '';
+    public $table_schema = []; // key = table name, value = array of column names
+    public $insert_id = 0;
+    public $auto_increment = []; // key = table name, value = next auto increment id
+    public $prefix = 'wp_';
+    public $last_error = '';
+    public $last_query = '';
+    public $insertCountByTable = [];
+    public $lastInsertIdByTable = [];
+    public $transactionStatus = []; // Log of transaction commands: ['START TRANSACTION', 'COMMIT', 'ROLLBACK']
+    public $query_log = [];
+
+    const ARRAY_A = 'ARRAY_A';
+    const OBJECT = 'OBJECT';
 
         public function __construct()
         {
@@ -35,7 +60,13 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
 
             // Handle INSERT
             if (stripos($query, 'INSERT INTO') === 0) {
-                // Try to parse INSERT INTO table (col1, col2) VALUES (val1, val2)
+            // Check for INSERT INTO ... ON DUPLICATE KEY UPDATE
+            $onDuplicate = false;
+            if (stripos($query, 'ON DUPLICATE KEY UPDATE') !== false) {
+                $onDuplicate = true;
+            }
+
+            // Try to parse INSERT INTO table (col1, col2) VALUES (val1, val2)
                 if (preg_match('/INSERT INTO\s+([^\s(]+)\s*\(([^)]+)\)\s*VALUES\s*\(/i', $query, $matches, PREG_OFFSET_CAPTURE)) {
                     $table = trim($matches[1][0], '`');
                     $colsStr = $matches[2][0];
@@ -153,7 +184,7 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
 
             // Handle UPDATE
             if (stripos($query, 'UPDATE') === 0) {
-                if (preg_match('/UPDATE\s+([^\s]+)\s+SET\s+(.+?)\s+WHERE\s+(.+?)(?:\s+LIMIT|$)/i', $query, $matches)) {
+                if (preg_match('/UPDATE\s+([^\s]+)\s+SET\s+(.+?)\s+WHERE\s+(.+?)(?:\s+LIMIT|$)/is', $query, $matches)) {
                     $table = trim($matches[1], '`');
                     $setClause = $matches[2];
                     $whereClause = $matches[3];
@@ -208,7 +239,16 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
             }
 
             // Handle START TRANSACTION / COMMIT / ROLLBACK
-            if (stripos($query, 'START TRANSACTION') === 0 || stripos($query, 'COMMIT') === 0 || stripos($query, 'ROLLBACK') === 0) {
+            if (stripos($query, 'START TRANSACTION') === 0) {
+                $this->transactionStatus[] = 'START TRANSACTION';
+                return true;
+            }
+            if (stripos($query, 'COMMIT') === 0) {
+                $this->transactionStatus[] = 'COMMIT';
+                return true;
+            }
+            if (stripos($query, 'ROLLBACK') === 0) {
+                $this->transactionStatus[] = 'ROLLBACK';
                 return true;
             }
 
@@ -230,6 +270,14 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
                 $this->table_data[$table] = [];
             }
             $this->table_data[$table][] = $data;
+
+            // Update debug counters
+            if (!isset($this->insertCountByTable[$table])) {
+                $this->insertCountByTable[$table] = 0;
+            }
+            $this->insertCountByTable[$table]++;
+            $this->lastInsertIdByTable[$table] = $data['id'] ?? 'unknown';
+
             return 1;
         }
 
@@ -356,17 +404,13 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
         public function get_results($query = null, $output = OBJECT)
         {
             $this->last_query = $query;
+            $this->query_log[] = $query;
             
             // Handle SHOW TABLES LIKE 'table'
             if (preg_match('/SHOW\s+TABLES\s+LIKE\s+[\'"](.+?)[\'"]/i', $query, $matches)) {
                 $tableName = $matches[1];
-                // Check if table exists in table_data
-                // In our test, we initialized it, so it should exist.
-                // Or if we just inserted into it (which creates it).
                 if (isset($this->table_data[$tableName])) {
-                     // Return table name as single column result
                      $res = [$tableName => $tableName]; 
-                     // get_var will take first value
                      if ($output == OBJECT) {
                          return [(object)$res];
                      }
@@ -377,12 +421,11 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
 
             // Handle DESCRIBE
             if (preg_match('/DESCRIBE\s+([^\s]+)/i', $query, $matches)) {
-                $table = trim($matches[1], '`');
+                $table = trim($matches[1], "`'\"");
                 $cols = [];
                 if (isset($this->table_schema[$table])) {
                     $cols = $this->table_schema[$table];
                 } elseif (isset($this->table_data[$table])) {
-                    // Fallback to data inference
                     foreach ($this->table_data[$table] as $row) {
                         $cols = array_merge($cols, array_keys($row));
                     }
@@ -401,8 +444,8 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
             }
 
             // Handle SELECT COUNT(*)
-            if (preg_match('/SELECT\s+COUNT\(\*\)\s+FROM\s+([^\s]+)(?:\s+WHERE\s+(.+))?/i', $query, $matches)) {
-                $table = trim($matches[1], '`');
+            if (preg_match('/SELECT\s+COUNT\(\*\)\s+FROM\s+([^\s]+)(?:\s+WHERE\s+(.+?))?(?:\s+LIMIT\s+\d+)?$/i', $query, $matches)) {
+                $table = trim($matches[1], "`'\"");
                 $whereClause = isset($matches[2]) ? $matches[2] : '';
                 
                 if (!isset($this->table_data[$table])) {
@@ -417,8 +460,8 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
             }
 
             // Handle SELECT *
-            if (preg_match('/SELECT\s+\*\s+FROM\s+([^\s]+)\s+WHERE\s+(.+?)(?:\s+ORDER\s+BY.+)?$/i', $query, $matches)) {
-                $table = trim($matches[1], '`');
+            if (preg_match('/SELECT\s+\*\s+FROM\s+([^\s]+)\s+WHERE\s+(.+?)(?:\s+ORDER\s+BY.+?)?(?:\s+LIMIT\s+\d+)?$/i', $query, $matches)) {
+                $table = trim($matches[1], "`'\"");
                 $whereClause = $matches[2];
 
                 if (!isset($this->table_data[$table])) {
@@ -440,11 +483,11 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
 
             // Check for SELECT * FROM table WHERE ...
             if (preg_match('/FROM\s+([^\s]+)/i', $query, $matches)) {
-                $table = trim($matches[1], '`'); // Remove backticks
+                $table = trim($matches[1], "`'\"");
                 if (isset($this->table_data[$table])) {
                     $results = $this->table_data[$table];
                     // Filter based on WHERE clause
-                    if (preg_match('/WHERE\s+(.+?)(?:\s+ORDER|\s+LIMIT|$)/i', $query, $whereMatches)) {
+                    if (preg_match('/WHERE\s+(.+?)(?:\s+ORDER|\s+LIMIT|$)/is', $query, $whereMatches)) {
                         $whereClause = $whereMatches[1];
                         
                         $results = array_filter($results, function($r) use ($whereClause) {
@@ -465,22 +508,24 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
         public function get_var($query = null, $x = 0, $y = 0)
         {
             $this->last_query = $query;
+            $this->query_log[] = $query;
             $row = $this->get_row($query, ARRAY_A, $y);
             if ($row) {
+                // If the row is a simple array from get_results for COUNT(*), it might be [0 => count] or ['COUNT(*)' => count]
+                // If it came from get_row's special handling, it is ['COUNT(*)' => val]
+                
                 // Try to determine which column was requested
                 if (preg_match('/SELECT\s+([^\s,]+)\s+FROM/i', $query, $matches)) {
                     $col = trim($matches[1], '`');
-                    // Handle table aliases (e.g. t.id -> id)
                     if (strpos($col, '.') !== false) {
                         $parts = explode('.', $col);
                         $col = end($parts);
                     }
-                    // If specific column requested, return it or null if missing (don't fallback to first col)
                     if ($col !== '*') {
                         if (is_numeric($col)) {
                             return (int)$col;
                         }
-                        return array_key_exists($col, $row) ? $row[$col] : null;
+                        if (array_key_exists($col, $row)) return $row[$col];
                     }
                 }
                 // Fallback to first column
@@ -492,13 +537,19 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
         public function get_row($query = null, $output = OBJECT, $y = 0)
         {
             $this->last_query = $query;
+            $this->query_log[] = $query;
+
+            // Remove FOR UPDATE / LOCK IN SHARE MODE for in-memory stub
+            $query = preg_replace('/\s+FOR\s+UPDATE\s*$/i', '', $query);
+            $query = preg_replace('/\s+LOCK\s+IN\s+SHARE\s+MODE\s*$/i', '', $query);
             
             // Handle COUNT(*) aggregation
             if (preg_match('/SELECT\s+COUNT\(\*\)(?:\s+AS\s+(\w+))?\s+FROM/i', $query, $matches)) {
                 $alias = !empty($matches[1]) ? $matches[1] : 'COUNT(*)';
                 $results = $this->get_results($query, ARRAY_A);
-                $count = count($results);
-                $result = [$alias => $count];
+                // get_results returns [count] for COUNT(*)
+                $val = !empty($results) ? $results[0] : 0;
+                $result = [$alias => $val];
                 return $output == OBJECT ? (object)$result : $result;
             }
             
@@ -540,6 +591,7 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
         public function get_col($query = null, $x = 0)
         {
             $this->last_query = $query;
+            $this->query_log[] = $query;
             $results = $this->get_results($query, ARRAY_A);
             
             // Try to identify column name
@@ -573,7 +625,8 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
             if ($char === '(') $parenDepth++;
             if ($char === ')') $parenDepth--;
             
-            if ($parenDepth === 0 && substr($whereClause, $i, 5) === ' AND ') {
+            // Split on AND at top-level, case-insensitive
+            if ($parenDepth === 0 && strncasecmp(substr($whereClause, $i, 5), ' AND ', 5) === 0) {
                 $parts[] = trim($buffer);
                 $buffer = '';
                 $i += 4; // Skip " AND"
@@ -589,12 +642,13 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
                 $part = trim(substr($part, 1, -1));
             }
 
-            // Check if we need to re-evaluate as a group of ANDs
-            // This handles cases like "(A AND B)" which became "A AND B" after stripping parens
-            // evaluateCondition doesn't handle AND, so we must recurse to evaluateWhere
-            if (preg_match('/\s+AND\s+/i', $part)) {
-                if (!$this->evaluateWhere($row, $part)) {
-                    return false;
+            // Handle nested AND groups only when a top-level AND exists
+            $andParts = $this->splitByKeyword($part, 'AND');
+            if (count($andParts) > 1) {
+                foreach ($andParts as $andPart) {
+                    if (!$this->evaluateWhere($row, $andPart)) {
+                        return false;
+                    }
                 }
                 continue;
             }
@@ -659,6 +713,8 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
         if (preg_match('/(.+?)\s+IN\s*\((.+)\)$/i', $condition, $m)) {
             $val = $this->extractValue($row, $m[1]);
             $options = $this->parseList($m[2]);
+            // DEBUG
+            // error_log("InMemoryWpdb IN check: Val=" . var_export($val, true) . " Options=" . json_encode($options) . " Result=" . (in_array($val, $options) ? 'TRUE' : 'FALSE'));
             return in_array($val, $options);
         }
 
@@ -666,6 +722,7 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
         if (preg_match('/(.+?)\s*>=\s*(.+)$/', $condition, $m)) {
             $val1 = $this->extractValue($row, $m[1]);
             $val2 = $this->parseValue($m[2]);
+            if ($val1 === null || $val2 === null) return false;
             return $val1 >= $val2;
         }
 
@@ -673,6 +730,8 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
         if (preg_match('/(.+?)\s*<=\s*(.+)$/', $condition, $m)) {
             $val1 = $this->extractValue($row, $m[1]);
             $val2 = $this->parseValue($m[2]);
+            if ($val1 === null || $val2 === null) return false;
+            
             return $val1 <= $val2;
         }
         
@@ -690,6 +749,9 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
         if (preg_match('/(.+?)\s*=\s*(.+)$/', $condition, $m)) {
             $val1 = $this->extractValue($row, $m[1]);
             $val2 = $this->parseValue($m[2]);
+            // strict equality for nulls?
+            if ($val1 === null && $val2 === null) return true;
+            if ($val1 === null || $val2 === null) return false;
             return $val1 == $val2;
         }
 
@@ -743,19 +805,18 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
         $buffer = '';
         $parenDepth = 0;
         $len = strlen($str);
-        $keyword = " $keyword ";
-        $kLen = strlen($keyword);
-        
         for ($i = 0; $i < $len; $i++) {
             $char = $str[$i];
             if ($char === '(') $parenDepth++;
             if ($char === ')') $parenDepth--;
-            
-            if ($parenDepth === 0 && substr($str, $i, $kLen) === $keyword) {
-                $parts[] = trim($buffer);
-                $buffer = '';
-                $i += $kLen - 1; 
-                continue;
+            if ($parenDepth === 0) {
+                $slice = substr($str, $i);
+                if (preg_match('/^\s+' . preg_quote($keyword, '/') . '\s+/i', $slice, $m)) {
+                    $parts[] = trim($buffer);
+                    $buffer = '';
+                    $i += strlen($m[0]) - 1;
+                    continue;
+                }
             }
             $buffer .= $char;
         }
@@ -817,3 +878,8 @@ if (!class_exists('Pet\Tests\Stubs\InMemoryWpdb')) {
     }
     }
 }
+
+if (!defined('ARRAY_A')) define('ARRAY_A', 'ARRAY_A');
+if (!defined('ARRAY_N')) define('ARRAY_N', 'ARRAY_N');
+if (!defined('OBJECT')) define('OBJECT', 'OBJECT');
+if (!defined('OBJECT_K')) define('OBJECT_K', 'OBJECT_K');

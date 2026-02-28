@@ -19,10 +19,10 @@ class AddWbsTemplateToCatalogItems implements Migration
     {
         $table_name = $this->wpdb->prefix . 'pet_catalog_items';
         
-        // Add wbs_template column (JSON)
-        // Using TEXT for compatibility, but JSON type if supported by MySQL version would be better.
-        // Assuming standard WP environment, TEXT/LONGTEXT is safer.
-        $this->wpdb->query("ALTER TABLE $table_name ADD COLUMN wbs_template LONGTEXT DEFAULT NULL AFTER type");
+        $row = $this->wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'wbs_template'");
+        if (empty($row)) {
+            $this->wpdb->query("ALTER TABLE $table_name ADD COLUMN wbs_template LONGTEXT DEFAULT NULL AFTER type");
+        }
     }
 
     public function getDescription(): string

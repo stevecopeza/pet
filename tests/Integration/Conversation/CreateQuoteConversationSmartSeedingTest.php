@@ -3,6 +3,7 @@
 namespace Pet\Tests\Integration\Conversation;
 
 use PHPUnit\Framework\TestCase;
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Application\Conversation\Command\CreateConversationCommand;
 use Pet\Application\Conversation\Command\CreateConversationHandler;
 use Pet\Domain\Conversation\Entity\Conversation;
@@ -22,6 +23,7 @@ class CreateQuoteConversationSmartSeedingTest extends TestCase
     private $contactRepo;
     private $teamRepo;
     private $quoteRepo;
+    private $transactionManager;
     private $handler;
 
     protected function setUp(): void
@@ -31,9 +33,14 @@ class CreateQuoteConversationSmartSeedingTest extends TestCase
         $this->contactRepo = $this->createMock(ContactRepository::class);
         $this->teamRepo = $this->createMock(TeamRepository::class);
         $this->quoteRepo = $this->createMock(QuoteRepository::class);
+        $this->transactionManager = $this->createMock(TransactionManager::class);
+        $this->transactionManager->method('transactional')->willReturnCallback(function ($fn) {
+            return $fn();
+        });
 
         // We need to verify that repositories are injected correctly
         $this->handler = new CreateConversationHandler(
+            $this->transactionManager,
             $this->conversationRepo,
             $this->employeeRepo,
             $this->contactRepo,

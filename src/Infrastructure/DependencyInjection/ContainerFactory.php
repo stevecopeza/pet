@@ -43,7 +43,13 @@ class ContainerFactory
                 global $wpdb;
                 return $wpdb;
             },
-            \Pet\Domain\Event\EventBus::class => \DI\autowire(\Pet\Infrastructure\Event\InMemoryEventBus::class),
+            \Pet\Domain\Event\EventBus::class => function (\Psr\Container\ContainerInterface $c) {
+                return new \Pet\Infrastructure\Event\PersistingEventBus(
+                    $c->get(\Pet\Infrastructure\Event\InMemoryEventBus::class),
+                    $c->get(\Pet\Domain\Event\Repository\EventStreamRepository::class)
+                );
+            },
+            \Pet\Infrastructure\Event\InMemoryEventBus::class => \DI\create(\Pet\Infrastructure\Event\InMemoryEventBus::class),
             
             \Pet\Infrastructure\Persistence\Migration\MigrationRunner::class => function () {
                 global $wpdb;
@@ -83,6 +89,7 @@ class ContainerFactory
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Transaction\SqlTransaction($wpdb);
             },
+            \Pet\Application\System\Service\TransactionManager::class => \DI\get(\Pet\Infrastructure\Persistence\Transaction\SqlTransaction::class),
             \Pet\Application\System\Service\TouchedTracker::class => function () {
                 global $wpdb;
                 return new \Pet\Application\System\Service\TouchedTracker($wpdb);
@@ -92,9 +99,21 @@ class ContainerFactory
                 global $wpdb;
                 return new \Pet\Infrastructure\Persistence\Repository\SqlEscalationRuleRepository($wpdb);
             },
+            \Pet\Domain\Sla\Repository\SlaRepository::class => function (\Psr\Container\ContainerInterface $c) {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlSlaRepository(
+                    $wpdb,
+                    $c->get(\Pet\Domain\Calendar\Repository\CalendarRepository::class)
+                );
+            },
+            \Pet\Domain\Calendar\Repository\CalendarRepository::class => function () {
+                global $wpdb;
+                return new \Pet\Infrastructure\Persistence\Repository\SqlCalendarRepository($wpdb);
+            },
 
             \Pet\Application\Conversation\Command\CreateConversationHandler::class => function (\Psr\Container\ContainerInterface $c) {
                 return new \Pet\Application\Conversation\Command\CreateConversationHandler(
+                    $c->get(\Pet\Application\System\Service\TransactionManager::class),
                     $c->get(\Pet\Domain\Conversation\Repository\ConversationRepository::class),
                     $c->get(\Pet\Domain\Identity\Repository\EmployeeRepository::class),
                     $c->get(\Pet\Domain\Identity\Repository\ContactRepository::class),
@@ -105,6 +124,7 @@ class ContainerFactory
 
             \Pet\Application\Conversation\Command\PostMessageHandler::class => function (\Psr\Container\ContainerInterface $c) {
                 return new \Pet\Application\Conversation\Command\PostMessageHandler(
+                    $c->get(\Pet\Application\System\Service\TransactionManager::class),
                     $c->get(\Pet\Domain\Conversation\Repository\ConversationRepository::class),
                     $c->get(\Pet\Domain\Identity\Repository\EmployeeRepository::class),
                     $c->get(\Pet\Domain\Identity\Repository\ContactRepository::class),
@@ -389,7 +409,15 @@ class ContainerFactory
             \Pet\Application\Commercial\Command\UpdateQuoteSectionHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\UpdateQuoteSectionHandler::class),
             \Pet\Application\Commercial\Command\CloneQuoteSectionHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\CloneQuoteSectionHandler::class),
             \Pet\Application\Commercial\Command\DeleteQuoteSectionHandler::class => \DI\autowire(\Pet\Application\Commercial\Command\DeleteQuoteSectionHandler::class),
-            \Pet\Application\Commercial\Listener\QuoteAcceptedListener::class => \DI\autowire(\Pet\Application\Commercial\Listener\QuoteAcceptedListener::class),
+            \Pet\Application\Commercial\Listener\QuoteAcceptedListener::class => function (\Psr\Container\ContainerInterface $c) {
+                return new \Pet\Application\Commercial\Listener\QuoteAcceptedListener(
+                    $c->get(\Pet\Domain\Commercial\Repository\ContractRepository::class),
+                    $c->get(\Pet\Domain\Commercial\Repository\BaselineRepository::class),
+                    $c->get(\Pet\Domain\Event\EventBus::class),
+                    $c->get(\Pet\Domain\Sla\Repository\SlaRepository::class),
+                    $c->get(\Pet\Domain\Calendar\Repository\CalendarRepository::class)
+                );
+            },
             \Pet\Application\Commercial\Listener\CreateForecastFromQuoteListener::class => \DI\autowire(\Pet\Application\Commercial\Listener\CreateForecastFromQuoteListener::class),
 
             \Pet\Application\Conversation\Command\AddParticipantHandler::class => \DI\autowire(\Pet\Application\Conversation\Command\AddParticipantHandler::class),

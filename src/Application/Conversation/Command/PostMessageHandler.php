@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Conversation\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Conversation\Repository\ConversationRepository;
 use Pet\Domain\Identity\Repository\EmployeeRepository;
 use Pet\Domain\Identity\Repository\ContactRepository;
@@ -12,17 +14,19 @@ use Pet\Domain\Conversation\Entity\Conversation;
 
 class PostMessageHandler
 {
+    private TransactionManager $transactionManager;
     private ConversationRepository $conversationRepository;
     private ?EmployeeRepository $employeeRepository;
     private ?ContactRepository $contactRepository;
     private ?TeamRepository $teamRepository;
 
-    public function __construct(
+    public function __construct(TransactionManager $transactionManager, 
         ConversationRepository $conversationRepository,
         ?EmployeeRepository $employeeRepository = null,
         ?ContactRepository $contactRepository = null,
         ?TeamRepository $teamRepository = null
     ) {
+        $this->transactionManager = $transactionManager;
         $this->conversationRepository = $conversationRepository;
         $this->employeeRepository = $employeeRepository;
         $this->contactRepository = $contactRepository;
@@ -31,6 +35,7 @@ class PostMessageHandler
 
     public function handle(PostMessageCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $conversation = $this->conversationRepository->findByUuid($command->conversationUuid());
         if (!$conversation) {
             throw new \RuntimeException('Conversation not found');
@@ -61,6 +66,8 @@ class PostMessageHandler
         $this->handleMentions($conversation, $command->mentions(), $command->actorId());
 
         $this->conversationRepository->save($conversation);
+    
+        });
     }
 
     private function handleMentions(Conversation $conversation, array $mentions, int $actorId): void

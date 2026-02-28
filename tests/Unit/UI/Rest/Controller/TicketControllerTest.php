@@ -6,6 +6,7 @@ namespace Pet\Tests\Unit\UI\Rest\Controller;
 
 require_once __DIR__ . '/../../../../Stubs/WP_REST_Classes.php';
 
+use Pet\Application\System\Service\FeatureFlagService;
 use Pet\Application\Support\Command\CreateTicketHandler;
 use Pet\Application\Support\Command\DeleteTicketHandler;
 use Pet\Application\Support\Command\UpdateTicketHandler;
@@ -24,6 +25,7 @@ class TicketControllerTest extends TestCase
     private $createHandler;
     private $updateHandler;
     private $deleteHandler;
+    private $featureFlags;
     private $controller;
 
     protected function setUp(): void
@@ -33,13 +35,15 @@ class TicketControllerTest extends TestCase
         $this->createHandler = $this->createMock(CreateTicketHandler::class);
         $this->updateHandler = $this->createMock(UpdateTicketHandler::class);
         $this->deleteHandler = $this->createMock(DeleteTicketHandler::class);
+        $this->featureFlags = $this->createMock(FeatureFlagService::class);
 
         $this->controller = new TicketController(
             $this->ticketRepository,
             $this->createHandler,
             $this->updateHandler,
             $this->deleteHandler,
-            $this->workItemRepository
+            $this->workItemRepository,
+            $this->featureFlags
         );
     }
 

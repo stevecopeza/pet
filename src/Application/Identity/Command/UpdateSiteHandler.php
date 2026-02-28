@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Identity\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Identity\Entity\Site;
 use Pet\Domain\Identity\Repository\SiteRepository;
 use Pet\Domain\Configuration\Repository\SchemaDefinitionRepository;
@@ -11,15 +13,17 @@ use Pet\Domain\Configuration\Service\SchemaValidator;
 
 class UpdateSiteHandler
 {
+    private TransactionManager $transactionManager;
     private SiteRepository $siteRepository;
     private SchemaDefinitionRepository $schemaRepository;
     private SchemaValidator $schemaValidator;
 
-    public function __construct(
+    public function __construct(TransactionManager $transactionManager, 
         SiteRepository $siteRepository,
         SchemaDefinitionRepository $schemaRepository,
         SchemaValidator $schemaValidator
     ) {
+        $this->transactionManager = $transactionManager;
         $this->siteRepository = $siteRepository;
         $this->schemaRepository = $schemaRepository;
         $this->schemaValidator = $schemaValidator;
@@ -27,6 +31,7 @@ class UpdateSiteHandler
 
     public function handle(UpdateSiteCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $site = $this->siteRepository->findById($command->id());
         if (!$site) {
             throw new \RuntimeException("Site not found");
@@ -138,5 +143,7 @@ class UpdateSiteHandler
         // I'll assume there is a getter.
         
         $this->siteRepository->save($updatedSite);
+    
+        });
     }
 }

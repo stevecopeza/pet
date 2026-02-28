@@ -22,6 +22,8 @@ interface ProjectRepository
      */
     public function findByCustomerId(int $customerId): array;
 
+    public function findByQuoteId(int $quoteId): ?Project;
+
     public function countActive(): int;
 
     public function sumSoldHours(): float;

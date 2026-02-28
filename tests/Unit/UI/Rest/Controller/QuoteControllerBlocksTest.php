@@ -25,6 +25,7 @@ use Pet\Application\Commercial\Command\DeleteQuoteSectionHandler;
 use Pet\Application\Commercial\Command\DeleteQuoteBlockHandler;
 use Pet\Application\Commercial\Command\UpdateQuoteBlockHandler;
 use Pet\Application\Commercial\Command\UpdateQuoteHandler;
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Domain\Commercial\Entity\Block\QuoteBlock;
 use Pet\Domain\Commercial\Entity\Quote;
 use Pet\Domain\Commercial\Entity\QuoteSection;
@@ -127,14 +128,20 @@ final class QuoteControllerBlocksTest extends TestCase
         $addAdjustmentHandler = $this->createMock(AddCostAdjustmentHandler::class);
         $removeAdjustmentHandler = $this->createMock(RemoveCostAdjustmentHandler::class);
         $setScheduleHandler = $this->createMock(SetPaymentScheduleHandler::class);
-        $updateSectionHandler = new UpdateQuoteSectionHandler($quoteRepository, $quoteSectionRepository);
-        $cloneSectionHandler = new CloneQuoteSectionHandler($quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
-        $deleteSectionHandler = new DeleteQuoteSectionHandler($quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
+
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
+        $updateSectionHandler = new UpdateQuoteSectionHandler($transactionManager, $quoteRepository, $quoteSectionRepository);
+        $cloneSectionHandler = new CloneQuoteSectionHandler($transactionManager, $quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
+        $deleteSectionHandler = new DeleteQuoteSectionHandler($transactionManager, $quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
         $addSectionHandler = $this->createMock(AddQuoteSectionHandler::class);
 
-        $createBlockHandler = new CreateQuoteBlockHandler($quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
+        $createBlockHandler = new CreateQuoteBlockHandler($transactionManager, $quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
 
-        $deleteBlockHandler = new DeleteQuoteBlockHandler($quoteRepository, $quoteBlockRepository);
+        $deleteBlockHandler = new DeleteQuoteBlockHandler($transactionManager, $quoteRepository, $quoteBlockRepository);
 
         $controller = new QuoteController(
             $quoteRepository,
@@ -156,7 +163,7 @@ final class QuoteControllerBlocksTest extends TestCase
             $deleteSectionHandler,
             $quoteBlockRepository,
             $createBlockHandler,
-            new UpdateQuoteBlockHandler($quoteRepository, $quoteBlockRepository),
+            new UpdateQuoteBlockHandler($transactionManager, $quoteRepository, $quoteBlockRepository),
             $deleteBlockHandler
         );
 
@@ -251,15 +258,21 @@ final class QuoteControllerBlocksTest extends TestCase
         $addAdjustmentHandler = $this->createMock(AddCostAdjustmentHandler::class);
         $removeAdjustmentHandler = $this->createMock(RemoveCostAdjustmentHandler::class);
         $setScheduleHandler = $this->createMock(SetPaymentScheduleHandler::class);
-        $updateSectionHandler = new UpdateQuoteSectionHandler($quoteRepository, $quoteSectionRepository);
-        $cloneSectionHandler = new CloneQuoteSectionHandler($quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
-        $deleteSectionHandler = new DeleteQuoteSectionHandler($quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
+
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
+        $updateSectionHandler = new UpdateQuoteSectionHandler($transactionManager, $quoteRepository, $quoteSectionRepository);
+        $cloneSectionHandler = new CloneQuoteSectionHandler($transactionManager, $quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
+        $deleteSectionHandler = new DeleteQuoteSectionHandler($transactionManager, $quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
         $addSectionHandler = $this->createMock(AddQuoteSectionHandler::class);
 
-        $createBlockHandler = new CreateQuoteBlockHandler($quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
+        $createBlockHandler = new CreateQuoteBlockHandler($transactionManager, $quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
 
-        $updateBlockHandler = new UpdateQuoteBlockHandler($quoteRepository, $quoteBlockRepository);
-        $deleteBlockHandler = new DeleteQuoteBlockHandler($quoteRepository, $quoteBlockRepository);
+        $updateBlockHandler = new UpdateQuoteBlockHandler($transactionManager, $quoteRepository, $quoteBlockRepository);
+        $deleteBlockHandler = new DeleteQuoteBlockHandler($transactionManager, $quoteRepository, $quoteBlockRepository);
 
         $controller = new QuoteController(
             $quoteRepository,

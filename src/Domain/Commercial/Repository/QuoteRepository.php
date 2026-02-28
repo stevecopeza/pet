@@ -10,7 +10,7 @@ interface QuoteRepository
 {
     public function save(Quote $quote): void;
 
-    public function findById(int $id): ?Quote;
+    public function findById(int $id, bool $lock = false): ?Quote;
 
     /**
      * @return Quote[]

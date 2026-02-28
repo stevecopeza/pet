@@ -19,11 +19,16 @@ class AddTypeToCatalogItems implements Migration
     {
         $table_name = $this->wpdb->prefix . 'pet_catalog_items';
         
-        // Add type column with default 'product'
-        $this->wpdb->query("ALTER TABLE $table_name ADD COLUMN type VARCHAR(50) NOT NULL DEFAULT 'product' AFTER sku");
-        
-        // Add index on type for faster filtering
-        $this->wpdb->query("ALTER TABLE $table_name ADD INDEX type (type)");
+        $row = $this->wpdb->get_results("SHOW COLUMNS FROM $table_name LIKE 'type'");
+        if (empty($row)) {
+            $this->wpdb->query("ALTER TABLE $table_name ADD COLUMN type VARCHAR(50) NOT NULL DEFAULT 'product' AFTER sku");
+        }
+        $indexExists = $this->wpdb->get_var(
+            $this->wpdb->prepare("SHOW INDEX FROM $table_name WHERE Key_name = %s", 'type')
+        );
+        if (!$indexExists) {
+            $this->wpdb->query("ALTER TABLE $table_name ADD INDEX type (type)");
+        }
     }
 
     public function getDescription(): string

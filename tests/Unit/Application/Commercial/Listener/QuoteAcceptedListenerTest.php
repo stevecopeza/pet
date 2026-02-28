@@ -15,6 +15,8 @@ use Pet\Domain\Commercial\Event\BaselineCreated;
 use Pet\Domain\Commercial\Repository\ContractRepository;
 use Pet\Domain\Commercial\Repository\BaselineRepository;
 use Pet\Domain\Event\EventBus;
+use Pet\Domain\Sla\Repository\SlaRepository;
+use Pet\Domain\Calendar\Repository\CalendarRepository;
 
 class QuoteAcceptedListenerTest extends TestCase
 {
@@ -59,8 +61,16 @@ class QuoteAcceptedListenerTest extends TestCase
                 [$this->isInstanceOf(BaselineCreated::class)]
             );
 
-        $listener = new QuoteAcceptedListener($contractRepo, $baselineRepo, $eventBus);
+        $slaRepository = $this->createMock(SlaRepository::class);
+        $calendarRepository = $this->createMock(CalendarRepository::class);
+
+        $listener = new QuoteAcceptedListener(
+            $contractRepo,
+            $baselineRepo,
+            $eventBus,
+            $slaRepository,
+            $calendarRepository
+        );
         $listener($event);
     }
 }
-

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pet\Tests\Unit\Application\Commercial\Command;
 
+use Pet\Application\System\Service\TransactionManager;
 use PHPUnit\Framework\TestCase;
 use Pet\Application\Commercial\Command\AcceptQuoteCommand;
 use Pet\Application\Commercial\Command\AcceptQuoteHandler;
@@ -23,9 +24,14 @@ class AcceptQuoteHandlerTest extends TestCase
     private $eventBus;
     private $touchedTracker;
     private $createTicketHandler;
+    private $transactionManager;
 
     protected function setUp(): void
     {
+        $this->transactionManager = $this->createMock(TransactionManager::class);
+        $this->transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
         $this->quoteRepository = $this->createMock(QuoteRepository::class);
         $this->eventBus = $this->createMock(EventBus::class);
         $this->touchedTracker = $this->createMock(TouchedTracker::class);
@@ -106,6 +112,7 @@ class AcceptQuoteHandlerTest extends TestCase
             );
 
         $handler = new AcceptQuoteHandler(
+            $this->transactionManager,
             $this->quoteRepository,
             $this->eventBus,
             $this->touchedTracker,
@@ -134,6 +141,7 @@ class AcceptQuoteHandlerTest extends TestCase
             ->with($quote);
 
         $handler = new AcceptQuoteHandler(
+            $this->transactionManager,
             $this->quoteRepository,
             $this->eventBus,
             null,

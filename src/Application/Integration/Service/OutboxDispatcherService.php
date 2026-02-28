@@ -7,6 +7,7 @@ namespace Pet\Application\Integration\Service;
 use Pet\Infrastructure\Persistence\Repository\SqlOutboxRepository;
 use Pet\Domain\Finance\Repository\BillingExportRepository;
 use Pet\Infrastructure\Persistence\Repository\SqlQbInvoiceRepository;
+use Pet\Application\System\Service\TransactionManager;
 
 final class OutboxDispatcherService
 {
@@ -15,13 +16,23 @@ final class OutboxDispatcherService
         private BillingExportRepository $exports,
         private SqlQbInvoiceRepository $qbInvoices,
         private \Pet\Infrastructure\Persistence\Repository\SqlExternalMappingRepository $mappings,
-        private \Pet\Infrastructure\Persistence\Repository\SqlEventStreamRepository $events
+        private \Pet\Infrastructure\Persistence\Repository\SqlEventStreamRepository $events,
+        private TransactionManager $transactionManager
     ) {
     }
 
     public function dispatchQuickBooks(): void
     {
-        $due = $this->outbox->findDue('quickbooks', 25);
+        $due = $this->transactionManager->transactional(function () {
+            $items = $this->outbox->findDue('quickbooks', 25);
+            if (!empty($items)) {
+                $ids = array_column($items, 'id');
+                // Claim for 5 minutes to allow processing without concurrency issues
+                $this->outbox->claim($ids, new \DateTimeImmutable('+5 minutes'));
+            }
+            return $items;
+        });
+
         foreach ($due as $row) {
             $outboxId = (int)$row['id'];
             $eventId = (int)$row['event_id'];

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pet\Tests\Unit\Application\Commercial\Command;
 
+use Pet\Application\System\Service\TransactionManager;
 use PHPUnit\Framework\TestCase;
 use Pet\Application\Commercial\Command\CreateQuoteCommand;
 use Pet\Application\Commercial\Command\CreateQuoteHandler;
@@ -16,13 +17,19 @@ class CreateQuoteHandlerTest extends TestCase
 {
     private $quoteRepository;
     private $customerRepository;
+    private $transactionManager;
     private $handler;
 
     protected function setUp(): void
     {
+        $this->transactionManager = $this->createMock(TransactionManager::class);
+        $this->transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
         $this->quoteRepository = $this->createMock(QuoteRepository::class);
         $this->customerRepository = $this->createMock(CustomerRepository::class);
         $this->handler = new CreateQuoteHandler(
+            $this->transactionManager,
             $this->quoteRepository,
             $this->customerRepository
         );

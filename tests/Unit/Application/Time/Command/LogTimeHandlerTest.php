@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pet\Tests\Unit\Application\Time\Command;
 
 use PHPUnit\Framework\TestCase;
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Application\Time\Command\LogTimeCommand;
 use Pet\Application\Time\Command\LogTimeHandler;
 use Pet\Domain\Time\Entity\TimeEntry;
@@ -16,13 +17,19 @@ class LogTimeHandlerTest extends TestCase
 {
     private $timeEntryRepository;
     private $employeeRepository;
+    private $transactionManager;
     private $handler;
 
     protected function setUp(): void
     {
+        $this->transactionManager = $this->createMock(TransactionManager::class);
+        $this->transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
         $this->timeEntryRepository = $this->createMock(TimeEntryRepository::class);
         $this->employeeRepository = $this->createMock(EmployeeRepository::class);
         $this->handler = new LogTimeHandler(
+            $this->transactionManager,
             $this->timeEntryRepository,
             $this->employeeRepository
         );

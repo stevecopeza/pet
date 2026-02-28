@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Pet\Domain\Delivery\Event;
 
 use Pet\Domain\Event\DomainEvent;
+use Pet\Domain\Event\SourcedEvent;
 
-class MilestoneCompletedEvent implements DomainEvent
+class MilestoneCompletedEvent implements DomainEvent, SourcedEvent
 {
     private int $projectId;
     private string $milestoneTitle;
@@ -32,5 +33,28 @@ class MilestoneCompletedEvent implements DomainEvent
     public function occurredAt(): \DateTimeImmutable
     {
         return $this->occurredAt;
+    }
+
+    public function aggregateId(): int
+    {
+        return $this->projectId;
+    }
+
+    public function aggregateType(): string
+    {
+        return 'project';
+    }
+
+    public function aggregateVersion(): int
+    {
+        return 1;
+    }
+
+    public function toPayload(): array
+    {
+        return [
+            'project_id' => $this->projectId,
+            'milestone_title' => $this->milestoneTitle,
+        ];
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pet\Tests\Unit\Application\Commercial;
 
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Application\Commercial\Command\CreateQuoteBlockCommand;
 use Pet\Application\Commercial\Command\CreateQuoteBlockHandler;
 use Pet\Domain\Commercial\Entity\Block\QuoteBlock;
@@ -90,7 +91,13 @@ final class CreateQuoteBlockHandlerTest extends TestCase
                 );
             });
 
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
         $handler = new CreateQuoteBlockHandler(
+            $transactionManager,
             $quoteRepository,
             $quoteSectionRepository,
             $quoteBlockRepository

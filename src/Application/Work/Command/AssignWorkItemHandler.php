@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Work\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Work\Repository\WorkItemRepository;
 use Pet\Domain\Activity\Repository\ActivityLogRepository;
 use Pet\Domain\Activity\Entity\ActivityLog;
@@ -11,13 +13,16 @@ use InvalidArgumentException;
 
 class AssignWorkItemHandler
 {
-    public function __construct(
+    private TransactionManager $transactionManager;
+    public function __construct(TransactionManager $transactionManager, 
         private WorkItemRepository $repository,
         private ActivityLogRepository $activityLogRepository
-    ) {}
+    ) {
+        $this->transactionManager = $transactionManager;}
 
     public function handle(AssignWorkItemCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $workItem = $this->repository->findById($command->workItemId());
 
         if (!$workItem) {
@@ -57,5 +62,7 @@ class AssignWorkItemHandler
 
             $this->activityLogRepository->save($log);
         }
+    
+        });
     }
 }

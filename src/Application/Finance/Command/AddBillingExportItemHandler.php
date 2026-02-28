@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Finance\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Finance\Entity\BillingExportItem;
 use Pet\Domain\Finance\Repository\BillingExportRepository;
 use Pet\Domain\Event\Repository\EventStreamRepository;
@@ -11,16 +13,19 @@ use Pet\Infrastructure\Persistence\Transaction\SqlTransaction;
 
 final class AddBillingExportItemHandler
 {
-    public function __construct(
+    private TransactionManager $transactionManager;
+    public function __construct(TransactionManager $transactionManager, 
         private BillingExportRepository $repository,
         private EventStreamRepository $events,
         private SqlTransaction $tx
     )
     {
+        $this->transactionManager = $transactionManager;
     }
 
     public function handle(AddBillingExportItemCommand $command): int
     {
+        return $this->transactionManager->transactional(function () use ($command) {
         $export = $this->repository->findById($command->exportId());
         if (!$export) {
             throw new \DomainException('Export not found');
@@ -59,5 +64,7 @@ final class AddBillingExportItemHandler
             $this->tx->rollback();
             throw $e;
         }
+    
+        });
     }
 }

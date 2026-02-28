@@ -36,14 +36,14 @@ class SqlSlaClockStateRepository implements SlaClockStateRepository
         return $this->mapRowToEntity($row);
     }
 
-    public function initialize(Ticket $ticket): SlaClockState
+    public function initialize(Ticket $ticket, int $slaVersionId): SlaClockState
     {
         // Create a new clock state in memory (not saved yet)
         return new SlaClockState(
             $ticket->id(),
             'none',
             null,
-            0, // slaVersionId (placeholder, should come from ticket if available)
+            $slaVersionId,
             false, // paused
             0 // escalationStage
         );

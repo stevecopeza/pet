@@ -4,20 +4,25 @@ declare(strict_types=1);
 
 namespace Pet\Application\Work\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Work\Entity\Role;
 use Pet\Domain\Work\Repository\RoleRepository;
 
 class CreateRoleHandler
 {
+    private TransactionManager $transactionManager;
     private $roleRepository;
 
-    public function __construct(RoleRepository $roleRepository)
+    public function __construct(TransactionManager $transactionManager, RoleRepository $roleRepository)
     {
+        $this->transactionManager = $transactionManager;
         $this->roleRepository = $roleRepository;
     }
 
     public function handle(CreateRoleCommand $command): int
     {
+        return $this->transactionManager->transactional(function () use ($command) {
         /** @var \wpdb|null $wpdb */
         global $wpdb;
 
@@ -44,5 +49,7 @@ class CreateRoleHandler
         }
 
         throw new \RuntimeException('Failed to persist Role and obtain identifier.');
+    
+        });
     }
 }

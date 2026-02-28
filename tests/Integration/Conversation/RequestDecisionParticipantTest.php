@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pet\Tests\Integration\Conversation;
 
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Application\Conversation\Command\RequestDecisionCommand;
 use Pet\Application\Conversation\Command\RequestDecisionHandler;
 use Pet\Domain\Conversation\Entity\Conversation;
@@ -18,13 +19,19 @@ class RequestDecisionParticipantTest extends TestCase
 {
     private $conversationRepo;
     private $decisionRepo;
+    private $transactionManager;
     private $handler;
 
     protected function setUp(): void
     {
         $this->conversationRepo = $this->createMock(ConversationRepository::class);
         $this->decisionRepo = $this->createMock(DecisionRepository::class);
+        $this->transactionManager = $this->createMock(TransactionManager::class);
+        $this->transactionManager->method('transactional')->willReturnCallback(function ($fn) {
+            return $fn();
+        });
         $this->handler = new RequestDecisionHandler(
+            $this->transactionManager,
             $this->conversationRepo,
             $this->decisionRepo
         );

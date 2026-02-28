@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Delivery\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Delivery\Entity\Project;
 use Pet\Domain\Delivery\Repository\ProjectRepository;
 use Pet\Domain\Identity\Repository\CustomerRepository;
@@ -14,19 +16,21 @@ use Pet\Domain\Event\EventBus;
 
 class CreateProjectHandler
 {
+    private TransactionManager $transactionManager;
     private ProjectRepository $projectRepository;
     private CustomerRepository $customerRepository;
     private SchemaDefinitionRepository $schemaRepository;
     private SchemaValidator $schemaValidator;
     private EventBus $eventBus;
 
-    public function __construct(
+    public function __construct(TransactionManager $transactionManager, 
         ProjectRepository $projectRepository,
         CustomerRepository $customerRepository,
         SchemaDefinitionRepository $schemaRepository,
         SchemaValidator $schemaValidator,
         EventBus $eventBus
     ) {
+        $this->transactionManager = $transactionManager;
         $this->projectRepository = $projectRepository;
         $this->customerRepository = $customerRepository;
         $this->schemaRepository = $schemaRepository;
@@ -36,6 +40,7 @@ class CreateProjectHandler
 
     public function handle(CreateProjectCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $customer = $this->customerRepository->findById($command->customerId());
         if (!$customer) {
             throw new \DomainException("Customer not found: {$command->customerId()}");
@@ -76,5 +81,7 @@ class CreateProjectHandler
         $this->projectRepository->save($project);
 
         $this->eventBus->dispatch(new ProjectCreated($project));
+    
+        });
     }
 }

@@ -65,16 +65,6 @@ flowchart TD
     C -->|Approved| E[Proceed]
 ```
 
-### D. Accept Quote Gating
-
-``` mermaid
-flowchart TD
-    A[User clicks Accept Quote] --> B[AcceptQuoteHandler]
-    B --> C[ActionGatingService check]
-    C -->|Pending decision| D[Throw ACTION_GATED_BY_DECISION]
-    C -->|Approved| E[Proceed]
-```
-
 ------------------------------------------------------------------------
 
 ## 4. UI Specification

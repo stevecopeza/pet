@@ -41,6 +41,7 @@ final class SqlOutboxRepository
               AND (next_attempt_at IS NULL OR next_attempt_at <= %s)
             ORDER BY id ASC
             LIMIT %d
+            FOR UPDATE
         ";
         $prepared = $this->wpdb->prepare($sql, [$destination, (new \DateTimeImmutable())->format('Y-m-d H:i:s'), $limit]);
         return $this->wpdb->get_results($prepared, ARRAY_A);
@@ -86,5 +87,17 @@ final class SqlOutboxRepository
                 ORDER BY id ASC";
         $prepared = $this->wpdb->prepare($sql, [$eventId, $destination]);
         return $this->wpdb->get_results($prepared, ARRAY_A);
+    }
+
+    public function claim(array $ids, \DateTimeImmutable $claimUntil): void
+    {
+        if (empty($ids)) {
+            return;
+        }
+        $table = $this->wpdb->prefix . 'pet_outbox';
+        $idsSql = implode(',', array_map('intval', $ids));
+        $sql = "UPDATE $table SET next_attempt_at = %s WHERE id IN ($idsSql)";
+        $prepared = $this->wpdb->prepare($sql, $claimUntil->format('Y-m-d H:i:s'));
+        $this->wpdb->query($prepared);
     }
 }

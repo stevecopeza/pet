@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Application\Work\Command;
 
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Application\Work\Command\GeneratePersonKpisCommand;
 use Pet\Application\Work\Command\GeneratePersonKpisHandler;
 use Pet\Domain\Work\Entity\RoleKpi;
@@ -16,6 +17,10 @@ class GeneratePersonKpisHandlerTest extends TestCase
     public function testHandleGeneratesPersonKpisFromRoleKpis(): void
     {
         // Mock repositories
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
         $personKpiRepository = $this->createMock(PersonKpiRepository::class);
         $roleKpiRepository = $this->createMock(RoleKpiRepository::class);
 
@@ -41,7 +46,7 @@ class GeneratePersonKpisHandlerTest extends TestCase
             }));
 
         // Execute handler
-        $handler = new GeneratePersonKpisHandler($personKpiRepository, $roleKpiRepository);
+        $handler = new GeneratePersonKpisHandler($transactionManager, $personKpiRepository, $roleKpiRepository);
         
         $command = new GeneratePersonKpisCommand(
             1, // employeeId

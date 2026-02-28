@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace Pet\Domain\Support\Event;
 
 use Pet\Domain\Event\DomainEvent;
+use Pet\Domain\Event\SourcedEvent;
 
-class TicketWarningEvent implements DomainEvent
+class TicketWarningEvent implements DomainEvent, SourcedEvent
 {
     private int $ticketId;
     private \DateTimeImmutable $occurredAt;
@@ -25,5 +26,27 @@ class TicketWarningEvent implements DomainEvent
     public function occurredAt(): \DateTimeImmutable
     {
         return $this->occurredAt;
+    }
+
+    public function aggregateId(): int
+    {
+        return $this->ticketId;
+    }
+
+    public function aggregateType(): string
+    {
+        return 'ticket';
+    }
+
+    public function aggregateVersion(): int
+    {
+        return 1;
+    }
+
+    public function toPayload(): array
+    {
+        return [
+            'ticket_id' => $this->ticketId,
+        ];
     }
 }

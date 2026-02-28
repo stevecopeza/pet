@@ -8,20 +8,29 @@ use Pet\Domain\Commercial\Event\QuoteAccepted;
 use Pet\Application\Delivery\Command\CreateProjectCommand;
 use Pet\Application\Delivery\Command\CreateProjectHandler;
 use Pet\Domain\Commercial\Entity\Component\ImplementationComponent;
-use Pet\Domain\Commercial\Entity\Component\CatalogComponent;
+use Pet\Domain\Delivery\Repository\ProjectRepository;
 
 class CreateProjectFromQuoteListener
 {
     private CreateProjectHandler $createProjectHandler;
+    private ProjectRepository $projectRepository;
 
-    public function __construct(CreateProjectHandler $createProjectHandler)
-    {
+    public function __construct(
+        CreateProjectHandler $createProjectHandler,
+        ProjectRepository $projectRepository
+    ) {
         $this->createProjectHandler = $createProjectHandler;
+        $this->projectRepository = $projectRepository;
     }
 
     public function __invoke(QuoteAccepted $event): void
     {
         $quote = $event->quote();
+
+        // Idempotency Guard: Do not create project if it already exists for this quote
+        if ($this->projectRepository->findByQuoteId($quote->id())) {
+            return;
+        }
         
         $soldHours = 0.0;
         $implementationValue = 0.0;

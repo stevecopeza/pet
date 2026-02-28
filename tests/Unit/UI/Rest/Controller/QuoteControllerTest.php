@@ -25,6 +25,7 @@ use Pet\Application\Commercial\Command\CreateQuoteBlockHandler;
 use Pet\Application\Commercial\Command\UpdateQuoteBlockHandler;
 use Pet\Application\Commercial\Command\DeleteQuoteBlockHandler;
 use Pet\Application\Commercial\Command\UpdateQuoteHandler;
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Domain\Commercial\Entity\Quote;
 use Pet\Domain\Commercial\Entity\QuoteSection;
 use Pet\Domain\Commercial\Repository\QuoteRepository;
@@ -95,10 +96,16 @@ final class QuoteControllerTest extends TestCase
         $addAdjustmentHandler = $this->createMock(AddCostAdjustmentHandler::class);
         $removeAdjustmentHandler = $this->createMock(RemoveCostAdjustmentHandler::class);
         $setScheduleHandler = $this->createMock(SetPaymentScheduleHandler::class);
-        $updateSectionHandler = new UpdateQuoteSectionHandler($quoteRepository, $quoteSectionRepository);
+
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
+        $updateSectionHandler = new UpdateQuoteSectionHandler($transactionManager, $quoteRepository, $quoteSectionRepository);
         $quoteBlockRepository = $this->createMock(QuoteBlockRepository::class);
-        $cloneSectionHandler = new CloneQuoteSectionHandler($quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
-        $deleteSectionHandler = new DeleteQuoteSectionHandler($quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
+        $cloneSectionHandler = new CloneQuoteSectionHandler($transactionManager, $quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
+        $deleteSectionHandler = new DeleteQuoteSectionHandler($transactionManager, $quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
 
         $addSectionHandler = $this->createMock(AddQuoteSectionHandler::class);
         $addSectionHandler
@@ -114,9 +121,9 @@ final class QuoteControllerTest extends TestCase
             ->with(31)
             ->willReturn([]);
 
-        $createBlockHandler = new CreateQuoteBlockHandler($quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
-        $updateBlockHandler = new UpdateQuoteBlockHandler($quoteRepository, $quoteBlockRepository);
-        $deleteBlockHandler = new DeleteQuoteBlockHandler($quoteRepository, $quoteBlockRepository);
+        $createBlockHandler = new CreateQuoteBlockHandler($transactionManager, $quoteRepository, $quoteSectionRepository, $quoteBlockRepository);
+        $updateBlockHandler = new UpdateQuoteBlockHandler($transactionManager, $quoteRepository, $quoteBlockRepository);
+        $deleteBlockHandler = new DeleteQuoteBlockHandler($transactionManager, $quoteRepository, $quoteBlockRepository);
 
         $controller = new QuoteController(
             $quoteRepository,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Application\Work\Command;
 
+use Pet\Application\System\Service\TransactionManager;
 use Pet\Application\Work\Command\CreatePerformanceReviewCommand;
 use Pet\Application\Work\Command\CreatePerformanceReviewHandler;
 use Pet\Application\Work\Command\GeneratePersonKpisHandler;
@@ -19,6 +20,10 @@ class CreatePerformanceReviewHandlerTest extends TestCase
     public function testHandleCreatesReviewAndGeneratesKpis(): void
     {
         // Mock dependencies
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
         $reviewRepository = $this->createMock(PerformanceReviewRepository::class);
         $assignmentRepository = $this->createMock(AssignmentRepository::class);
         $generateKpisHandler = $this->createMock(GeneratePersonKpisHandler::class);
@@ -64,6 +69,7 @@ class CreatePerformanceReviewHandlerTest extends TestCase
 
         // Execute Handler
         $handler = new CreatePerformanceReviewHandler(
+            $transactionManager,
             $reviewRepository,
             $assignmentRepository,
             $generateKpisHandler

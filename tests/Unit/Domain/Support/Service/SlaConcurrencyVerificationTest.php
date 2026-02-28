@@ -13,12 +13,14 @@ use Pet\Domain\Support\Repository\SlaClockStateRepository;
 use Pet\Domain\Support\Service\SlaAutomationService;
 use Pet\Domain\Support\ValueObject\SlaState;
 use Pet\Domain\Support\Repository\TicketRepository;
+use Pet\Domain\Sla\Repository\SlaRepository;
 use PHPUnit\Framework\TestCase;
 
 class SlaConcurrencyVerificationTest extends TestCase
 {
     private $ticketRepo;
     private $clockStateRepo;
+    private $slaRepo;
     private $eventDispatcher;
     private $service;
 
@@ -26,6 +28,7 @@ class SlaConcurrencyVerificationTest extends TestCase
     {
         $this->ticketRepo = $this->createMock(TicketRepository::class);
         $this->clockStateRepo = $this->createMock(SlaClockStateRepository::class);
+        $this->slaRepo = $this->createMock(SlaRepository::class);
         $this->eventDispatcher = $this->createMock(EventBus::class);
         $featureFlags = $this->createMock(\Pet\Application\System\Service\FeatureFlagService::class);
         $featureFlags->method('isEscalationEngineEnabled')->willReturn(true);
@@ -36,7 +39,14 @@ class SlaConcurrencyVerificationTest extends TestCase
 
         // Create partial mock to control time
         $this->service = $this->getMockBuilder(SlaAutomationService::class)
-            ->setConstructorArgs([$this->ticketRepo, $this->clockStateRepo, $this->eventDispatcher, $featureFlags, $transaction])
+            ->setConstructorArgs([
+                $this->ticketRepo,
+                $this->clockStateRepo,
+                $this->slaRepo,
+                $this->eventDispatcher,
+                $featureFlags,
+                $transaction
+            ])
             ->onlyMethods(['getNow'])
             ->getMock();
     }

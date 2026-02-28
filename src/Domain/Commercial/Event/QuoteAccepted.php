@@ -6,8 +6,9 @@ namespace Pet\Domain\Commercial\Event;
 
 use Pet\Domain\Commercial\Entity\Quote;
 use Pet\Domain\Event\DomainEvent;
+use Pet\Domain\Event\SourcedEvent;
 
-class QuoteAccepted implements DomainEvent
+class QuoteAccepted implements DomainEvent, SourcedEvent
 {
     private Quote $quote;
     private \DateTimeImmutable $occurredAt;
@@ -26,5 +27,29 @@ class QuoteAccepted implements DomainEvent
     public function occurredAt(): \DateTimeImmutable
     {
         return $this->occurredAt;
+    }
+
+    public function aggregateId(): int
+    {
+        return (int)$this->quote->id();
+    }
+
+    public function aggregateType(): string
+    {
+        return 'quote';
+    }
+
+    public function aggregateVersion(): int
+    {
+        return $this->quote->version();
+    }
+
+    public function toPayload(): array
+    {
+        return [
+            'quote_id' => $this->quote->id(),
+            'accepted_at' => $this->quote->acceptedAt() ? $this->quote->acceptedAt()->format('c') : null,
+            'version' => $this->quote->version(),
+        ];
     }
 }

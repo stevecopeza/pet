@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Finance\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Finance\Repository\BillingExportRepository;
 use Pet\Infrastructure\Persistence\Repository\SqlOutboxRepository;
 use Pet\Domain\Event\Repository\EventStreamRepository;
@@ -12,17 +14,20 @@ use Pet\Infrastructure\Persistence\Transaction\SqlTransaction;
 use Pet\Application\System\Service\TouchedTracker;
 final class QueueBillingExportForQuickBooksHandler
 {
-    public function __construct(
+    private TransactionManager $transactionManager;
+    public function __construct(TransactionManager $transactionManager, 
         private BillingExportRepository $repository,
         private SqlOutboxRepository $outbox,
         private EventStreamRepository $events,
         private SqlTransaction $tx,
         private TouchedTracker $touched
     ) {
+        $this->transactionManager = $transactionManager;
     }
 
     public function handle(QueueBillingExportForQuickBooksCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $export = $this->repository->findById($command->exportId());
         if (!$export) {
             throw new \DomainException('Export not found');
@@ -42,5 +47,7 @@ final class QueueBillingExportForQuickBooksHandler
             $this->tx->rollback();
             throw $e;
         }
+    
+        });
     }
 }

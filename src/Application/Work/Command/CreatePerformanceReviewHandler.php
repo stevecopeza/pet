@@ -4,21 +4,25 @@ declare(strict_types=1);
 
 namespace Pet\Application\Work\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Work\Entity\PerformanceReview;
 use Pet\Domain\Work\Repository\PerformanceReviewRepository;
 use Pet\Domain\Work\Repository\AssignmentRepository;
 
 class CreatePerformanceReviewHandler
 {
+    private TransactionManager $transactionManager;
     private $repository;
     private $assignmentRepository;
     private $generateKpisHandler;
 
-    public function __construct(
+    public function __construct(TransactionManager $transactionManager, 
         PerformanceReviewRepository $repository,
         AssignmentRepository $assignmentRepository,
         GeneratePersonKpisHandler $generateKpisHandler
     ) {
+        $this->transactionManager = $transactionManager;
         $this->repository = $repository;
         $this->assignmentRepository = $assignmentRepository;
         $this->generateKpisHandler = $generateKpisHandler;
@@ -26,6 +30,7 @@ class CreatePerformanceReviewHandler
 
     public function handle(CreatePerformanceReviewCommand $command): int
     {
+        return $this->transactionManager->transactional(function () use ($command) {
         $review = new PerformanceReview(
             $command->employeeId(),
             $command->reviewerId(),
@@ -65,5 +70,7 @@ class CreatePerformanceReviewHandler
         }
 
         return $id;
+    
+        });
     }
 }

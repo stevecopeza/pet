@@ -21,6 +21,8 @@ use Pet\Domain\Conversation\Entity\Conversation;
 use Pet\Domain\Conversation\Entity\Decision;
 use Pet\Application\Conversation\Exception\ActionGatedByDecisionException;
 
+use Pet\Application\System\Service\TransactionManager;
+
 class AcceptQuoteGatingTest extends TestCase
 {
     private $wpdb;
@@ -53,7 +55,13 @@ class AcceptQuoteGatingTest extends TestCase
             $this->decisionRepo
         );
 
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
         $this->handler = new AcceptQuoteHandler(
+            $transactionManager,
             $this->quoteRepo,
             $this->eventBus,
             null,

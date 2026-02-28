@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Conversation\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Conversation\Entity\Conversation;
 use Pet\Domain\Conversation\Repository\ConversationRepository;
 use Pet\Domain\Identity\Repository\EmployeeRepository;
@@ -13,19 +15,21 @@ use Pet\Domain\Commercial\Repository\QuoteRepository;
 
 class CreateConversationHandler
 {
+    private TransactionManager $transactionManager;
     private ConversationRepository $conversationRepository;
     private ?EmployeeRepository $employeeRepository;
     private ?ContactRepository $contactRepository;
     private ?TeamRepository $teamRepository;
     private ?QuoteRepository $quoteRepository;
 
-    public function __construct(
+    public function __construct(TransactionManager $transactionManager, 
         ConversationRepository $conversationRepository,
         ?EmployeeRepository $employeeRepository = null,
         ?ContactRepository $contactRepository = null,
         ?TeamRepository $teamRepository = null,
         ?QuoteRepository $quoteRepository = null
     ) {
+        $this->transactionManager = $transactionManager;
         $this->conversationRepository = $conversationRepository;
         $this->employeeRepository = $employeeRepository;
         $this->contactRepository = $contactRepository;
@@ -35,6 +39,7 @@ class CreateConversationHandler
 
     public function handle(CreateConversationCommand $command): string
     {
+        return $this->transactionManager->transactional(function () use ($command) {
         $contextVersion = $command->contextVersion();
         
         $existing = $this->conversationRepository->findByContext(
@@ -70,6 +75,8 @@ class CreateConversationHandler
         $this->conversationRepository->save($conversation);
 
         return $uuid;
+    
+        });
     }
 
     private function handleQuoteParticipants(Conversation $conversation, CreateConversationCommand $command): void

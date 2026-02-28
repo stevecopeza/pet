@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Commercial\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Commercial\Repository\LeadRepository;
 use Pet\Domain\Configuration\Repository\SchemaDefinitionRepository;
 use Pet\Domain\Configuration\Service\SchemaValidator;
@@ -11,15 +13,17 @@ use InvalidArgumentException;
 
 class UpdateLeadHandler
 {
+    private TransactionManager $transactionManager;
     private LeadRepository $leadRepository;
     private SchemaDefinitionRepository $schemaRepository;
     private SchemaValidator $schemaValidator;
 
-    public function __construct(
+    public function __construct(TransactionManager $transactionManager, 
         LeadRepository $leadRepository,
         SchemaDefinitionRepository $schemaRepository,
         SchemaValidator $schemaValidator
     ) {
+        $this->transactionManager = $transactionManager;
         $this->leadRepository = $leadRepository;
         $this->schemaRepository = $schemaRepository;
         $this->schemaValidator = $schemaValidator;
@@ -27,6 +31,7 @@ class UpdateLeadHandler
 
     public function handle(UpdateLeadCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $lead = $this->leadRepository->findById($command->id());
         if (!$lead) {
             throw new \DomainException("Lead not found: {$command->id()}");
@@ -66,5 +71,7 @@ class UpdateLeadHandler
         );
 
         $this->leadRepository->save($lead);
+    
+        });
     }
 }

@@ -121,12 +121,17 @@ class SqlQuoteRepository implements QuoteRepository
         }
     }
 
-    public function findById(int $id): ?Quote
+    public function findById(int $id, bool $lock = false): ?Quote
     {
         $sql = $this->wpdb->prepare(
             "SELECT * FROM {$this->quotesTable} WHERE id = %d LIMIT 1",
             $id
         );
+
+        if ($lock) {
+            $sql .= ' FOR UPDATE';
+        }
+
         $row = $this->wpdb->get_row($sql);
 
         return $row ? $this->hydrate($row) : null;

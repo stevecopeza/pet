@@ -4,19 +4,24 @@ declare(strict_types=1);
 
 namespace Pet\Application\Work\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Work\Repository\RoleRepository;
 
 class UpdateRoleHandler
 {
+    private TransactionManager $transactionManager;
     private $roleRepository;
 
-    public function __construct(RoleRepository $roleRepository)
+    public function __construct(TransactionManager $transactionManager, RoleRepository $roleRepository)
     {
+        $this->transactionManager = $transactionManager;
         $this->roleRepository = $roleRepository;
     }
 
     public function handle(UpdateRoleCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $role = $this->roleRepository->findById($command->id());
 
         if (!$role) {
@@ -36,5 +41,7 @@ class UpdateRoleHandler
         );
 
         $this->roleRepository->save($role);
+    
+        });
     }
 }

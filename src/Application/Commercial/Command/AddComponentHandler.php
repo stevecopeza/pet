@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Pet\Application\Commercial\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Commercial\Repository\QuoteRepository;
 use Pet\Domain\Commercial\Repository\CatalogItemRepository;
+use Pet\Domain\Sla\Repository\SlaRepository;
 use Pet\Domain\Commercial\Entity\Component\CatalogComponent;
 use Pet\Domain\Commercial\Entity\Component\QuoteCatalogItem;
 use Pet\Domain\Commercial\Entity\Component\ImplementationComponent;
@@ -17,19 +20,26 @@ use Pet\Domain\Commercial\Entity\Component\SimpleUnit;
 
 class AddComponentHandler
 {
+    private TransactionManager $transactionManager;
     private QuoteRepository $quoteRepository;
     private CatalogItemRepository $catalogItemRepository;
+    private SlaRepository $slaRepository;
 
     public function __construct(
+        TransactionManager $transactionManager, 
         QuoteRepository $quoteRepository,
-        CatalogItemRepository $catalogItemRepository
+        CatalogItemRepository $catalogItemRepository,
+        SlaRepository $slaRepository
     ) {
+        $this->transactionManager = $transactionManager;
         $this->quoteRepository = $quoteRepository;
         $this->catalogItemRepository = $catalogItemRepository;
+        $this->slaRepository = $slaRepository;
     }
 
     public function handle(AddComponentCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $quote = $this->quoteRepository->findById($command->quoteId());
         if (!$quote) {
             throw new \DomainException("Quote not found: {$command->quoteId()}");
@@ -100,9 +110,28 @@ class AddComponentHandler
             $component = new ImplementationComponent($milestones, $description, null, $section);
 
         } elseif ($type === 'recurring') {
+            $slaSnapshot = $data['sla_snapshot'] ?? [];
+
+            if (isset($data['sla_definition_id'])) {
+                $sla = $this->slaRepository->findById((int) $data['sla_definition_id']);
+                if ($sla) {
+                    $snapshot = $sla->createSnapshot(null);
+                    $slaSnapshot = [
+                        'sla_original_id' => $snapshot->slaOriginalId(),
+                        'sla_version_at_binding' => $snapshot->slaVersionAtBinding(),
+                        'sla_name_at_binding' => $snapshot->slaNameAtBinding(),
+                        'response_target_minutes' => $snapshot->responseTargetMinutes(),
+                        'resolution_target_minutes' => $snapshot->resolutionTargetMinutes(),
+                        'calendar_snapshot' => $snapshot->calendarSnapshot(),
+                        'bound_at' => $snapshot->boundAt()->format('c'),
+                        'uuid' => $snapshot->uuid(),
+                    ];
+                }
+            }
+
             $component = new RecurringServiceComponent(
                 $data['service_name'],
-                $data['sla_snapshot'] ?? [],
+                $slaSnapshot,
                 $data['cadence'],
                 (int) $data['term_months'],
                 $data['renewal_model'],
@@ -178,5 +207,7 @@ class AddComponentHandler
 
         $quote->addComponent($component);
         $this->quoteRepository->save($quote);
+    
+        });
     }
 }

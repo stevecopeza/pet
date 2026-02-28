@@ -28,7 +28,7 @@ class SqlSlaClockStateRepositoryTest extends TestCase
         $ticket = $this->createMock(\Pet\Domain\Support\Entity\Ticket::class);
         $ticket->method('id')->willReturn(123);
         
-        $state = $repo->initialize($ticket);
+        $state = $repo->initialize($ticket, 1);
         
         $this->assertInstanceOf(SlaClockState::class, $state);
         $this->assertEquals(123, $state->getTicketId());

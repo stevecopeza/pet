@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pet\Application\Commercial\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Commercial\Repository\QuoteRepository;
 use Pet\Domain\Commercial\Entity\PaymentMilestone;
 use Pet\Domain\Commercial\Event\PaymentScheduleDefinedEvent;
@@ -11,17 +13,20 @@ use Pet\Domain\Event\EventBus;
 
 class SetPaymentScheduleHandler
 {
+    private TransactionManager $transactionManager;
     private QuoteRepository $quoteRepository;
     private EventBus $eventBus;
 
-    public function __construct(QuoteRepository $quoteRepository, EventBus $eventBus)
+    public function __construct(TransactionManager $transactionManager, QuoteRepository $quoteRepository, EventBus $eventBus)
     {
+        $this->transactionManager = $transactionManager;
         $this->quoteRepository = $quoteRepository;
         $this->eventBus = $eventBus;
     }
 
     public function handle(SetPaymentScheduleCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         $quote = $this->quoteRepository->findById($command->quoteId());
 
         if (!$quote) {
@@ -64,5 +69,7 @@ class SetPaymentScheduleHandler
         );
 
         $this->eventBus->dispatch($event);
+    
+        });
     }
 }

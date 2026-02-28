@@ -4,25 +4,30 @@ declare(strict_types=1);
 
 namespace Pet\Application\Work\Command;
 
+use Pet\Application\System\Service\TransactionManager;
+
 use Pet\Domain\Work\Entity\PersonKpi;
 use Pet\Domain\Work\Repository\PersonKpiRepository;
 use Pet\Domain\Work\Repository\RoleKpiRepository;
 
 class GeneratePersonKpisHandler
 {
+    private TransactionManager $transactionManager;
     private PersonKpiRepository $personKpiRepository;
     private RoleKpiRepository $roleKpiRepository;
 
-    public function __construct(
+    public function __construct(TransactionManager $transactionManager, 
         PersonKpiRepository $personKpiRepository,
         RoleKpiRepository $roleKpiRepository
     ) {
+        $this->transactionManager = $transactionManager;
         $this->personKpiRepository = $personKpiRepository;
         $this->roleKpiRepository = $roleKpiRepository;
     }
 
     public function handle(GeneratePersonKpisCommand $command): void
     {
+        $this->transactionManager->transactional(function () use ($command) {
         // 1. Get Role KPIs
         $roleKpis = $this->roleKpiRepository->findByRoleId($command->roleId());
 
@@ -39,5 +44,7 @@ class GeneratePersonKpisHandler
 
             $this->personKpiRepository->save($personKpi);
         }
+    
+        });
     }
 }

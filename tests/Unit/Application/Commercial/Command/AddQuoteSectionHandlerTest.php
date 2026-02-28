@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pet\Tests\Unit\Application\Commercial\Command;
 
+use Pet\Application\System\Service\TransactionManager;
 use PHPUnit\Framework\TestCase;
 use Pet\Application\Commercial\Command\AddQuoteSectionCommand;
 use Pet\Application\Commercial\Command\AddQuoteSectionHandler;
@@ -69,7 +70,12 @@ final class AddQuoteSectionHandlerTest extends TestCase
                 );
             });
 
-        $handler = new AddQuoteSectionHandler($quoteRepository, $quoteSectionRepository);
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
+        $handler = new AddQuoteSectionHandler($transactionManager, $quoteRepository, $quoteSectionRepository);
 
         $command = new AddQuoteSectionCommand(42, 'New Section');
         $result = $handler->handle($command);
@@ -91,7 +97,12 @@ final class AddQuoteSectionHandlerTest extends TestCase
 
         $quoteSectionRepository = $this->createMock(QuoteSectionRepository::class);
 
-        $handler = new AddQuoteSectionHandler($quoteRepository, $quoteSectionRepository);
+        $transactionManager = $this->createMock(TransactionManager::class);
+        $transactionManager->method('transactional')->willReturnCallback(function ($callable) {
+            return $callable();
+        });
+
+        $handler = new AddQuoteSectionHandler($transactionManager, $quoteRepository, $quoteSectionRepository);
         $command = new AddQuoteSectionCommand(999, 'New Section');
 
         $this->expectException(\DomainException::class);
